@@ -50,7 +50,7 @@ class AIChatProvider with ChangeNotifier {
       }
 
       final response = await _apiService.getChatResponse(query, history);
-      final aiResponse = response['response'] ?? 'لم يتم الحصول على استجابة.';
+      final aiResponse = response['ai_response'] ?? response['response'] ?? 'لم يتم الحصول على استجابة.';
       _messages.add({'role': 'assistant', 'content': aiResponse});
     } catch (e) {
       _errorMessage = 'فشل في الحصول على استجابة: $e';

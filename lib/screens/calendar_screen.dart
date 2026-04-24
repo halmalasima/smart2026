@@ -14,6 +14,9 @@ import '../providers/auth_provider.dart';
 import '../providers/notification_provider.dart';
 import '../services/api_service.dart';
 import 'lawsuit_detail_screen.dart';
+import 'case_detail_screen.dart';
+import 'session_detail_screen.dart';
+import '../models/hearing_model.dart';
 import 'dart:convert';
 
 /// Calendar Screen - التقويم الهجري والميلادي مع إدارة المهام
@@ -130,14 +133,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   void _onNotificationTapped(NotificationResponse response) {
-    // Handle notification tap if needed
     debugPrint('Notification tapped: ID=${response.id}, Payload=${response.payload}');
     
-    // Add notification to NotificationProvider when tapped
     if (mounted) {
       try {
         final notificationProvider = Provider.of<NotificationProvider>(context, listen: false);
-        // Parse payload if it contains notification data
         if (response.payload != null && response.payload!.isNotEmpty) {
           try {
             final payloadData = jsonDecode(response.payload!);
@@ -149,8 +149,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
               type: 'calendar',
               data: payloadData,
             ));
+
+            // Navigate to session detail if it's a session notification
+            if (payloadData['type'] == 'session' && payloadData['hearing_id'] != null) {
+              _navigateToSessionFromNotification(payloadData['hearing_id']);
+            }
           } catch (e) {
-            // If payload is not JSON, create simple notification
             notificationProvider.addNotification(AppNotification(
               id: 'local_${response.id}_${DateTime.now().millisecondsSinceEpoch}',
               title: 'إشعار من التقويم',
@@ -160,7 +164,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
             ));
           }
         } else {
-          // Create notification without payload
           notificationProvider.addNotification(AppNotification(
             id: 'local_${response.id}_${DateTime.now().millisecondsSinceEpoch}',
             title: 'إشعار من التقويم',
@@ -172,6 +175,26 @@ class _CalendarScreenState extends State<CalendarScreen> {
       } catch (e) {
         debugPrint('Error adding notification from tap: $e');
       }
+    }
+  }
+
+  Future<void> _navigateToSessionFromNotification(int hearingId) async {
+    try {
+      final resp = await _apiService.getHearings();
+      final results = resp is Map ? (resp['results'] ?? []) : (resp is List ? resp : []);
+      for (final h in results) {
+        if (h['id'] == hearingId) {
+          final session = HearingModel.fromJson(h as Map<String, dynamic>);
+          if (mounted) {
+            Navigator.push(context, MaterialPageRoute(
+              builder: (_) => SessionDetailScreen(session: session),
+            ));
+          }
+          return;
+        }
+      }
+    } catch (e) {
+      debugPrint('Error navigating to session: $e');
     }
   }
 
@@ -261,50 +284,114 @@ class _CalendarScreenState extends State<CalendarScreen> {
   Future<void> _loadHearings() async {
     setState(() => _isLoading = true);
     try {
-      // Load hearings for the current month
       final startDate = DateTime(_focusedDay.year, _focusedDay.month, 1);
-      final endDate = DateTime(_focusedDay.year, _focusedDay.month + 1, 0);
       
       final response = await _apiService.getHearings();
-      if (response['results'] != null) {
-        for (var hearing in response['results']) {
-          final hearingDate = DateTime.tryParse(hearing['hearing_date'] ?? '');
-          if (hearingDate != null) {
-            final normalizedDate = DateTime(hearingDate.year, hearingDate.month, hearingDate.day);
-            
-            // Filter hearings for the current month only
-            if (normalizedDate.year != startDate.year || normalizedDate.month != startDate.month) {
-              continue;
-            }
-            
-            final task = TaskItem(
-              id: 'hearing_${hearing['id']}',
-              title: 'جلسة: ${hearing['lawsuit']?['case_number'] ?? 'غير معروف'}',
-              description: hearing['notes'] ?? '',
-              date: normalizedDate,
-              time: hearing['hearing_time'] ?? '',
-              type: TaskType.hearing,
-              lawsuitId: hearing['lawsuit']?['id'],
-              color: const Color(0xFFE65100),
-            );
-            
-            if (!_tasks.containsKey(normalizedDate)) {
-              _tasks[normalizedDate] = [];
-            }
-            // Check if hearing already exists
-            if (!_tasks[normalizedDate]!.any((t) => t.id == task.id)) {
-              _tasks[normalizedDate]!.add(task);
-            }
+      final results = response is Map ? (response['results'] ?? []) : (response is List ? response : []);
+      for (var hearing in results) {
+        final hearingDate = DateTime.tryParse(hearing['hearing_date'] ?? '');
+        if (hearingDate != null) {
+          final normalizedDate = DateTime(hearingDate.year, hearingDate.month, hearingDate.day);
+          
+          // Filter hearings for the current month only
+          if (normalizedDate.year != startDate.year || normalizedDate.month != startDate.month) {
+            continue;
+          }
+
+          final sessionType = hearing['session_type'] ?? 'upcoming';
+          final isUpcoming = sessionType == 'upcoming';
+          final caseNum = hearing['lawsuit_case_number'] ?? hearing['lawsuit']?['case_number'] ?? '';
+          
+          final task = TaskItem(
+            id: 'hearing_${hearing['id']}',
+            title: isUpcoming ? 'جلسة قادمة: $caseNum' : 'جلسة سابقة: $caseNum',
+            description: hearing['requirements'] ?? hearing['notes'] ?? '',
+            date: normalizedDate,
+            time: hearing['hearing_time'] ?? '',
+            type: TaskType.hearing,
+            lawsuitId: hearing['lawsuit_id'],
+            caseId: hearing['case_id'],
+            color: isUpcoming ? const Color(0xFF3B82F6) : const Color(0xFFE65100),
+          );
+          
+          if (!_tasks.containsKey(normalizedDate)) {
+            _tasks[normalizedDate] = [];
+          }
+          // Check if hearing already exists
+          if (!_tasks[normalizedDate]!.any((t) => t.id == task.id)) {
+            _tasks[normalizedDate]!.add(task);
+          }
+
+          // Schedule notification for upcoming sessions
+          if (isUpcoming && _enableNotifications) {
+            await _scheduleSessionNotification(hearing);
           }
         }
-        setState(() {
-          _updateSelectedDayTasks();
-        });
       }
+      setState(() {
+        _updateSelectedDayTasks();
+      });
     } catch (e) {
       debugPrint('Error loading hearings: $e');
     } finally {
       setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _scheduleSessionNotification(Map<String, dynamic> hearing) async {
+    try {
+      final hearingDate = DateTime.tryParse(hearing['hearing_date'] ?? '');
+      if (hearingDate == null) return;
+      final now = DateTime.now();
+      final hearingId = hearing['id'] ?? 0;
+
+      // Schedule 1h, 3h, and 1-day before notifications
+      final offsets = [
+        {'label': 'ساعة واحدة', 'duration': const Duration(hours: 1), 'idOffset': 0},
+        {'label': '3 ساعات', 'duration': const Duration(hours: 3), 'idOffset': 1},
+        {'label': 'يوم واحد', 'duration': const Duration(days: 1), 'idOffset': 2},
+      ];
+
+      for (final offset in offsets) {
+        final scheduleTime = hearingDate.subtract(offset['duration'] as Duration);
+        if (scheduleTime.isAfter(now)) {
+          final notifId = (hearingId as int) * 10 + (offset['idOffset'] as int);
+          final payload = jsonEncode({
+            'type': 'session',
+            'hearing_id': hearingId,
+            'case_id': hearing['case_id'],
+            'title': 'تذكير جلسة',
+            'body': 'لديك جلسة بعد ${offset['label']}',
+          });
+
+          try {
+            await _notifications.zonedSchedule(
+              notifId,
+              'تذكير بموعد الجلسة',
+              'لديك جلسة بعد ${offset['label']} - ${hearing['requirements'] ?? ''}',
+              tz.TZDateTime.from(scheduleTime, tz.local),
+              const NotificationDetails(
+                android: AndroidNotificationDetails(
+                  'session_reminders',
+                  'تذكيرات الجلسات',
+                  channelDescription: 'إشعارات تذكير قبل الجلسات',
+                  importance: Importance.high,
+                  priority: Priority.high,
+                  icon: '@mipmap/ic_launcher',
+                ),
+              ),
+              androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+              uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+              payload: payload,
+              matchDateTimeComponents: null,
+            );
+          } catch (e) {
+            debugPrint('Failed to schedule notification $notifId: $e');
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error scheduling session notification: $e');
     }
   }
 
@@ -943,10 +1030,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (task.type == TaskType.hearing && task.lawsuitId != null)
+            if (task.type == TaskType.hearing && (task.caseId != null || task.lawsuitId != null))
               IconButton(
                 icon: const Icon(Icons.folder_open, color: Color(0xFFD4A940)),
-                onPressed: () => _navigateToCase(task.lawsuitId!),
+                onPressed: () => _navigateToCase(task),
                 tooltip: 'عرض القضية',
               ),
             IconButton(
@@ -971,7 +1058,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final descriptionController = TextEditingController();
     final timeController = TextEditingController();
     TaskType selectedType = TaskType.task;
-    int? selectedLawsuitId;
+    int? selectedCaseId;
     
     showModalBottomSheet(
       context: context,
@@ -1120,12 +1207,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   ),
                   const SizedBox(height: 16),
                   
-                  // Link to Archive (for hearing type)
+                  // Link to a case (for hearing type)
                   if (selectedType == TaskType.hearing)
-                    _buildLawsuitLinkDropdown(
-                      selectedLawsuitId: selectedLawsuitId,
+                    _buildCaseLinkDropdown(
+                      selectedCaseId: selectedCaseId,
                       onChanged: (value) {
-                        setModalState(() => selectedLawsuitId = value);
+                        setModalState(() => selectedCaseId = value);
                       },
                     ),
                   
@@ -1142,15 +1229,55 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           );
                           return;
                         }
-                        
+
+                        final navigator = Navigator.of(context);
+                        final messenger = ScaffoldMessenger.of(context);
+
+                        int? resolvedLawsuitId;
+                        int? backendHearingId;
+                        if (selectedType == TaskType.hearing && selectedCaseId != null) {
+                          resolvedLawsuitId = await _resolveFirstLawsuitForCase(selectedCaseId!);
+                          if (resolvedLawsuitId == null) {
+                            messenger.showSnackBar(const SnackBar(
+                              content: Text('لا توجد دعوى ضمن القضية المختارة لربط الجلسة بها. أضف دعوى للقضية أولاً.'),
+                              backgroundColor: Colors.orange,
+                            ));
+                            return;
+                          }
+                          try {
+                            final created = await _apiService.createHearing({
+                              'lawsuit_id': resolvedLawsuitId,
+                              'hearing_date': DateFormat('yyyy-MM-dd').format(date),
+                              if (timeController.text.isNotEmpty)
+                                'hearing_time': timeController.text.length == 5
+                                    ? '${timeController.text}:00'
+                                    : timeController.text,
+                              'notes': descriptionController.text.isEmpty
+                                  ? titleController.text
+                                  : descriptionController.text,
+                              'hearing_type': 'main',
+                            });
+                            backendHearingId = created['id'] as int?;
+                          } catch (e) {
+                            messenger.showSnackBar(SnackBar(
+                              content: Text('تعذر حفظ الجلسة في الخادم: $e'),
+                              backgroundColor: Colors.red,
+                            ));
+                            return;
+                          }
+                        }
+
                         final task = TaskItem(
-                          id: DateTime.now().millisecondsSinceEpoch.toString(),
+                          id: backendHearingId != null
+                              ? 'hearing_$backendHearingId'
+                              : DateTime.now().millisecondsSinceEpoch.toString(),
                           title: titleController.text,
                           description: descriptionController.text,
                           date: date,
                           time: timeController.text,
                           type: selectedType,
-                          lawsuitId: selectedLawsuitId,
+                          lawsuitId: resolvedLawsuitId,
+                          caseId: selectedCaseId,
                           color: selectedType == TaskType.hearing
                               ? const Color(0xFFE65100)
                               : selectedType == TaskType.appointment
@@ -1159,7 +1286,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         );
                         
                         await _addTask(task);
-                        Navigator.pop(context);
+                        navigator.pop();
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFD4A940),
@@ -1282,7 +1409,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final descriptionController = TextEditingController(text: task.description);
     final timeController = TextEditingController(text: task.time);
     TaskType selectedType = task.type;
-    int? selectedLawsuitId = task.lawsuitId;
+    int? selectedCaseId = task.caseId;
     
     showModalBottomSheet(
       context: context,
@@ -1436,12 +1563,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   ),
                   const SizedBox(height: 16),
                   
-                  // Link to Archive (for hearing type)
+                  // Link to a case (for hearing type)
                   if (selectedType == TaskType.hearing)
-                    _buildLawsuitLinkDropdown(
-                      selectedLawsuitId: selectedLawsuitId,
+                    _buildCaseLinkDropdown(
+                      selectedCaseId: selectedCaseId,
                       onChanged: (value) {
-                        setModalState(() => selectedLawsuitId = value);
+                        setModalState(() => selectedCaseId = value);
                       },
                     ),
                   
@@ -1465,7 +1592,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           descriptionController.text,
                           timeController.text,
                           selectedType,
-                          selectedLawsuitId,
+                          selectedCaseId,
                         );
                         Navigator.pop(context);
                       },
@@ -1501,14 +1628,20 @@ class _CalendarScreenState extends State<CalendarScreen> {
     String newDescription,
     String newTime,
     TaskType newType,
-    int? newLawsuitId,
+    int? newCaseId,
   ) async {
     // Cancel old notifications
     await _notifications.cancel(oldTask.id.hashCode);
     await _notifications.cancel(oldTask.id.hashCode + 10000);
     
     final normalizedDate = DateTime(oldTask.date.year, oldTask.date.month, oldTask.date.day);
-    
+
+    // If the case link changed for a hearing, try to resolve a new lawsuit id.
+    int? newLawsuitId = oldTask.lawsuitId;
+    if (newType == TaskType.hearing && newCaseId != null && newCaseId != oldTask.caseId) {
+      newLawsuitId = await _resolveFirstLawsuitForCase(newCaseId);
+    }
+
     final updatedTask = TaskItem(
       id: oldTask.id,
       title: newTitle,
@@ -1517,6 +1650,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       time: newTime,
       type: newType,
       lawsuitId: newLawsuitId,
+      caseId: newCaseId,
       color: newType == TaskType.hearing
           ? const Color(0xFFE65100)
           : newType == TaskType.appointment
@@ -2018,11 +2152,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
         title: Text(hearing.title),
         content: Text('${_getFormattedDate(hearing.date)}\n${hearing.time.isNotEmpty ? 'الوقت: ${hearing.time}' : ''}'),
         actions: [
-          if (hearing.lawsuitId != null)
+          if (hearing.caseId != null || hearing.lawsuitId != null)
             TextButton.icon(
               onPressed: () {
                 Navigator.pop(context);
-                _navigateToCase(hearing.lawsuitId!);
+                _navigateToCase(hearing);
               },
               icon: const Icon(Icons.folder_open),
               label: const Text('عرض القضية'),
@@ -2036,12 +2170,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
-  Widget _buildLawsuitLinkDropdown({
-    required int? selectedLawsuitId,
+  Widget _buildCaseLinkDropdown({
+    required int? selectedCaseId,
     required ValueChanged<int?> onChanged,
   }) {
     return FutureBuilder<dynamic>(
-      future: _apiService.getLawsuits(),
+      future: _apiService.getCases(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Padding(
@@ -2065,33 +2199,31 @@ class _CalendarScreenState extends State<CalendarScreen> {
           );
         }
 
-        // Support both list, paginated and direct results
-        List lawsuits = [];
+        List cases = [];
         final data = snapshot.data;
         if (data is List) {
-          lawsuits = data;
+          cases = data;
         } else if (data is Map) {
           if (data.containsKey('results')) {
-            lawsuits = data['results'] as List? ?? [];
+            cases = data['results'] as List? ?? [];
           } else if (data.containsKey('data')) {
             final inner = data['data'];
             if (inner is Map && inner.containsKey('results')) {
-              lawsuits = inner['results'] as List? ?? [];
+              cases = inner['results'] as List? ?? [];
             } else if (inner is List) {
-              lawsuits = inner;
+              cases = inner;
             }
           }
         }
 
-        // Validate selected value exists in items
-        final validId = lawsuits.any((l) => l['id'] == selectedLawsuitId)
-            ? selectedLawsuitId
+        final validId = cases.any((c) => c['id'] == selectedCaseId)
+            ? selectedCaseId
             : null;
 
         return DropdownButtonFormField<int>(
           value: validId,
           decoration: InputDecoration(
-            labelText: 'ربط بقضية من الأرشيف',
+            labelText: 'ربط بقضية',
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
             ),
@@ -2101,10 +2233,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
               value: null,
               child: Text('بدون ربط'),
             ),
-            ...lawsuits.map((lawsuit) => DropdownMenuItem<int>(
-              value: lawsuit['id'] as int,
+            ...cases.map((c) => DropdownMenuItem<int>(
+              value: c['id'] as int,
               child: Text(
-                '${lawsuit['case_number'] ?? 'غير معروف'} - ${lawsuit['subject'] ?? ''}',
+                '${c['case_number'] ?? 'غير معروف'}${c['subject'] != null ? ' - ${c['subject']}' : ''}',
                 overflow: TextOverflow.ellipsis,
               ),
             )),
@@ -2116,13 +2248,42 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
-  void _navigateToCase(int lawsuitId) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => LawsuitDetailScreen(lawsuitId: lawsuitId),
-      ),
-    );
+  /// Resolve the first (non-appeal) lawsuit under a case so a backend Hearing
+  /// can be attached to it. Returns null if the case has no lawsuits yet.
+  Future<int?> _resolveFirstLawsuitForCase(int caseId) async {
+    try {
+      final resp = await _apiService.getLawsuits(queryParams: {
+        'case': caseId.toString(),
+      });
+      List list = [];
+      if (resp is List) {
+        list = resp;
+      } else if (resp is Map) {
+        list = (resp['results'] as List?) ?? (resp['data'] as List?) ?? [];
+      }
+      if (list.isEmpty) return null;
+      return list.first['id'] as int?;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  void _navigateToCase(TaskItem task) {
+    if (task.caseId != null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => CaseDetailScreen(caseId: task.caseId!),
+        ),
+      );
+    } else if (task.lawsuitId != null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => LawsuitDetailScreen(lawsuitId: task.lawsuitId!),
+        ),
+      );
+    }
   }
 }
 
@@ -2137,6 +2298,7 @@ class TaskItem {
   final String time;
   final TaskType type;
   final int? lawsuitId;
+  final int? caseId;
   final Color color;
 
   TaskItem({
@@ -2147,6 +2309,7 @@ class TaskItem {
     required this.time,
     required this.type,
     this.lawsuitId,
+    this.caseId,
     required this.color,
   });
 
@@ -2159,6 +2322,7 @@ class TaskItem {
       'time': time,
       'type': type.index,
       'lawsuitId': lawsuitId,
+      'caseId': caseId,
       'color': color.value,
     };
   }
@@ -2172,6 +2336,7 @@ class TaskItem {
       time: json['time'],
       type: TaskType.values[json['type']],
       lawsuitId: json['lawsuitId'],
+      caseId: json['caseId'],
       color: Color(json['color']),
     );
   }

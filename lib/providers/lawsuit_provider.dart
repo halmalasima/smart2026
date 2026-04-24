@@ -16,9 +16,15 @@ class LawsuitProvider with ChangeNotifier {
   bool _isLoading = false;
   bool _isLoadingCases = false;
   String? _errorMessage;
+  String? _casesErrorMessage;
   int _totalCount = 0;
   int _currentPage = 1;
   bool _hasMore = true;
+
+  // Cases pagination
+  int _casesCurrentPage = 1;
+  bool _casesHasMore = true;
+  int _casesTotalCount = 0;
 
   // Archive stats
   Map<String, dynamic>? _archiveStats;
@@ -35,6 +41,9 @@ class LawsuitProvider with ChangeNotifier {
 
   List<CaseModel> get cases => _cases;
   bool get isLoadingCases => _isLoadingCases;
+  String? get casesErrorMessage => _casesErrorMessage;
+  int get casesTotalCount => _casesTotalCount;
+  bool get casesHasMore => _casesHasMore;
   List<LawsuitModel> get lawsuits => _lawsuits;
   LawsuitModel? get selectedLawsuit => _selectedLawsuit;
   bool get isLoading => _isLoading;
@@ -368,22 +377,63 @@ class LawsuitProvider with ChangeNotifier {
   // ── Cases ──
 
   Future<void> loadCases({bool refresh = false}) async {
+    if (refresh) {
+      _casesCurrentPage = 1;
+      _cases = [];
+      _casesHasMore = true;
+      _casesErrorMessage = null;
+    }
+    if (!_casesHasMore && !refresh) return;
+
     _isLoadingCases = true;
     notifyListeners();
+
     try {
-      final response = await _apiService.getCases();
-      List<dynamic> resultsList = (response['results'] as List?) ??
-          (response['data'] is List ? response['data'] as List : []);
-      if (resultsList.isEmpty && response['data'] is Map) {
-        resultsList = ((response['data'] as Map)['results'] as List?) ?? [];
+      final params = <String, String>{'page': _casesCurrentPage.toString()};
+      if (_searchQuery != null && _searchQuery!.isNotEmpty) params['search'] = _searchQuery!;
+      if (_caseTypeFilter != null) params['case_type'] = _caseTypeFilter!;
+      if (_caseStatusFilter != null) params['case_status'] = _caseStatusFilter!;
+      if (_ordering != null) params['ordering'] = _ordering!;
+
+      final response = await _apiService.getCases(queryParams: params);
+
+      List<dynamic> resultsList = [];
+      int totalCount = 0;
+      bool hasMore = false;
+
+      if (response.containsKey('results')) {
+        resultsList = (response['results'] as List?) ?? [];
+        totalCount = response['count'] as int? ?? 0;
+        hasMore = response['next'] != null;
+      } else if (response.containsKey('data')) {
+        final data = response['data'];
+        if (data is Map && data.containsKey('results')) {
+          resultsList = (data['results'] as List?) ?? [];
+          totalCount = data['count'] as int? ?? 0;
+          hasMore = data['next'] != null;
+        } else if (data is List) {
+          resultsList = data;
+          totalCount = data.length;
+        }
       }
-      _cases = resultsList
-          .map((json) {
-            try { return CaseModel.fromJson(json); } catch (_) { return null; }
-          })
+
+      final parsed = resultsList
+          .map((json) { try { return CaseModel.fromJson(json); } catch (_) { return null; } })
           .whereType<CaseModel>()
           .toList();
+
+      if (refresh) {
+        _cases = parsed;
+      } else {
+        _cases.addAll(parsed);
+        _cases = _cases.where((c) => c.id != null).toSet().toList();
+      }
+
+      _casesTotalCount = totalCount;
+      _casesHasMore = hasMore;
+      _casesCurrentPage++;
     } catch (e) {
+      _casesErrorMessage = _cases.isEmpty ? e.toString() : null;
       debugPrint('Error loading cases: $e');
     } finally {
       _isLoadingCases = false;
@@ -395,5 +445,24 @@ class LawsuitProvider with ChangeNotifier {
   void clearSelectedLawsuit() {
     _selectedLawsuit = null;
     notifyListeners();
+  }
+
+  /// Deletes a case via the API and removes it from the local list.
+  Future<void> deleteCase(int caseId) async {
+    await _apiService.deleteCase(caseId);
+    _cases.removeWhere((c) => c.id == caseId);
+    if (_casesTotalCount > 0) _casesTotalCount--;
+    notifyListeners();
+  }
+
+  /// Patches a subset of fields on a case and replaces the item in-list.
+  Future<CaseModel> updateCaseFields(int caseId, Map<String, dynamic> patch) async {
+    final updated = await _apiService.patchCase(caseId, patch);
+    final idx = _cases.indexWhere((c) => c.id == caseId);
+    if (idx != -1) {
+      _cases[idx] = updated;
+      notifyListeners();
+    }
+    return updated;
   }
 }

@@ -19,6 +19,10 @@ class ChatProvider with ChangeNotifier {
     _messages.add({'role': 'assistant', 'content': 'مرحباً بك في مساعدك القانوني الذكي. كيف يمكنني مساعدتك اليوم؟'});
   }
 
+  void setAccessToken(String? token) {
+    _apiService.setAccessToken(token);
+  }
+
   Future<void> sendMessage(String userQuery) async {
     _messages.add({'role': 'user', 'content': userQuery});
     _isLoading = true;

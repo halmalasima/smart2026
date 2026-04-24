@@ -1,20 +1,17 @@
-import 'dart:ui' as ui;
+﻿import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import '../theme/app_colors.dart';
-import '../theme/app_spacing.dart';
-import '../theme/app_theme.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../providers/lawsuit_provider.dart';
-import '../models/lawsuit_model.dart';
 import '../models/case_model.dart';
 import '../services/api_service.dart';
 import '../services/local_lookup_service.dart';
-import 'inquiries_screen.dart';
-import 'settings_screen.dart';
-import 'case_archive_details_screen.dart';
+import '../providers/session_provider.dart';
+import '../models/hearing_model.dart';
 import 'case_detail_screen.dart';
+import 'session_form_screen.dart';
+import 'session_detail_screen.dart';
 
 /// Archive Screen - شاشة الأرشيف المركزية الشاملة
 class ArchiveScreen extends StatefulWidget {
@@ -30,13 +27,6 @@ class _ArchiveScreenState extends State<ArchiveScreen> with SingleTickerProvider
   late TabController _tabController;
   bool _isGridView = false;
 
-  int? _extractHijriYear(String? hijriDate) {
-    if (hijriDate == null || hijriDate.trim().isEmpty) return null;
-    final parts = hijriDate.split('/');
-    if (parts.isEmpty) return null;
-    return int.tryParse(parts[0].trim());
-  }
-
   List _extractListFromApiResponse(dynamic response) {
     if (response == null) return const [];
     if (response is List) return response;
@@ -51,30 +41,6 @@ class _ArchiveScreenState extends State<ArchiveScreen> with SingleTickerProvider
     return const [];
   }
 
-  List<String> _getCaseSubtypes(String caseType) {
-    switch (caseType) {
-      case 'civil':
-      case 'مدنية':
-        return ['ضريبية', 'جمركية', 'زكوية', 'مدنية', 'مستعجل'];
-      case 'criminal':
-      case 'جزائية':
-        return ['تعرض للانحراف', 'جسيمة', 'غير جسيمة', 'مستعجلة'];
-      case 'personal_status':
-      case 'شخصية':
-        return ['شخصية', 'مستعجل'];
-      case 'administrative':
-      case 'إدارية':
-        return ['إدارية', 'مستعجل', 'عمالية'];
-      case 'commercial':
-      case 'تجارية':
-        return ['تجارية', 'مستعجل'];
-      case 'تنفيذ':
-        return ['إدارية', 'أوامر', 'مستعجل', 'تجارية', 'شخصية', 'عمالية', 'جنائية', 'مدنية'];
-      default:
-        return const [];
-    }
-  }
-
   // Filter selections
   String? _selectedCaseType;
   String? _selectedCaseStatus;
@@ -82,17 +48,12 @@ class _ArchiveScreenState extends State<ArchiveScreen> with SingleTickerProvider
   String? _selectedOrdering;
 
   static const _caseTypes = [
-    {'value': 'دعوى', 'label': 'دعوى'},
-    {'value': 'امر_اداء', 'label': 'أمر أداء'},
-    {'value': 'رد_على_دعوى', 'label': 'رد على دعوى'},
-    {'value': 'استئناف', 'label': 'استئناف'},
-    {'value': 'طعن', 'label': 'طعن'},
-    {'value': 'civil', 'label': 'مدني'},
-    {'value': 'criminal', 'label': 'جنائي'},
-    {'value': 'commercial', 'label': 'تجاري'},
-    {'value': 'personal_status', 'label': 'أحوال شخصية'},
-    {'value': 'labor', 'label': 'عمالي'},
-    {'value': 'administrative', 'label': 'إداري'},
+    {'value': 'مدنية', 'label': 'مدنية'},
+    {'value': 'جزائية', 'label': 'جزائية'},
+    {'value': 'شخصية', 'label': 'شخصية'},
+    {'value': 'تجارية', 'label': 'تجارية'},
+    {'value': 'إدارية', 'label': 'إدارية'},
+    {'value': 'تنفيذ', 'label': 'تنفيذ'},
   ];
 
   static const _caseStatuses = [
@@ -102,32 +63,17 @@ class _ArchiveScreenState extends State<ArchiveScreen> with SingleTickerProvider
     {'value': 'مغلق', 'label': 'مغلق'},
   ];
 
-  static const _archiveStatuses = [
-    {'value': 'active', 'label': 'نشط', 'icon': Icons.folder_open, 'color': Colors.green},
-    {'value': 'semi_active', 'label': 'شبه نشط', 'icon': Icons.folder_shared, 'color': Colors.orange},
-    {'value': 'archived', 'label': 'محفوظ', 'icon': Icons.archive, 'color': Colors.grey},
-  ];
-
-  static const _orderingOptions = [
-    {'value': '-created_at', 'label': 'الأحدث أولاً'},
-    {'value': 'created_at', 'label': 'الأقدم أولاً'},
-    {'value': '-filing_date', 'label': 'تاريخ الرفع (الأحدث)'},
-    {'value': 'filing_date', 'label': 'تاريخ الرفع (الأقدم)'},
-    {'value': 'case_number', 'label': 'رقم الدعوى'},
-    {'value': '-updated_at', 'label': 'آخر تحديث'},
-  ];
-
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
     _tabController.addListener(_onTabChanged);
     
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = Provider.of<LawsuitProvider>(context, listen: false);
-      provider.loadLawsuits(refresh: true);
       provider.loadCases(refresh: true);
       provider.loadArchiveStats();
+      Provider.of<SessionProvider>(context, listen: false).loadSessions();
     });
     _scrollController.addListener(_onScroll);
   }
@@ -144,18 +90,23 @@ class _ArchiveScreenState extends State<ArchiveScreen> with SingleTickerProvider
     if (!_tabController.indexIsChanging) {
       final provider = Provider.of<LawsuitProvider>(context, listen: false);
       switch (_tabController.index) {
-        case 0: // الكل
-          provider.setArchiveStatusFilter(null);
+        case 0:
+          provider.setCaseStatusFilter(null);
+          _selectedCaseStatus = null;
           break;
-        case 1: // نشط
-          provider.setArchiveStatusFilter('active');
+        case 1:
+          provider.setCaseStatusFilter('جديد');
+          _selectedCaseStatus = 'جديد';
           break;
-        case 2: // محفوظ
-          provider.setArchiveStatusFilter('archived');
+        case 2:
+          provider.setCaseStatusFilter('مكتمل');
+          _selectedCaseStatus = 'مكتمل';
           break;
+        case 3:
+          // Sessions tab — no case filter
+          return;
       }
-      _selectedArchiveStatus = provider.archiveStatusFilter;
-      provider.loadLawsuits(refresh: true);
+      provider.loadCases(refresh: true);
     }
   }
 
@@ -163,8 +114,8 @@ class _ArchiveScreenState extends State<ArchiveScreen> with SingleTickerProvider
     if (_scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent * 0.9) {
       final provider = Provider.of<LawsuitProvider>(context, listen: false);
-      if (provider.hasMore && !provider.isLoading) {
-        provider.loadLawsuits();
+      if (provider.casesHasMore && !provider.isLoadingCases) {
+        provider.loadCases();
       }
     }
   }
@@ -172,16 +123,15 @@ class _ArchiveScreenState extends State<ArchiveScreen> with SingleTickerProvider
   void _applySearch() {
     final provider = Provider.of<LawsuitProvider>(context, listen: false);
     provider.setSearchQuery(_searchController.text.trim().isEmpty ? null : _searchController.text.trim());
-    provider.loadLawsuits(refresh: true);
+    provider.loadCases(refresh: true);
   }
 
   void _applyFilters() {
     final provider = Provider.of<LawsuitProvider>(context, listen: false);
     provider.setCaseTypeFilter(_selectedCaseType);
     provider.setCaseStatusFilter(_selectedCaseStatus);
-    provider.setArchiveStatusFilter(_selectedArchiveStatus);
     provider.setOrdering(_selectedOrdering);
-    provider.loadLawsuits(refresh: true);
+    provider.loadCases(refresh: true);
   }
 
   void _showFilterSheet() {
@@ -220,7 +170,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> with SingleTickerProvider
     });
     final provider = Provider.of<LawsuitProvider>(context, listen: false);
     provider.clearFilters();
-    provider.loadLawsuits(refresh: true);
+    provider.loadCases(refresh: true);
   }
 
   @override
@@ -243,18 +193,38 @@ class _ArchiveScreenState extends State<ArchiveScreen> with SingleTickerProvider
             if (!isKeyboardVisible) _buildActiveFilterChips(),
             // Results list (takes remaining space, scrollable)
             Expanded(
-              child: _buildResultsList(),
+              child: _tabController.index == 3
+                  ? _buildSessionsTab()
+                  : _buildResultsList(),
             ),
           ],
         ),
       ),
-      floatingActionButton: isKeyboardVisible ? null : FloatingActionButton.extended(
-        heroTag: 'add_new_case',
-        backgroundColor: const Color(0xFFD4A940),
-        onPressed: _showNewCaseForm,
-        icon: const Icon(Icons.create_new_folder_rounded, color: Colors.white),
-        label: const Text('إنشاء ملف قضية', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-      ),
+      floatingActionButton: isKeyboardVisible
+          ? null
+          : _tabController.index == 3
+              ? FloatingActionButton.extended(
+                  heroTag: 'add_new_session',
+                  backgroundColor: AppColors.brand,
+                  onPressed: () async {
+                    final result = await Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const SessionFormScreen()),
+                    );
+                    if (result != null) {
+                      Provider.of<SessionProvider>(context, listen: false).loadSessions();
+                    }
+                  },
+                  icon: const Icon(Icons.add_circle_outline, color: Colors.white),
+                  label: const Text('إضافة جلسة', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                )
+              : FloatingActionButton.extended(
+                  heroTag: 'add_new_case',
+                  backgroundColor: const Color(0xFFD4A940),
+                  onPressed: _showNewCaseForm,
+                  icon: const Icon(Icons.create_new_folder_rounded, color: Colors.white),
+                  label: const Text('إنشاء ملف قضية', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                ),
     );
   }
 
@@ -435,23 +405,16 @@ class _ArchiveScreenState extends State<ArchiveScreen> with SingleTickerProvider
   Widget _buildStatsBar() {
     return Consumer<LawsuitProvider>(
       builder: (context, provider, _) {
-        final stats = provider.archiveStats;
-        final total = stats?['total'] ?? provider.totalCount;
-        final active = stats?['by_archive_status']?['active'] ?? 0;
-        final archived = stats?['by_archive_status']?['archived'] ?? 0;
-
+        final total = provider.casesTotalCount;
+        final loaded = provider.cases.length;
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           child: IntrinsicHeight(
             child: Row(
               children: [
-                _buildStatChip('الكل', total, const Color(0xFF1A2138)),
+                _buildStatChip('إجمالي القضايا', total, const Color(0xFF1A2138)),
                 const SizedBox(width: 6),
-                _buildStatChip('نشط', active, Colors.green),
-                const SizedBox(width: 6),
-                _buildStatChip('محفوظ', archived, Colors.grey),
-                const SizedBox(width: 6),
-                _buildStatChip('النتائج', provider.totalCount, const Color(0xFFD4A940)),
+                _buildStatChip('المحملة', loaded, const Color(0xFFD4A940)),
               ],
             ),
           ),
@@ -512,8 +475,9 @@ class _ArchiveScreenState extends State<ArchiveScreen> with SingleTickerProvider
         labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
         tabs: const [
           Tab(text: 'جميع القضايا'),
-          Tab(text: 'النشطة'),
-          Tab(text: 'المحفوظة'),
+          Tab(text: 'الجديدة'),
+          Tab(text: 'المكتملة'),
+          Tab(text: 'الجلسات'),
         ],
       ),
     );
@@ -592,11 +556,11 @@ class _ArchiveScreenState extends State<ArchiveScreen> with SingleTickerProvider
   Widget _buildResultsList() {
     return Consumer<LawsuitProvider>(
       builder: (context, provider, child) {
-        if (provider.isLoading && provider.lawsuits.isEmpty) {
+        if (provider.isLoadingCases && provider.cases.isEmpty) {
           return const Center(child: CircularProgressIndicator(color: Color(0xFFD4A940)));
         }
 
-        if (provider.errorMessage != null && provider.lawsuits.isEmpty) {
+        if (provider.casesErrorMessage != null && provider.cases.isEmpty) {
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -604,13 +568,13 @@ class _ArchiveScreenState extends State<ArchiveScreen> with SingleTickerProvider
                 Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
                 const SizedBox(height: 14),
                 Text(
-                  provider.errorMessage ?? 'حدث خطأ',
+                  provider.casesErrorMessage ?? 'حدث خطأ',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: Colors.red[300]),
                 ),
                 const SizedBox(height: 14),
                 ElevatedButton.icon(
-                  onPressed: () => provider.loadLawsuits(refresh: true),
+                  onPressed: () => provider.loadCases(refresh: true),
                   icon: const Icon(Icons.refresh),
                   label: const Text('إعادة المحاولة'),
                   style: ElevatedButton.styleFrom(
@@ -623,22 +587,22 @@ class _ArchiveScreenState extends State<ArchiveScreen> with SingleTickerProvider
           );
         }
 
-        if (provider.lawsuits.isEmpty) {
+        if (provider.cases.isEmpty) {
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.archive_outlined, size: 80, color: Colors.grey[300]),
+                Icon(Icons.folder_open_outlined, size: 80, color: Colors.grey[300]),
                 const SizedBox(height: 14),
                 Text(
-                  provider.hasActiveFilters ? 'لا توجد نتائج مطابقة' : 'الأرشيف فارغ',
+                  provider.hasActiveFilters ? 'لا توجد نتائج مطابقة' : 'لا توجد قضايا بعد',
                   style: TextStyle(color: Colors.grey[600], fontSize: 14, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 6),
                 Text(
                   provider.hasActiveFilters
                       ? 'جرّب تغيير معايير البحث أو الفلترة'
-                      : 'اضغط + لإضافة دعوى جديدة',
+                      : 'اضغط إنشاء ملف قضية لإضافة قضية جديدة',
                   style: TextStyle(color: Colors.grey[500], fontSize: 14),
                 ),
                 if (provider.hasActiveFilters) ...[
@@ -657,7 +621,6 @@ class _ArchiveScreenState extends State<ArchiveScreen> with SingleTickerProvider
         return RefreshIndicator(
           color: const Color(0xFFD4A940),
           onRefresh: () async {
-            await provider.loadLawsuits(refresh: true);
             await provider.loadCases(refresh: true);
             await provider.loadArchiveStats();
           },
@@ -668,88 +631,163 @@ class _ArchiveScreenState extends State<ArchiveScreen> with SingleTickerProvider
   }
 
   Widget _buildListView(LawsuitProvider provider) {
-    final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
-    final isKeyboardVisible = keyboardHeight > 0;
+    final isKeyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
     final cases = provider.cases;
-    final lawsuits = provider.lawsuits;
-    // Cases section count: header + items (or 0 if empty)
-    final caseSectionCount = cases.isEmpty ? 0 : cases.length + 1;
-    final totalCount = caseSectionCount + lawsuits.length + (provider.isLoading ? 1 : 0);
+    final itemCount = cases.length + (provider.isLoadingCases && cases.isNotEmpty ? 1 : 0);
 
     return ListView.builder(
       controller: _scrollController,
-      padding: EdgeInsets.fromLTRB(3, 1, 1, isKeyboardVisible ? 0 : 30),
-      itemCount: totalCount,
+      padding: EdgeInsets.fromLTRB(8, 8, 8, isKeyboardVisible ? 0 : 30),
+      itemCount: itemCount,
       itemBuilder: (context, index) {
-        // Cases header
-        if (cases.isNotEmpty && index == 0) {
-          return Padding(
-            padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
-            child: Row(children: [
-              const Icon(Icons.folder_rounded, color: Color(0xFFD4A940), size: 20),
-              const SizedBox(width: 6),
-              Text('ملفات القضايا (${cases.length})', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1B5E3B))),
-            ]),
-          );
+        if (index == cases.length) {
+          return const Center(child: Padding(
+            padding: EdgeInsets.all(16),
+            child: CircularProgressIndicator(color: Color(0xFFD4A940)),
+          ));
         }
-        // Cases items
-        if (cases.isNotEmpty && index > 0 && index <= cases.length) {
-          final c = cases[index - 1];
-          return Card(
-            margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            elevation: 1,
-            child: ListTile(
-              leading: Container(
-                width: 40, height: 40,
-                decoration: BoxDecoration(color: const Color(0xFFD4A940).withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
-                child: const Icon(Icons.folder_open_rounded, color: Color(0xFFD4A940), size: 22),
-              ),
-              title: Text(c.subject ?? 'بدون موضوع', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-              subtitle: Text('${c.caseNumber} • ${c.caseType ?? ''} • ${c.caseStatus ?? ''}', style: TextStyle(fontSize: 11, color: Colors.grey[600])),
-              trailing: const Icon(Icons.chevron_right, color: Colors.grey),
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CaseDetailScreen(caseId: c.id!))),
-            ),
-          );
-        }
-        // Lawsuits
-        final lawsuitIndex = index - caseSectionCount;
-        if (lawsuitIndex >= lawsuits.length) {
-          return const Center(child: Padding(padding: EdgeInsets.all(6), child: CircularProgressIndicator(color: Color(0xFFD4A940))));
-        }
-        return _ArchiveLawsuitCard(
-          lawsuit: lawsuits[lawsuitIndex],
-          onArchive: () => _showArchiveDialog(lawsuits[lawsuitIndex]),
-        );
+        return _CaseArchiveCard(caseModel: cases[index]);
       },
     );
   }
 
   Widget _buildGridView(LawsuitProvider provider) {
-    final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
-    final isKeyboardVisible = keyboardHeight > 0;
-    
+    final isKeyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
+    final cases = provider.cases;
+
     return GridView.builder(
       controller: _scrollController,
-      padding: EdgeInsets.fromLTRB(
-        4, 
-        1, 
-        4, 
-        isKeyboardVisible ? 0 : 30,
-      ),
+      padding: EdgeInsets.fromLTRB(8, 8, 8, isKeyboardVisible ? 0 : 30),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
-        mainAxisSpacing: 4,
-        crossAxisSpacing: 4,
+        mainAxisSpacing: 8,
+        crossAxisSpacing: 8,
         childAspectRatio: 0.85,
       ),
-      itemCount: provider.lawsuits.length + (provider.isLoading ? 1 : 0),
+      itemCount: cases.length + (provider.isLoadingCases && cases.isNotEmpty ? 1 : 0),
       itemBuilder: (context, index) {
-        if (index == provider.lawsuits.length) {
+        if (index == cases.length) {
           return const Center(child: CircularProgressIndicator(color: Color(0xFFD4A940)));
         }
-        return _ArchiveGridCard(lawsuit: provider.lawsuits[index]);
+        return _CaseArchiveCard(caseModel: cases[index], isGrid: true);
       },
+    );
+  }
+
+  // ─── Sessions Tab ─────────────────────────────────────────────
+  Widget _buildSessionsTab() {
+    return Consumer<SessionProvider>(
+      builder: (context, prov, _) {
+        if (prov.isLoading && prov.sessions.isEmpty) {
+          return const Center(child: CircularProgressIndicator(color: AppColors.brand));
+        }
+        if (prov.error != null && prov.sessions.isEmpty) {
+          return Center(child: Text(prov.error!, style: const TextStyle(color: Colors.red)));
+        }
+
+        final filtered = prov.filteredSessions;
+
+        return Column(
+          children: [
+            // Period filter chips
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                reverse: true,
+                child: Row(
+                  children: [
+                    _periodChip('اليوم', 'today', prov),
+                    const SizedBox(width: 6),
+                    _periodChip('الأسبوع', 'week', prov),
+                    const SizedBox(width: 6),
+                    _periodChip('الشهر', 'month', prov),
+                    const SizedBox(width: 6),
+                    ActionChip(
+                      label: Text(
+                        prov.periodFilter == 'custom' && prov.customFrom != null
+                            ? '${DateFormat('MM/dd').format(prov.customFrom!)} - ${DateFormat('MM/dd').format(prov.customTo!)}'
+                            : 'مخصص',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: prov.periodFilter == 'custom' ? Colors.white : Colors.grey[700],
+                        ),
+                      ),
+                      backgroundColor: prov.periodFilter == 'custom' ? AppColors.brand : Colors.grey.shade100,
+                      side: BorderSide(
+                        color: prov.periodFilter == 'custom' ? AppColors.brand : Colors.grey.shade300,
+                      ),
+                      onPressed: () async {
+                        final range = await showDateRangePicker(
+                          context: context,
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime(2040),
+                        );
+                        if (range != null) {
+                          prov.setCustomRange(range.start, range.end);
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            // Sessions count
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  Text('${filtered.length} جلسة',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600], fontWeight: FontWeight.w600)),
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.refresh, size: 18, color: AppColors.gold),
+                    onPressed: () => prov.loadSessions(),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
+              ),
+            ),
+            // Sessions list
+            Expanded(
+              child: filtered.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.event_busy, size: 64, color: Colors.grey[300]),
+                          const SizedBox(height: 12),
+                          Text('لا توجد جلسات في هذه الفترة',
+                            style: TextStyle(color: Colors.grey[500], fontSize: 14)),
+                        ],
+                      ),
+                    )
+                  : RefreshIndicator(
+                      color: AppColors.brand,
+                      onRefresh: () => prov.loadSessions(),
+                      child: ListView.builder(
+                        padding: const EdgeInsets.fromLTRB(12, 4, 12, 80),
+                        itemCount: filtered.length,
+                        itemBuilder: (_, i) => _SessionCard(session: filtered[i]),
+                      ),
+                    ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _periodChip(String label, String value, SessionProvider prov) {
+    final isSelected = prov.periodFilter == value;
+    return ChoiceChip(
+      label: Text(label, style: TextStyle(fontSize: 12, color: isSelected ? Colors.white : Colors.grey[700])),
+      selected: isSelected,
+      selectedColor: AppColors.brand,
+      backgroundColor: Colors.grey.shade100,
+      side: BorderSide(color: isSelected ? AppColors.brand : Colors.grey.shade300),
+      onSelected: (_) => prov.setPeriodFilter(value),
     );
   }
 
@@ -1218,7 +1256,6 @@ class _ArchiveScreenState extends State<ArchiveScreen> with SingleTickerProvider
                         if (mounted) {
                           Navigator.of(ctx).pop();
                           final provider = Provider.of<LawsuitProvider>(outerContext, listen: false);
-                          provider.loadLawsuits(refresh: true);
                           provider.loadCases(refresh: true);
 
                           // Show generated passwords if any
@@ -1284,70 +1321,6 @@ class _ArchiveScreenState extends State<ArchiveScreen> with SingleTickerProvider
     );
   }
 
-  void _showArchiveDialog(LawsuitModel lawsuit) {
-    final reasonController = TextEditingController();
-    final isArchived = lawsuit.archiveStatus == 'archived';
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(
-          isArchived ? 'استعادة من الأرشيف' : 'أرشفة الدعوى',
-          textAlign: TextAlign.right,
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Text(
-              isArchived
-                  ? 'هل تريد استعادة الدعوى رقم ${lawsuit.caseNumber} من الأرشيف؟'
-                  : 'هل تريد أرشفة الدعوى رقم ${lawsuit.caseNumber}؟',
-              textAlign: TextAlign.right,
-            ),
-            if (!isArchived) ...[
-              const SizedBox(height: 14),
-              TextField(
-                controller: reasonController,
-                textDirection: ui.TextDirection.rtl,
-                maxLines: 2,
-                decoration: InputDecoration(
-                  labelText: 'سبب الأرشفة (اختياري)',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                ),
-              ),
-            ],
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('إلغاء'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              final provider = Provider.of<LawsuitProvider>(context, listen: false);
-              if (isArchived) {
-                await provider.unarchiveLawsuit(lawsuit.id!);
-              } else {
-                await provider.archiveLawsuit(
-                  lawsuit.id!,
-                  reason: reasonController.text.isNotEmpty ? reasonController.text : null,
-                );
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: isArchived ? Colors.green : const Color(0xFFD4A940),
-              foregroundColor: Colors.white,
-            ),
-            child: Text(isArchived ? 'استعادة' : 'أرشفة'),
-          ),
-        ],
-      ),
-    );
-  }
-
   void _confirmResetDatabase(LawsuitProvider provider) {
     showDialog(
       context: context,
@@ -1359,7 +1332,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> with SingleTickerProvider
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(ctx);
-              await provider.loadLawsuits(refresh: true);
+              await provider.loadCases(refresh: true);
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('تم تحديث البيانات بنجاح.'), backgroundColor: Colors.green),
@@ -1375,329 +1348,394 @@ class _ArchiveScreenState extends State<ArchiveScreen> with SingleTickerProvider
   }
 }
 
-/// Lawsuit Card for Archive List View
-class _ArchiveLawsuitCard extends StatelessWidget {
-  final LawsuitModel lawsuit;
-  final VoidCallback? onArchive;
+/// Case Card for Archive - بطاقة ملف القضية في الأرشيف
+class _CaseArchiveCard extends StatelessWidget {
+  final CaseModel caseModel;
+  final bool isGrid;
 
-  const _ArchiveLawsuitCard({required this.lawsuit, this.onArchive});
+  const _CaseArchiveCard({required this.caseModel, this.isGrid = false});
+
+  Color get _statusColor {
+    switch (caseModel.caseStatus) {
+      case 'جديد': return Colors.blue;
+      case 'قيد_النظر': return Colors.orange;
+      case 'مكتمل': return Colors.green;
+      case 'مغلق': return Colors.grey;
+      default: return Colors.blueGrey;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      elevation: 1,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: lawsuit.archiveStatus == 'archived'
-              ? Colors.grey.withOpacity(0.3)
-              : Colors.transparent,
-        ),
-      ),
+      margin: EdgeInsets.only(bottom: isGrid ? 0 : 8),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => CaseArchiveDetailsScreen(
-                lawsuitId: lawsuit.id!,
-                caseTitle: lawsuit.subject ?? 'بدون عنوان',
-                caseNumber: lawsuit.caseNumber,
-              ),
-            ),
-          );
-        },
+        borderRadius: BorderRadius.circular(14),
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => CaseDetailScreen(caseId: caseModel.id!)),
+        ),
+        onLongPress: () => _showCaseActionsSheet(context),
         child: Padding(
           padding: const EdgeInsets.all(14),
+          child: isGrid ? _buildGridContent() : _buildListContent(),
+        ),
+      ),
+    );
+  }
+
+  void _showCaseActionsSheet(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetCtx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                margin: const EdgeInsets.only(top: 8, bottom: 4),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                child: Row(
+                  children: [
+                    const Icon(Icons.folder_open_rounded, color: Color(0xFFD4A940)),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'رقم: ${caseModel.caseNumber}',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                        textAlign: TextAlign.right,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(Icons.edit_rounded, color: Colors.blue),
+                title: const Text('تعديل القضية', textAlign: TextAlign.right),
+                onTap: () {
+                  Navigator.pop(sheetCtx);
+                  _showEditCaseDialog(context);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete_outline_rounded, color: Colors.red),
+                title: const Text('حذف القضية', textAlign: TextAlign.right),
+                onTap: () {
+                  Navigator.pop(sheetCtx);
+                  _confirmAndDelete(context);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _confirmAndDelete(BuildContext context) async {
+    if (caseModel.id == null) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dCtx) => AlertDialog(
+        title: const Text('تأكيد الحذف'),
+        content: Text(
+          'هل أنت متأكد من حذف القضية رقم ${caseModel.caseNumber}؟ لا يمكن التراجع عن هذا الإجراء.',
+          textAlign: TextAlign.right,
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dCtx, false), child: const Text('إلغاء')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(dCtx, true),
+            child: const Text('حذف', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    final provider = Provider.of<LawsuitProvider>(context, listen: false);
+    try {
+      await provider.deleteCase(caseModel.id!);
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('تم حذف القضية بنجاح'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('تعذر حذف القضية: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _showEditCaseDialog(BuildContext context) async {
+    if (caseModel.id == null) return;
+    final formKey = GlobalKey<FormState>();
+    final caseNumberCtrl = TextEditingController(text: caseModel.caseNumber);
+    final subjectCtrl = TextEditingController(text: caseModel.subject ?? '');
+    String status = caseModel.caseStatus ?? 'جديد';
+    DateTime? filingDate = caseModel.filingDate;
+
+    const statuses = <String>['جديد', 'قيد_النظر', 'مكتمل', 'مغلق'];
+
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dCtx) {
+        return StatefulBuilder(
+          builder: (dCtx, setDState) => AlertDialog(
+            title: const Text('تعديل القضية', textAlign: TextAlign.right),
+            content: SingleChildScrollView(
+              child: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextFormField(
+                      controller: caseNumberCtrl,
+                      textDirection: ui.TextDirection.rtl,
+                      decoration: const InputDecoration(labelText: 'رقم القضية *'),
+                      validator: (v) => (v == null || v.trim().isEmpty) ? 'مطلوب' : null,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: subjectCtrl,
+                      textDirection: ui.TextDirection.rtl,
+                      decoration: const InputDecoration(labelText: 'الموضوع'),
+                      maxLines: 2,
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      value: statuses.contains(status) ? status : 'جديد',
+                      decoration: const InputDecoration(labelText: 'الحالة'),
+                      items: statuses
+                          .map((s) => DropdownMenuItem(value: s, child: Text(s.replaceAll('_', ' '))))
+                          .toList(),
+                      onChanged: (v) => setDState(() => status = v ?? status),
+                    ),
+                    const SizedBox(height: 12),
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(
+                        filingDate == null
+                            ? 'تاريخ التقديم: غير محدد'
+                            : 'تاريخ التقديم: ${DateFormat('yyyy-MM-dd').format(filingDate!)}',
+                        textAlign: TextAlign.right,
+                      ),
+                      trailing: const Icon(Icons.calendar_today),
+                      onTap: () async {
+                        final picked = await showDatePicker(
+                          context: dCtx,
+                          initialDate: filingDate ?? DateTime.now(),
+                          firstDate: DateTime(2000),
+                          lastDate: DateTime(2100),
+                        );
+                        if (picked != null) setDState(() => filingDate = picked);
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(dCtx, false), child: const Text('إلغاء')),
+              ElevatedButton(
+                onPressed: () {
+                  if (formKey.currentState?.validate() ?? false) {
+                    Navigator.pop(dCtx, true);
+                  }
+                },
+                child: const Text('حفظ'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (saved != true) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    final provider = Provider.of<LawsuitProvider>(context, listen: false);
+    try {
+      await provider.updateCaseFields(caseModel.id!, {
+        'case_number': caseNumberCtrl.text.trim(),
+        'subject': subjectCtrl.text.trim(),
+        'case_status': status,
+        if (filingDate != null)
+          'filing_date': DateFormat('yyyy-MM-dd').format(filingDate!),
+      });
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('تم تحديث القضية بنجاح'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('تعذر تحديث القضية: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      caseNumberCtrl.dispose();
+      subjectCtrl.dispose();
+    }
+  }
+
+  Widget _buildListContent() {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Folder icon
+        Container(
+          width: 46, height: 46,
+          decoration: BoxDecoration(
+            color: const Color(0xFFD4A940).withOpacity(0.12),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: const Icon(Icons.folder_open_rounded, color: Color(0xFFD4A940), size: 26),
+        ),
+        const SizedBox(width: 12),
+        // Info
+        Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              // Top row: case number + archive badge + status
               Row(
                 children: [
-                  // Archive action
-                  if (onArchive != null)
-                    GestureDetector(
-                      onTap: onArchive,
-                      child: Icon(
-                        lawsuit.archiveStatus == 'archived' ? Icons.unarchive : Icons.archive_outlined,
-                        size: 20,
-                        color: Colors.grey[500],
-                      ),
-                    ),
-                  const SizedBox(width: 8),
-                  // Sync indicator/button
-                  if (!lawsuit.isSynced)
-                    IconButton(
-                      icon: const Icon(Icons.cloud_upload, color: Colors.orange, size: 20),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                      onPressed: () {
-                        Provider.of<LawsuitProvider>(context, listen: false).loadLawsuits(refresh: true);
-                      },
-                      tooltip: 'تحديث',
-                    )
-                  else
-                    Icon(Icons.cloud_done, color: Colors.green.withOpacity(0.5), size: 16),
-                  const SizedBox(width: 8),
-                  // Status chip
-                  _StatusBadge(status: lawsuit.caseStatus ?? lawsuit.status),
-                  const Spacer(),
-                  // Archive badge
-                  if (lawsuit.archiveStatus != 'active')
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      margin: const EdgeInsets.only(left: 8),
-                      decoration: BoxDecoration(
-                        color: lawsuit.archiveStatus == 'archived'
-                            ? Colors.grey.withOpacity(0.15)
-                            : Colors.orange.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        lawsuit.archiveStatusDisplay,
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: lawsuit.archiveStatus == 'archived' ? Colors.grey[700] : Colors.orange[700],
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  // Case number
-                  Text(
-                    lawsuit.caseNumber,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1A2138),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              // Subject
-              if (lawsuit.subject != null && lawsuit.subject!.isNotEmpty)
-                Text(
-                  lawsuit.subject!,
-                  style: const TextStyle(fontSize: 14, color: Color(0xFF333333)),
-                  textAlign: TextAlign.right,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              const SizedBox(height: 8),
-              // Bottom row: type + date + counts
-              Row(
-                children: [
-                  // Counts
-                  if (lawsuit.attachmentsCount > 0)
-                    _CountBadge(icon: Icons.attach_file, count: lawsuit.attachmentsCount),
-                  if (lawsuit.hearingsCount > 0)
-                    _CountBadge(icon: Icons.event, count: lawsuit.hearingsCount),
-                  if (lawsuit.plaintiffsCount > 0 || lawsuit.defendantsCount > 0)
-                    _CountBadge(
-                      icon: Icons.people,
-                      count: lawsuit.plaintiffsCount + lawsuit.defendantsCount,
-                    ),
-                  const Spacer(),
-                  // Date
-                  if (lawsuit.filingDate != null)
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          DateFormat('yyyy/MM/dd').format(lawsuit.filingDate!),
-                          style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                        ),
-                        const SizedBox(width: 4),
-                        Icon(Icons.calendar_today, size: 14, color: Colors.grey[500]),
-                      ],
-                    ),
-                  const SizedBox(width: 12),
-                  // Case type
+                  // Status badge
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFD4A940).withOpacity(0.08),
+                      color: _statusColor.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
-                      lawsuit.caseTypeDisplay,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: Color(0xFFD4A940),
-                        fontWeight: FontWeight.w600,
-                      ),
+                      caseModel.caseStatus ?? '',
+                      style: TextStyle(fontSize: 10, color: _statusColor, fontWeight: FontWeight.bold),
                     ),
                   ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Grid card for archive
-class _ArchiveGridCard extends StatelessWidget {
-  final LawsuitModel lawsuit;
-
-  const _ArchiveGridCard({required this.lawsuit});
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      elevation: 1,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => CaseArchiveDetailsScreen(
-                lawsuitId: lawsuit.id!,
-                caseTitle: lawsuit.subject ?? 'ملف قضية',
-                caseNumber: lawsuit.caseNumber,
-              ),
-            ),
-          );
-        },
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              // Archive badge
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _StatusBadge(status: lawsuit.caseStatus ?? lawsuit.status),
-                  Icon(
-                    lawsuit.archiveStatus == 'archived' ? Icons.archive : Icons.folder_open,
-                    color: lawsuit.archiveStatus == 'archived' ? Colors.grey : Colors.green,
-                    size: 20,
+                  const Spacer(),
+                  // Case number
+                  Text(
+                    'رقم: ${caseModel.caseNumber}',
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF1A2138)),
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
+              // Subject
               Text(
-                lawsuit.caseNumber,
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                ),
+                caseModel.subject ?? 'بدون موضوع',
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF222222)),
                 textAlign: TextAlign.right,
-                maxLines: 1,
+                maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(height: 4),
-              Text(
-                lawsuit.caseTypeDisplay,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[600],
-                ),
-                textAlign: TextAlign.right,
+              const SizedBox(height: 6),
+              // Footer: type + court + date
+              Row(
+                children: [
+                  const Icon(Icons.chevron_right, color: Color(0xFFD4A940), size: 18),
+                  const Spacer(),
+                  if (caseModel.caseType != null)
+                    _Tag(caseModel.caseType!),
+                  if (caseModel.governorate != null) ...[
+                    const SizedBox(width: 4),
+                    _Tag(caseModel.governorate!),
+                  ],
+                  if (caseModel.filingDate != null) ...[
+                    const SizedBox(width: 4),
+                    _Tag('${caseModel.filingDate!.year}/${caseModel.filingDate!.month.toString().padLeft(2,'0')}/${caseModel.filingDate!.day.toString().padLeft(2,'0')}'),
+                  ],
+                ],
               ),
-              if (lawsuit.subject != null) ...[
-                const SizedBox(height: 6),
-                Text(
-                  lawsuit.subject!,
-                  style: TextStyle(fontSize: 12, color: Colors.grey[700]),
-                  textAlign: TextAlign.right,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-              const Spacer(),
-              if (lawsuit.filingDate != null)
-                Text(
-                  DateFormat('yyyy/MM/dd').format(lawsuit.filingDate!),
-                  style: TextStyle(color: Colors.grey[500], fontSize: 11),
-                  textAlign: TextAlign.right,
-                ),
             ],
           ),
         ),
-      ),
+      ],
+    );
+  }
+
+  Widget _buildGridContent() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: _statusColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(caseModel.caseStatus ?? '', style: TextStyle(fontSize: 10, color: _statusColor, fontWeight: FontWeight.bold)),
+            ),
+            const Spacer(),
+            const Icon(Icons.folder_open_rounded, color: Color(0xFFD4A940), size: 22),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'رقم: ${caseModel.caseNumber}',
+          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF1A2138)),
+        ),
+        const SizedBox(height: 4),
+        Expanded(
+          child: Text(
+            caseModel.subject ?? 'بدون موضوع',
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+            textAlign: TextAlign.right,
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        const SizedBox(height: 6),
+        if (caseModel.caseType != null) _Tag(caseModel.caseType!),
+      ],
     );
   }
 }
 
-/// Status badge widget
-class _StatusBadge extends StatelessWidget {
-  final String? status;
-  const _StatusBadge({required this.status});
-
-  Color get _color {
-    switch (status ?? '') {
-      case 'new': case 'جديد': return Colors.blue;
-      case 'pending': case 'قيد الانتظار': return Colors.orange;
-      case 'in_progress': case 'قيد_النظر': return Colors.blue;
-      case 'completed': case 'مكتمل': return Colors.green;
-      case 'appealed': case 'مستأنف': return Colors.purple;
-      case 'closed': case 'مغلق': return Colors.grey;
-      default: return Colors.grey;
-    }
-  }
-
-  String get _text {
-    switch (status ?? '') {
-      case 'new': case 'جديد': return 'جديد';
-      case 'pending': case 'قيد الانتظار': return 'قيد الانتظار';
-      case 'in_progress': case 'قيد_النظر': return 'قيد النظر';
-      case 'completed': case 'مكتمل': return 'مكتمل';
-      case 'appealed': case 'مستأنف': return 'مستأنف';
-      case 'closed': case 'مغلق': return 'مغلق';
-      default: return (status ?? '').isNotEmpty ? status! : '—';
-    }
-  }
+/// Small tag chip
+class _Tag extends StatelessWidget {
+  final String label;
+  const _Tag(this.label);
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: _color.withOpacity(0.12),
-        borderRadius: BorderRadius.circular(8),
+        color: Colors.grey.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(5),
       ),
-      child: Text(
-        _text,
-        style: TextStyle(
-          color: _color,
-          fontSize: 11,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
+      child: Text(label, style: const TextStyle(fontSize: 10, color: Colors.black54)),
     );
   }
 }
 
-/// Small count badge
-class _CountBadge extends StatelessWidget {
-  final IconData icon;
-  final int count;
-  const _CountBadge({required this.icon, required this.count});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text('$count', style: TextStyle(fontSize: 11, color: Colors.grey[600])),
-          const SizedBox(width: 2),
-          Icon(icon, size: 14, color: Colors.grey[500]),
-        ],
-      ),
-    );
-  }
-}
 
 /// Filter Bottom Sheet
 class _FilterBottomSheet extends StatefulWidget {
@@ -1724,21 +1762,15 @@ class _FilterBottomSheet extends StatefulWidget {
 class _FilterBottomSheetState extends State<_FilterBottomSheet> {
   String? _caseType;
   String? _caseStatus;
-  String? _archiveStatus;
   String? _ordering;
 
   static const _caseTypes = [
-    {'value': 'دعوى', 'label': 'دعوى'},
-    {'value': 'امر_اداء', 'label': 'أمر أداء'},
-    {'value': 'رد_على_دعوى', 'label': 'رد على دعوى'},
-    {'value': 'استئناف', 'label': 'استئناف'},
-    {'value': 'طعن', 'label': 'طعن'},
-    {'value': 'civil', 'label': 'مدني'},
-    {'value': 'criminal', 'label': 'جنائي'},
-    {'value': 'commercial', 'label': 'تجاري'},
-    {'value': 'personal_status', 'label': 'أحوال شخصية'},
-    {'value': 'labor', 'label': 'عمالي'},
-    {'value': 'administrative', 'label': 'إداري'},
+    {'value': 'مدنية', 'label': 'مدنية'},
+    {'value': 'جزائية', 'label': 'جزائية'},
+    {'value': 'شخصية', 'label': 'شخصية'},
+    {'value': 'تجارية', 'label': 'تجارية'},
+    {'value': 'إدارية', 'label': 'إدارية'},
+    {'value': 'تنفيذ', 'label': 'تنفيذ'},
   ];
 
   static const _caseStatuses = [
@@ -1746,12 +1778,6 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
     {'value': 'قيد_النظر', 'label': 'قيد النظر'},
     {'value': 'مكتمل', 'label': 'مكتمل'},
     {'value': 'مغلق', 'label': 'مغلق'},
-  ];
-
-  static const _archiveStatuses = [
-    {'value': 'active', 'label': 'نشط', 'icon': Icons.folder_open, 'color': Colors.green},
-    {'value': 'semi_active', 'label': 'شبه نشط', 'icon': Icons.folder_shared, 'color': Colors.orange},
-    {'value': 'archived', 'label': 'محفوظ', 'icon': Icons.archive, 'color': Colors.grey},
   ];
 
   static const _orderingOptions = [
@@ -1768,7 +1794,6 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
     super.initState();
     _caseType = widget.selectedCaseType;
     _caseStatus = widget.selectedCaseStatus;
-    _archiveStatus = widget.selectedArchiveStatus;
     _ordering = widget.selectedOrdering;
   }
 
@@ -1842,23 +1867,6 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
                   ),
                   const SizedBox(height: 14),
                   _buildDropdown(
-                    label: 'حالة الأرشفة',
-                    value: _archiveStatus,
-                    items: _archiveStatuses.map((a) => DropdownMenuItem(
-                      value: a['value'] as String,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(a['icon'] as IconData, size: 18, color: a['color'] as Color),
-                          const SizedBox(width: 8),
-                          Text(a['label'] as String),
-                        ],
-                      ),
-                    )).toList(),
-                    onChanged: (v) => setState(() => _archiveStatus = v),
-                  ),
-                  const SizedBox(height: 14),
-                  _buildDropdown(
                     label: 'الترتيب',
                     value: _ordering,
                     items: _orderingOptions.map((o) => DropdownMenuItem(
@@ -1881,7 +1889,7 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
                 child: ElevatedButton.icon(
                   onPressed: () {
                     Navigator.pop(context);
-                    widget.onApply(_caseType, _caseStatus, _archiveStatus, _ordering);
+                    widget.onApply(_caseType, _caseStatus, null, _ordering);
                   },
                   icon: const Icon(Icons.check, size: 20),
                   label: const Text('تطبيق الفلترة', style: TextStyle(fontSize: 16)),
@@ -1915,6 +1923,130 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       ),
       isExpanded: true,
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Session Card Widget
+// ═══════════════════════════════════════════════════════════════
+
+class _SessionCard extends StatelessWidget {
+  final HearingModel session;
+  const _SessionCard({required this.session});
+
+  @override
+  Widget build(BuildContext context) {
+    final isUpcoming = session.isUpcoming;
+    final dateStr = DateFormat('yyyy/MM/dd', 'ar').format(session.hearingDate);
+    final dayName = DateFormat('EEEE', 'ar').format(session.hearingDate);
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      elevation: 1,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => SessionDetailScreen(session: session)),
+          ).then((_) {
+            Provider.of<SessionProvider>(context, listen: false).loadSessions();
+          });
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              // Date badge
+              Container(
+                width: 52, height: 56,
+                decoration: BoxDecoration(
+                  gradient: isUpcoming
+                      ? const LinearGradient(colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)])
+                      : const LinearGradient(colors: [Color(0xFFF59E0B), Color(0xFFD97706)]),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(session.hearingDate.day.toString(),
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+                    Text(DateFormat('MMM', 'ar').format(session.hearingDate),
+                      style: const TextStyle(color: Colors.white70, fontSize: 10)),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              // Content
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: isUpcoming ? Colors.blue.withOpacity(0.1) : Colors.orange.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            session.sessionTypeDisplay,
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: isUpcoming ? Colors.blue : Colors.orange,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(session.typeDisplay,
+                          style: TextStyle(fontSize: 10, color: Colors.grey[500])),
+                        const Spacer(),
+                        Text(session.timeOfDayDisplay,
+                          style: TextStyle(fontSize: 10, color: Colors.grey[500])),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text('$dayName - $dateStr',
+                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                    if (session.hearingTime != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(session.hearingTime!,
+                          style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+                      ),
+                    if (session.requirements.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(session.requirements,
+                        maxLines: 1, overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+                    ],
+                    if (session.courtDecision != null && session.courtDecision!.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          const Icon(Icons.balance, size: 12, color: AppColors.goldDark),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(session.courtDecision!,
+                              maxLines: 1, overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 11, color: AppColors.goldDark)),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: 4),
+              Icon(Icons.chevron_left, color: Colors.grey[400], size: 20),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

@@ -176,8 +176,56 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const Divider(),
 
+          // Security Settings
+          _buildSectionHeader('الأمان والخصوصية'),
+          SwitchListTile(
+            secondary: const Icon(Icons.screen_lock_portrait),
+            title: const Text('قفل التطبيق تلقائياً'),
+            subtitle: const Text('قفل التطبيق عند الخروج من الشاشة'),
+            value: settingsProvider.autoLockEnabled,
+            onChanged: (value) {
+              settingsProvider.setAutoLockEnabled(value);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(value ? 'تم تفعيل القفل التلقائي' : 'تم إلغاء القفل التلقائي'),
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.security),
+            title: const Text('التحقق بخطوتين'),
+            subtitle: const Text('تفعيل التحقق بخطوتين (قريباً)'),
+            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+            onTap: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('قريباً: التحقق بخطوتين')),
+              );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.admin_panel_settings),
+            title: const Text('سجل الأمان'),
+            subtitle: const Text('عرض سجل الأنشطة الأمنية'),
+            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+            onTap: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('قريباً: سجل الأمان')),
+              );
+            },
+          ),
+          const Divider(),
+
           // App Settings
           _buildSectionHeader('إعدادات التطبيق'),
+          ListTile(
+            leading: const Icon(Icons.timer),
+            title: const Text('مدة الجلسة'),
+            subtitle: Text(_getSessionTimeoutText(settingsProvider.sessionTimeoutMinutes)),
+            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+            onTap: () => _showSessionTimeoutDialog(context, settingsProvider),
+          ),
           SwitchListTile(
             secondary: const Icon(Icons.notifications),
             title: const Text('الإشعارات'),
@@ -538,6 +586,46 @@ class _SettingsScreenState extends State<SettingsScreen> {
       },
     );
     controller.dispose();
+  }
+
+  String _getSessionTimeoutText(int minutes) {
+    if (minutes == 30) return '30 دقيقة';
+    if (minutes == 60) return 'ساعة واحدة';
+    if (minutes == 120) return 'ساعتان';
+    if (minutes == 240) return '4 ساعات';
+    if (minutes == 480) return '8 ساعات';
+    if (minutes == 1440) return 'يوم واحد';
+    return '$minutes دقيقة';
+  }
+
+  void _showSessionTimeoutDialog(BuildContext context, SettingsProvider settingsProvider) {
+    const options = [30, 60, 120, 240, 480, 1440];
+    
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('مدة الجلسة'),
+        content: const Text('اختر مدة الجلسة قبل تسجيل الخروج تلقائياً:'),
+        actions: [
+          ...options.map((minutes) => ListTile(
+            title: Text(_getSessionTimeoutText(minutes)),
+            trailing: settingsProvider.sessionTimeoutMinutes == minutes 
+                ? const Icon(Icons.check, color: Colors.green) 
+                : null,
+            onTap: () {
+              settingsProvider.setSessionTimeoutMinutes(minutes);
+              Navigator.pop(ctx);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('تم تحديد مدة الجلسة: ${_getSessionTimeoutText(minutes)}'),
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+            },
+          )),
+        ],
+      ),
+    );
   }
 }
 

@@ -84,7 +84,7 @@ class CaseModel {
       'case_type': caseType,
       'case_subtype': caseSubtype,
       'governorate': governorate,
-      'court_fk': courtId,
+      'court_id': courtId,
       'client': clientId,
     };
   }

@@ -76,7 +76,7 @@ class _ChatScreenState extends State<ChatScreen> {
       final apiService = Provider.of<ApiService>(context, listen: false);
       final response = await apiService.post('/api/messaging/messages/', {
         'recipient': widget.recipientId,
-        'lawsuit': widget.lawsuitId,
+        'lawsuit_id': widget.lawsuitId,
         'content': content,
       });
 

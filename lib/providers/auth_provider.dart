@@ -1,31 +1,44 @@
 import 'package:flutter/foundation.dart';
 import 'dart:developer' as developer;
+import 'dart:async';
 import 'dart:io';
+import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../config/api_config.dart';
 import '../services/api_service.dart';
 import '../services/biometric_service.dart';
 import '../models/user_model.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
+import '../providers/settings_provider.dart';
 
 /// Authentication Provider using Provider pattern
-class AuthProvider with ChangeNotifier {
+class AuthProvider with ChangeNotifier, WidgetsBindingObserver {
   final ApiService _apiService;
   
   AuthProvider({ApiService? apiService}) 
-      : _apiService = apiService ?? ApiService();
+      : _apiService = apiService ?? ApiService() {
+    WidgetsBinding.instance.addObserver(this);
+  }
       
   UserModel? _currentUser;
   bool _isLoading = false;
   String? _errorMessage;
   bool _isGuest = false;
-  Future<void>? _guestTimer;
+  Timer? _sessionTimer;
+  Future? _guestTimer;
+  bool _isAppInBackground = false;
 
   UserModel? get currentUser => _currentUser;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   bool get isAuthenticated => _currentUser != null || _isGuest;
   bool get isGuest => _isGuest;
+
+  void setError(String message) {
+    _errorMessage = message;
+    _isLoading = false;
+    notifyListeners();
+  }
 
   void setGuestMode(bool value) {
     _isGuest = value;
@@ -125,8 +138,8 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  // Login
-  Future<bool> login(String username, String password) async {
+  // Login (using phone number)
+  Future<bool> login(String phone, String password) async {
     _isLoading = true;
     _errorMessage = null;
     _currentUser = null; // Reset user
@@ -134,7 +147,7 @@ class AuthProvider with ChangeNotifier {
 
     try {
       // Step 1: Login to get tokens
-      final response = await _apiService.login(username, password);
+      final response = await _apiService.login(phone, password);
       
       final accessToken = response['access'];
       final refreshToken = response['refresh'];
@@ -180,6 +193,26 @@ class AuthProvider with ChangeNotifier {
         print('❌ [Auth] Error getting user profile: $e');
         print('📋 [Auth] Stack trace: $stackTrace');
         developer.log('Error getting user profile: $e', name: 'AuthProvider', error: e);
+        
+        // Try to load from cache if network error
+        if (e is SocketException || 
+            e.toString().contains('SocketException') || 
+            e.toString().contains('Failed host lookup') ||
+            e.toString().contains('Network is unreachable')) {
+          print('📡 [Auth] Network error, trying to load from cache...');
+          _currentUser = await _loadCachedProfile();
+          if (_currentUser != null) {
+            print('✅ [Auth] Loaded user from cache: ${_currentUser?.username}');
+            _isLoading = false;
+            notifyListeners();
+            
+            // Start session timer even when using cached data
+            _startSessionTimer();
+            
+            return true;
+          }
+        }
+        
         // Failed to get user profile - clear tokens and show error
         await _clearStoredTokens();
         _apiService.clearTokens();
@@ -204,9 +237,12 @@ class AuthProvider with ChangeNotifier {
       try {
         final bio = BiometricService.instance;
         if (await bio.isEnabled) {
-          await bio.enable(username, password);
+          await bio.enable(phone, password);
         }
       } catch (_) {}
+
+      // Start session timeout timer
+      _startSessionTimer();
 
       _isLoading = false;
       notifyListeners();
@@ -221,69 +257,94 @@ class AuthProvider with ChangeNotifier {
       if (e is SocketException || 
           errorMsg.contains('SocketException') || 
           errorMsg.contains('Failed host lookup') ||
-          errorMsg.contains('Network is unreachable')) {
-        _errorMessage = 'لا يوجد اتصال بالإنترنت\nيرجى التحقق من اتصال الإنترنت والمحاولة مرة أخرى';
+          errorMsg.contains('Network is unreachable') ||
+          errorMsg.contains('ApiErrorCode.noConnection')) {
+          
+        // محاولة الدخول بدون شبكة إذا كانت البيانات المحفوظة مطابقة
+        final prefs = await SharedPreferences.getInstance();
+        final savePassword = prefs.getBool('save_password') ?? false;
+        final savedPassword = prefs.getString('saved_password');
+        final savedPhone = prefs.getString('saved_phone');
+        
+        if (savePassword && savedPhone == phone && savedPassword == password) {
+          _currentUser = await _loadCachedProfile();
+          if (_currentUser != null) {
+            print('✅ [Auth] Logged in offline using saved credentials');
+            _isLoading = false;
+            _errorMessage = null;
+            notifyListeners();
+            _startSessionTimer();
+            return true;
+          }
+        }
+        
+        _errorMessage = 'خطأ في الاتصال بالإنترنت';
       } 
       // أخطاء انتهاء المهلة
       else if (errorMsg.contains('TimeoutException') || 
                errorMsg.contains('timeout') ||
                errorMsg.contains('Connection timed out')) {
-        if (ApiConfig.baseUrl.contains('127.0.0.1')) {
-          _errorMessage =
-              'انتهت مهلة الاتصال: لم يُعثر على الخادم على الشبكة.\n'
-              'شغّل Django على جهاز الكمبيوتر ثم اضغط زر التحديث بجانب عنوان الخادم في شاشة الدخول.';
-        } else {
-          _errorMessage =
-              'انتهت مهلة الاتصال بالخادم ${ApiConfig.baseUrl}\n'
-              'تأكد من تشغيل الخادم ومن جدار الحماية (المنفذ 8000).';
+        // محاولة الدخول بدون شبكة إذا كانت البيانات المحفوظة مطابقة
+        final prefs = await SharedPreferences.getInstance();
+        if ((prefs.getBool('save_password') ?? false) && 
+            prefs.getString('saved_phone') == phone && 
+            prefs.getString('saved_password') == password) {
+          _currentUser = await _loadCachedProfile();
+          if (_currentUser != null) {
+            _isLoading = false; _errorMessage = null; notifyListeners(); _startSessionTimer(); return true;
+          }
         }
+        
+        _errorMessage = 'انتهت مهلة الاتصال بالخادم';
       }
       // أخطاء رفض الاتصال
       else if (errorMsg.contains('Connection refused') ||
                errorMsg.contains('Unable to connect')) {
-        if (ApiConfig.baseUrl.contains('127.0.0.1')) {
-          _errorMessage =
-              'لم يُعثر على خادم Django على شبكة Wi‑Fi.\n'
-              'شغّل الخادم: python manage.py runserver 0.0.0.0:8000\n'
-              'ثم اضغط زر التحديث بجانب «الخادم على شبكة Wi‑Fi» أعلاه.';
-        } else {
-          _errorMessage =
-              'لا يمكن الاتصال بالخادم على:\n${ApiConfig.baseUrl}\n'
-              'تأكد من تشغيل Django (runserver 0.0.0.0:8000) ومن الشبكة.';
+        // محاولة الدخول بدون شبكة إذا كانت البيانات المحفوظة مطابقة
+        final prefs = await SharedPreferences.getInstance();
+        if ((prefs.getBool('save_password') ?? false) && 
+            prefs.getString('saved_phone') == phone && 
+            prefs.getString('saved_password') == password) {
+          _currentUser = await _loadCachedProfile();
+          if (_currentUser != null) {
+            _isLoading = false; _errorMessage = null; notifyListeners(); _startSessionTimer(); return true;
+          }
         }
+        
+        _errorMessage = 'لا يمكن الوصول للخادم';
       }
-      // أخطاء المصادقة (اسم المستخدم/كلمة المرور)
+      // أخطاء المصادقة (رقم الهاتف/كلمة المرور)
       else if (errorMsg.contains('401') || 
                errorMsg.contains('Unauthorized') ||
                errorMsg.contains('Invalid credentials') ||
                errorMsg.contains('Unable to log in') ||
                errorMsg.contains('No active account found') ||
-               errorMsg.contains('Invalid username/password')) {
-        _errorMessage = 'اسم المستخدم أو كلمة المرور غير صحيحة\nيرجى التحقق من البيانات والمحاولة مرة أخرى';
+               errorMsg.contains('Invalid username/password') ||
+               errorMsg.contains('لا يوجد حساب')) {
+        _errorMessage = 'رقم الهاتف أو كلمة المرور غير صحيحة';
       }
       // أخطاء 400 (Bad Request)
       else if (errorMsg.contains('400') || 
                errorMsg.contains('Bad Request')) {
-        _errorMessage = 'بيانات الدخول غير صحيحة\nيرجى التحقق من اسم المستخدم وكلمة المرور';
+        _errorMessage = 'بيانات الدخول غير صحيحة';
       }
       // أخطاء 404
       else if (errorMsg.contains('404') || 
                errorMsg.contains('Not found')) {
-        _errorMessage = 'الخدمة غير متاحة حالياً\nيرجى المحاولة لاحقاً';
+        _errorMessage = 'الخدمة غير متاحة حالياً';
       }
       // أخطاء 500 (Server Error)
       else if (errorMsg.contains('500') || 
                errorMsg.contains('Internal Server Error')) {
-        _errorMessage = 'خطأ في الخادم\nيرجى المحاولة لاحقاً أو الاتصال بالدعم الفني';
+        _errorMessage = 'حدث خطأ في الخادم';
       }
       // أخطاء أخرى
       else {
-        // إزالة التفاصيل التقنية من رسالة الخطأ
         String cleanError = errorMsg;
         if (cleanError.contains('Exception: ')) {
           cleanError = cleanError.replaceFirst('Exception: ', '');
         }
-        _errorMessage = 'حدث خطأ أثناء تسجيل الدخول\n$cleanError';
+        _errorMessage = 'خطأ غير متوقع: $cleanError';
       }
       
       _isLoading = false;
@@ -294,13 +355,80 @@ class AuthProvider with ChangeNotifier {
 
   // Logout
   Future<void> logout() async {
+    // Cancel session timer
+    _sessionTimer?.cancel();
+    _sessionTimer = null;
+    
     await _clearStoredTokens();
     _apiService.clearTokens();
     _currentUser = null;
     _errorMessage = null;
     _isGuest = false;
     _guestTimer = null;
+    
+    // Clear saved phone number for auto-login
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('saved_phone');
+    
+    // Disable biometric login
+    try {
+      final bio = BiometricService.instance;
+      if (await bio.isEnabled) {
+        await bio.disable();
+      }
+    } catch (_) {}
+    
     notifyListeners();
+  }
+  
+  // Start session timeout timer
+  void _startSessionTimer() async {
+    final prefs = await SharedPreferences.getInstance();
+    final timeoutMinutes = prefs.getInt('session_timeout_minutes') ?? 60;
+    
+    _sessionTimer?.cancel();
+    _sessionTimer = Timer(Duration(minutes: timeoutMinutes), () {
+      print('⏰ [Auth] Session timeout reached, logging out');
+      logout();
+    });
+    
+    print('⏰ [Auth] Session timer started: $timeoutMinutes minutes');
+  }
+
+  // App lifecycle monitoring for auto lock
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    
+    if (state == AppLifecycleState.paused) {
+      _isAppInBackground = true;
+      print('📱 [Auth] App went to background');
+    } else if (state == AppLifecycleState.resumed) {
+      if (_isAppInBackground && _currentUser != null) {
+        _checkAutoLock();
+      }
+      _isAppInBackground = false;
+      print('📱 [Auth] App resumed');
+    }
+  }
+  
+  // Check if auto lock is enabled and lock the app
+  Future<void> _checkAutoLock() async {
+    final prefs = await SharedPreferences.getInstance();
+    final autoLockEnabled = prefs.getBool('auto_lock_enabled') ?? false;
+    
+    if (autoLockEnabled && _currentUser != null) {
+      print('🔒 [Auth] Auto lock enabled, logging out');
+      await logout();
+    }
+  }
+  
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _sessionTimer?.cancel();
+    _guestTimer = null;
+    super.dispose();
   }
 
   // Clear stored tokens
@@ -308,6 +436,7 @@ class AuthProvider with ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('access_token');
     await prefs.remove('refresh_token');
+    await prefs.remove('cached_user_profile');
   }
   
   // Get ApiService instance (for use in screens)
@@ -327,7 +456,7 @@ class AuthProvider with ChangeNotifier {
         notifyListeners();
         return false;
       }
-      return await login(credentials.username, credentials.password);
+      return await login(credentials.phone, credentials.password);
     } catch (e) {
       _errorMessage = 'فشل تسجيل الدخول بالبصمة';
       _isLoading = false;

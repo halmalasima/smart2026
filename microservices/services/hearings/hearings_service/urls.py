@@ -4,7 +4,7 @@ from smartjudi_common.health import health_check
 from hearings.views import HearingViewSet
 
 router = DefaultRouter()
-router.register(r'hearings', HearingViewSet)
+router.register(r'hearings', HearingViewSet, basename='hearing')
 
 urlpatterns = [
     path('health/', health_check),

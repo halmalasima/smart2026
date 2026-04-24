@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
 import '../providers/lawsuit_provider.dart';
 import '../providers/auth_provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../models/lawsuit_model.dart';
 import '../models/party_model.dart';
 import '../config/api_config.dart';
@@ -17,6 +18,7 @@ import 'package:flutter/foundation.dart';
 import '../presentation/widgets/party_display_row.dart';
 import '../presentation/widgets/party_input_row.dart';
 import '../theme/app_colors.dart';
+import '../utils/attachment_utils.dart';
 
 /// Lawsuit Detail Screen - Updated to support legal templates
 class LawsuitDetailScreen extends StatefulWidget {
@@ -802,7 +804,7 @@ class _LawsuitDetailScreenState extends State<LawsuitDetailScreen> {
     if (_isEditMode) {
       final success = await provider.updateLawsuit(widget.lawsuitId!, lawsuit);
       if (success && mounted) {
-        Navigator.pop(context);
+        Navigator.pop(context, true);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('تم تحديث الدعوى بنجاح'),
@@ -867,7 +869,7 @@ class _LawsuitDetailScreenState extends State<LawsuitDetailScreen> {
           for (var plaintiffData in _plaintiffsData) {
             if (plaintiffData['name'] != null && (plaintiffData['name'] as String).isNotEmpty) {
               await authProvider.apiService.createPlaintiff({
-                'lawsuit_id': createdLawsuit.id!,
+                'lawsuit': createdLawsuit.id!,
                 'name': plaintiffData['name'],
                 'gender': plaintiffData['gender'] == 'ذكر' ? 'male' : 'female',
                 'nationality': plaintiffData['nationality'] ?? '',
@@ -883,7 +885,7 @@ class _LawsuitDetailScreenState extends State<LawsuitDetailScreen> {
           for (var defendantData in _defendantsData) {
             if (defendantData['name'] != null && (defendantData['name'] as String).isNotEmpty) {
               await authProvider.apiService.createDefendant({
-                'lawsuit_id': createdLawsuit.id!,
+                'lawsuit': createdLawsuit.id!,
                 'name': defendantData['name'],
                 'gender': defendantData['gender'] == 'ذكر' ? 'male' : 'female',
                 'nationality': defendantData['nationality'] ?? '',
@@ -2132,7 +2134,7 @@ class _LawsuitDetailScreenState extends State<LawsuitDetailScreen> {
       final lawsuitId = widget.lawsuitId!;
       
       final partyData = {
-        'lawsuit_id': lawsuitId,
+        'lawsuit': lawsuitId,
         'name': name,
         'gender': gender,
         'nationality': nationality,
@@ -2335,6 +2337,51 @@ class _LawsuitDetailScreenState extends State<LawsuitDetailScreen> {
   Widget _buildAttachmentsSection() {
     final attachmentsToShow = _isEditMode ? _attachments : [];
     final attachmentsDataToShow = _isEditMode ? [] : _attachmentsData;
+
+    if (_isEditMode) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'مرفقات الدعوى (ترفق صورة من الوثائق)',
+            style: TextStyle(
+              fontSize: MediaQuery.of(context).size.width > 600 ? 18 : 16,
+              fontWeight: FontWeight.bold,
+            ),
+            textAlign: TextAlign.right,
+          ),
+          const SizedBox(height: 12),
+          if (_isLoadingAttachments && attachmentsToShow.isEmpty)
+            const Center(child: CircularProgressIndicator())
+          else if (attachmentsToShow.isEmpty)
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Text(
+                  'لا توجد مرفقات',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey.shade600),
+                ),
+              ),
+            )
+          else
+            ...attachmentsToShow.map((a) => _buildAttachmentCard(a)).toList(),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _showAddAttachmentDialog,
+              icon: const Icon(Icons.add, color: Colors.white, size: 20),
+              label: const Text('+ إضافة مرفق', style: TextStyle(color: Colors.white, fontSize: 14)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
     
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2376,19 +2423,6 @@ class _LawsuitDetailScreenState extends State<LawsuitDetailScreen> {
                       ],
                     ),
                   ),
-                  // Table Rows
-                  if (_isEditMode)
-                    ...(_isLoadingAttachments && attachmentsToShow.isEmpty
-                        ? [const Padding(
-                            padding: EdgeInsets.all(16.0),
-                            child: Center(child: CircularProgressIndicator()),
-                          )]
-                        : attachmentsToShow.isEmpty
-                            ? [const Padding(
-                                padding: EdgeInsets.all(16.0),
-                                child: Text('لا توجد مرفقات', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
-                              )]
-                            : attachmentsToShow.map((a) => _buildAttachmentRow(a)).toList()),
                   if (!_isEditMode)
                     ...attachmentsDataToShow.asMap().entries.map((entry) {
                       return _buildAttachmentRowData(entry.value, entry.key);
@@ -2404,11 +2438,7 @@ class _LawsuitDetailScreenState extends State<LawsuitDetailScreen> {
           child: ElevatedButton.icon(
             onPressed: () {
               setState(() {
-                if (_isEditMode) {
-                  _showAddAttachmentDialog();
-                } else {
-                  _attachmentsData.add({});
-                }
+                _attachmentsData.add({});
               });
             },
             icon: const Icon(Icons.add, color: Colors.white, size: 20),
@@ -2619,6 +2649,50 @@ class _LawsuitDetailScreenState extends State<LawsuitDetailScreen> {
     );
   }
 
+  void _previewAttachmentCard(Map<String, dynamic> attachment) {
+    final rawFileUrl = (attachment['file_url'] ?? attachment['file'])?.toString();
+    final fileName = (attachment['original_filename'] ?? '').toString();
+    AttachmentUtils.preview(
+      context,
+      rawFileUrl: rawFileUrl,
+      fileName: fileName,
+    );
+  }
+
+  Future<void> _openAttachmentExternal(String rawFileUrl, String fileName) async {
+    final resolved = AttachmentUtils.resolveUrl(rawFileUrl);
+    if (resolved == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('لا يوجد ملف مرفق')),
+        );
+      }
+      return;
+    }
+    final uri = Uri.parse(resolved);
+    try {
+      final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!launched && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('لا يمكن فتح الملف'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    } catch (e) {
+      developer.log('Error opening attachment: $e', name: 'LawsuitDetailScreen');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('خطأ في فتح الملف: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   Widget _buildAttachmentCard(Map<String, dynamic> attachment) {
     final docTypeDisplay = attachment['document_type_display'] ?? attachment['document_type'] ?? 'غير محدد';
     final fileName = attachment['original_filename'] ?? attachment['file'] ?? 'ملف';
@@ -2630,51 +2704,83 @@ class _LawsuitDetailScreenState extends State<LawsuitDetailScreen> {
         ? DateFormat('yyyy-MM-dd').format(DateTime.parse(attachment['created_at']))
         : '';
     final fileUrl = attachment['file_url'] ?? attachment['file'] ?? '';
+    final color = AttachmentUtils.fileColor(fileName);
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        leading: const Icon(Icons.description, color: Colors.blue),
-        title: Text(
-          docTypeDisplay,
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (fileName.isNotEmpty) Text('الملف: $fileName'),
-            if (content.isNotEmpty) 
-              Text(
-                'المضمون: ${content.length > 50 ? content.substring(0, 50) + "..." : content}',
-                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-              ),
-            if (pageCount > 0) Text('عدد الصفحات: $pageCount'),
-            if (fileSize.isNotEmpty) Text('الحجم: $fileSize'),
-            if (createdAt.isNotEmpty) Text('تاريخ الإضافة: $createdAt'),
-          ],
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (fileUrl.isNotEmpty)
-              IconButton(
-                icon: const Icon(Icons.download, color: Colors.blue),
-                onPressed: () => _downloadOrOpenAttachment(fileUrl, fileName),
-                tooltip: 'تحميل/فتح المستند',
-              ),
-            IconButton(
-              icon: const Icon(Icons.edit, color: Colors.orange),
-              onPressed: () => _showEditAttachmentDialog(attachment),
-              tooltip: 'تعديل المستند',
+      elevation: 0,
+      margin: const EdgeInsets.only(bottom: 10),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ListTile(
+            contentPadding: const EdgeInsets.fromLTRB(12, 8, 8, 4),
+            leading: Container(
+              width: 42, height: 42,
+              decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle),
+              child: Icon(AttachmentUtils.fileIcon(fileName), color: color, size: 22),
             ),
-            IconButton(
-              icon: const Icon(Icons.delete, color: Colors.red),
-              onPressed: () => _deleteAttachment(attachment['id']),
-              tooltip: 'حذف المستند',
+            title: Text(
+              fileName,
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
             ),
-          ],
-        ),
-        isThreeLine: true,
+            subtitle: Text(
+              '$docTypeDisplay${pageCount > 0 ? " • $pageCount صفحة" : ""}${fileSize.isNotEmpty ? " • $fileSize" : ""}${createdAt.isNotEmpty ? " • $createdAt" : ""}',
+              style: TextStyle(color: Colors.grey[600], fontSize: 11),
+            ),
+          ),
+          if (content.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+              child: Text(content, style: TextStyle(color: Colors.grey[700], fontSize: 12), maxLines: 2, overflow: TextOverflow.ellipsis),
+            ),
+          if (evidenceBasis.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+              child: Text('الأساس: $evidenceBasis', style: TextStyle(color: Colors.grey[600], fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis),
+            ),
+          const Divider(height: 1),
+          Row(
+            children: [
+              Expanded(
+                child: TextButton.icon(
+                  icon: Icon(Icons.visibility_rounded, size: 16, color: color),
+                  label: Text('معاينة', style: TextStyle(fontSize: 12, color: color)),
+                  onPressed: () => _previewAttachmentCard(attachment),
+                ),
+              ),
+              Container(width: 1, height: 32, color: Colors.grey.shade200),
+              Expanded(
+                child: TextButton.icon(
+                  icon: const Icon(Icons.edit_rounded, size: 16, color: Colors.orange),
+                  label: const Text('تعديل', style: TextStyle(fontSize: 12, color: Colors.orange)),
+                  onPressed: () => _showEditAttachmentDialog(attachment),
+                ),
+              ),
+              Container(width: 1, height: 32, color: Colors.grey.shade200),
+              Expanded(
+                child: TextButton.icon(
+                  icon: const Icon(Icons.delete_outline_rounded, size: 16, color: Colors.red),
+                  label: const Text('حذف', style: TextStyle(fontSize: 12, color: Colors.red)),
+                  onPressed: () => _deleteAttachment(attachment['id']),
+                ),
+              ),
+              if (fileUrl.isNotEmpty) ...[
+                Container(width: 1, height: 32, color: Colors.grey.shade200),
+                Expanded(
+                  child: TextButton.icon(
+                    icon: const Icon(Icons.open_in_new_rounded, size: 16, color: Colors.blueGrey),
+                    label: const Text('فتح', style: TextStyle(fontSize: 12, color: Colors.blueGrey)),
+                    onPressed: () => _openAttachmentExternal(fileUrl, fileName),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
       ),
     );
   }

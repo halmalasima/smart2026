@@ -1,19 +1,28 @@
 """
 Settings for cases-service.
 Serves: lawsuits, cases, parties, responses, appeals, judgments, payments, audit.
-This is the 'remaining monolith' — the last service to fully separate.
 """
 import os
+import sys
 from pathlib import Path
 from dotenv import load_dotenv
 
 load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+# Ensure service root is on path so local validators.py / permissions.py are importable
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
 
 SECRET_KEY = os.environ.get('JWT_SECRET_KEY', 'change-me-in-production')
 DEBUG = os.environ.get('DEBUG', '0') == '1'
 ALLOWED_HOSTS = ['*']
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:8000',
+    'http://127.0.0.1:8000',
+    'http://192.168.43.200:8000',
+    'http://192.168.43.199:8000',
+]
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -88,6 +97,8 @@ CORS_ALLOW_CREDENTIALS = True
 
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
 
 LANGUAGE_CODE = 'ar'
 TIME_ZONE = 'Asia/Aden'

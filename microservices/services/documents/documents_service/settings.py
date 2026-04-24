@@ -1,11 +1,14 @@
 """Settings for documents-service."""
 import os
+import sys
 from pathlib import Path
 from dotenv import load_dotenv
 
 load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
 SECRET_KEY = os.environ.get('JWT_SECRET_KEY', 'change-me')
 DEBUG = os.environ.get('DEBUG', '0') == '1'
 ALLOWED_HOSTS = ['*']

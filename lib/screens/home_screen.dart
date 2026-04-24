@@ -22,6 +22,9 @@ import 'notary_dashboard_screen.dart';
 import 'legal_library_screen.dart';
 import 'services_screen.dart';
 import 'lawyers_search_screen.dart';
+import 'contracts_agencies_screen.dart';
+import 'inheritance_calculation_screen.dart';
+import '../providers/lawsuit_provider.dart';
 
 /// الشاشة الرئيسية المبنية بتصميم 2025+
 class HomeScreen extends StatefulWidget {
@@ -114,16 +117,25 @@ class _HomeScreenState extends State<HomeScreen> {
       drawer: _buildDrawer(user, authProvider),
       body: IndexedStack(
         index: _selectedIndex,
-        children: [
-          _buildMainDashboard(user, isClient: user.role == 'citizen' || user.role == 'mokel', isNotary: user.role == 'notary'),
-          const CalendarScreen(),
-          ArchiveScreen(),
-          LegalLibraryScreen(),
-          ServicesScreen(),
-          _buildMainDashboard(user, isClient: user.role == 'citizen' || user.role == 'mokel', isNotary: user.role == 'notary'),
-        ],
+        children: user.isNotary
+          ? [
+              _buildMainDashboard(user, isNotary: true),
+              const InheritanceCalculationScreen(),
+              const ContractsAgenciesScreen(),
+              LegalLibraryScreen(),
+              ServicesScreen(),
+              _buildMainDashboard(user, isNotary: true),
+            ]
+          : [
+              _buildMainDashboard(user, isClient: user.role == 'citizen' || user.role == 'mokel'),
+              const CalendarScreen(),
+              ArchiveScreen(),
+              LegalLibraryScreen(),
+              ServicesScreen(),
+              _buildMainDashboard(user, isClient: user.role == 'citizen' || user.role == 'mokel'),
+            ],
       ),
-      bottomNavigationBar: _buildBottomNav(),
+      bottomNavigationBar: _buildBottomNav(isNotary: user.isNotary),
     );
   }
 
@@ -426,7 +438,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // النافبار السفلي العائم (Floating Bottom Nav) لعام 2025
-  Widget _buildBottomNav() {
+  Widget _buildBottomNav({bool isNotary = false}) {
     final isDark = context.isDark;
     
     return Container(
@@ -439,14 +451,23 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _navItem(0, Icons.menu_rounded, 'القائمة', onTap: () => _scaffoldKey.currentState?.openDrawer()),
-          _navItem(1, Icons.calendar_month_rounded, 'الجلسات'),
-          _navItem(2, Icons.folder_special_rounded, 'أرشيف'),
-          _navItem(3, Icons.menu_book_rounded, 'المكتبة'),
-          _navItem(4, Icons.layers_rounded, 'المزيد'),
-          _navItem(5, Icons.home_rounded, 'الرئيسية'),
-        ],
+        children: isNotary
+          ? [
+              _navItem(0, Icons.menu_rounded, 'القائمة', onTap: () => _scaffoldKey.currentState?.openDrawer()),
+              _navItem(1, Icons.calculate_rounded, 'المواريث'),
+              _navItem(2, Icons.description_rounded, 'العقود'),
+              _navItem(3, Icons.menu_book_rounded, 'المكتبة'),
+              _navItem(4, Icons.layers_rounded, 'المزيد'),
+              _navItem(5, Icons.home_rounded, 'الرئيسية'),
+            ]
+          : [
+              _navItem(0, Icons.menu_rounded, 'القائمة', onTap: () => _scaffoldKey.currentState?.openDrawer()),
+              _navItem(1, Icons.calendar_month_rounded, 'الجلسات'),
+              _navItem(2, Icons.folder_special_rounded, 'أرشيف'),
+              _navItem(3, Icons.menu_book_rounded, 'المكتبة'),
+              _navItem(4, Icons.layers_rounded, 'المزيد'),
+              _navItem(5, Icons.home_rounded, 'الرئيسية'),
+            ],
       ),
     );
   }
@@ -456,7 +477,13 @@ class _HomeScreenState extends State<HomeScreen> {
     final color = isSelected ? context.colorScheme.primary : context.colorScheme.onSurfaceVariant;
     
     return GestureDetector(
-      onTap: onTap ?? () => setState(() => _selectedIndex = index),
+      onTap: onTap ?? () {
+        setState(() => _selectedIndex = index);
+        if (index == 2) {
+          final provider = Provider.of<LawsuitProvider>(context, listen: false);
+          provider.loadCases(refresh: true);
+        }
+      },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.all(8),

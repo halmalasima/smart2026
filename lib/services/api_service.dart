@@ -45,6 +45,15 @@ class ApiService {
     return CaseModel.fromJson(data);
   }
 
+  Future<void> deleteCase(int id) async {
+    await _makeRequest('DELETE', '${ApiConfig.casesEndpoint}$id/');
+  }
+
+  Future<CaseModel> patchCase(int id, Map<String, dynamic> body) async {
+    final data = await _makeRequest('PATCH', '${ApiConfig.casesEndpoint}$id/', body: body);
+    return CaseModel.fromJson(data);
+  }
+
   // ========== Case Parties API (أطراف القضية) ==========
 
   Future<List<CasePartyModel>> getCaseParties(int caseId) async {
@@ -60,6 +69,15 @@ class ApiService {
 
   Future<void> deleteCaseParty(int id) async {
     await _makeRequest('DELETE', '${ApiConfig.casePartiesEndpoint}$id/');
+  }
+
+  Future<CasePartyModel> updateCaseParty(int id, Map<String, dynamic> patch) async {
+    final data = await _makeRequest(
+      'PATCH',
+      '${ApiConfig.casePartiesEndpoint}$id/',
+      body: patch,
+    );
+    return CasePartyModel.fromJson(data);
   }
 
   // Clear tokens on logout
@@ -203,7 +221,7 @@ class ApiService {
       dynamic responseData;
       if (response.body.isEmpty) {
         print('⚠️ [API] Empty response body');
-        responseData = {};
+        responseData = <String, dynamic>{};
       } else {
         try {
           responseData = jsonDecode(response.body);
@@ -216,7 +234,10 @@ class ApiService {
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
         print('✅ [API] Request successful');
-        return responseData;
+        if (responseData is Map<String, dynamic>) return responseData;
+        if (responseData is Map) return Map<String, dynamic>.from(responseData);
+        // Non-map payload (e.g. List) — wrap to satisfy return type without breaking callers.
+        return <String, dynamic>{'data': responseData};
       } else if (response.statusCode == 401) {
         // Token expired, try to refresh (only for non-login requests)
         if (_refreshToken != null && endpoint != ApiConfig.loginEndpoint) {
@@ -345,7 +366,7 @@ class ApiService {
   }
 
   // Authentication with retry logic
-  Future<Map<String, dynamic>> login(String username, String password) async {
+  Future<Map<String, dynamic>> login(String phone, String password) async {
     int attempts = 0;
     Exception? lastException;
     
@@ -355,7 +376,7 @@ class ApiService {
           'POST',
           ApiConfig.loginEndpoint,
           body: {
-            'username': username,
+            'phone': phone,
             'password': password,
           },
         );
@@ -605,7 +626,7 @@ class ApiService {
   Future<dynamic> getAttachments({int? lawsuitId}) async {
     String endpoint = ApiConfig.attachmentsEndpoint;
     if (lawsuitId != null) {
-      endpoint += '?lawsuit=$lawsuitId';
+      endpoint += '?lawsuit_id=$lawsuitId';
     }
     return await _makeRequest('GET', endpoint);
   }
@@ -680,7 +701,9 @@ class ApiService {
   // Hearings
   Future<dynamic> getHearings({
     int? lawsuitId,
+    int? caseId,
     String? hearingType,
+    String? sessionType,
     int? judge,
     String? hearingDate,
     String? hearingDateFrom,
@@ -696,10 +719,16 @@ class ApiService {
     final params = <String, String>{};
     
     if (lawsuitId != null) {
-      params['lawsuit'] = lawsuitId.toString();
+      params['lawsuit_id'] = lawsuitId.toString();
+    }
+    if (caseId != null) {
+      params['case_id'] = caseId.toString();
     }
     if (hearingType != null) {
       params['hearing_type'] = hearingType;
+    }
+    if (sessionType != null) {
+      params['session_type'] = sessionType;
     }
     if (judge != null) {
       params['judge'] = judge.toString();
@@ -1259,6 +1288,65 @@ class ApiService {
         if (phoneNumber != null && phoneNumber.isNotEmpty) 'phone_number': phoneNumber,
         if (nationalId != null && nationalId.isNotEmpty) 'national_id': nationalId,
       },
+    );
+  }
+
+  // ========== Email Verification API ==========
+
+  Future<Map<String, dynamic>> verifyEmail({
+    required String phone,
+    required String code,
+  }) async {
+    return await _makeRequest(
+      'POST',
+      '/api/verify-email/',
+      body: {'phone': phone, 'code': code},
+    );
+  }
+
+  Future<Map<String, dynamic>> resendOtp({
+    required String phone,
+    String purpose = 'verify_email',
+  }) async {
+    return await _makeRequest(
+      'POST',
+      '/api/resend-otp/',
+      body: {'phone': phone, 'purpose': purpose},
+    );
+  }
+
+  // ========== Password Reset API ==========
+
+  Future<Map<String, dynamic>> requestPasswordReset({
+    required String phone,
+  }) async {
+    return await _makeRequest(
+      'POST',
+      '/api/password-reset/',
+      body: {'phone': phone},
+    );
+  }
+
+  Future<Map<String, dynamic>> verifyResetOtp({
+    required String phone,
+    required String code,
+  }) async {
+    return await _makeRequest(
+      'POST',
+      '/api/password-reset/verify/',
+      body: {'phone': phone, 'code': code},
+    );
+  }
+
+  Future<Map<String, dynamic>> resetPassword({
+    required String phone,
+    required String code,
+    required String newPassword,
+  }) async {
+    return await _makeRequest(
+      'POST',
+      '/api/password-reset/confirm/',
+      body: {'phone': phone, 'code': code, 'new_password': newPassword},
     );
   }
 

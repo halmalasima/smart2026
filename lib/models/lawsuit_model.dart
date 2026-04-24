@@ -176,11 +176,11 @@ class LawsuitModel {
       if (filingDate != null) 'filing_date': filingDate!.toIso8601String().split('T')[0],
       if (gregorianDate != null) 'gregorian_date': gregorianDate!.toIso8601String().split('T')[0],
       'hijri_date': hijriDate,
-      'court_fk': courtId,
+      'court_id': courtId,
       'judge': judgeId,
-      'parent_lawsuit': parentLawsuitId,
-      'case': caseId,
-      'client': clientId,
+      if (parentLawsuitId != null) 'parent_lawsuit': parentLawsuitId,
+      if (caseId != null) 'case': caseId,
+      if (clientId != null) 'client': clientId,
     };
   }
 

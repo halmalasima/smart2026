@@ -5,7 +5,7 @@ from notifications_app.views import notifications_list, notifications_mark_all_r
 from messaging.views import MessageViewSet
 
 router = DefaultRouter()
-router.register(r'messaging', MessageViewSet, basename='message')
+router.register(r'messaging/messages', MessageViewSet, basename='message')
 
 urlpatterns = [
     path('health/', health_check),

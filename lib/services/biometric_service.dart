@@ -57,7 +57,7 @@ class BiometricService {
   // ─── التفعيل / الإلغاء ─────────────────────────────────
 
   /// تفعيل تسجيل الدخول بالبصمة وحفظ بيانات الاعتماد بشكل آمن
-  Future<bool> enable(String username, String password) async {
+  Future<bool> enable(String phone, String password) async {
     final supported = await isDeviceSupported;
     if (!supported) return false;
 
@@ -65,14 +65,14 @@ class BiometricService {
     final authenticated = await authenticate();
     if (!authenticated) return false;
 
-    // حفظ البيانات بشكل مشفّر
-    await _secureStorage.write(key: _keyStoredUsername, value: username);
+    // حفظ البيانات بشكل مشفّر (key name kept for backward compat)
+    await _secureStorage.write(key: _keyStoredUsername, value: phone);
     await _secureStorage.write(key: _keyStoredPassword, value: password);
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_keyBiometricEnabled, true);
 
-    debugPrint('🔐 [Biometric] Enabled for user: $username');
+    debugPrint('🔐 [Biometric] Enabled for user: $phone');
     return true;
   }
 
@@ -105,18 +105,18 @@ class BiometricService {
     }
   }
 
-  /// تسجيل الدخول بالبصمة — يعيد (username, password) أو null
-  Future<({String username, String password})?> authenticateAndGetCredentials() async {
+  /// تسجيل الدخول بالبصمة — يعيد (phone, password) أو null
+  Future<({String phone, String password})?> authenticateAndGetCredentials() async {
     final hasCredentials = await hasStoredCredentials;
     if (!hasCredentials) return null;
 
     final authenticated = await authenticate();
     if (!authenticated) return null;
 
-    final username = await _secureStorage.read(key: _keyStoredUsername);
+    final phone = await _secureStorage.read(key: _keyStoredUsername);
     final password = await _secureStorage.read(key: _keyStoredPassword);
 
-    if (username == null || password == null) return null;
-    return (username: username, password: password);
+    if (phone == null || password == null) return null;
+    return (phone: phone, password: password);
   }
 }

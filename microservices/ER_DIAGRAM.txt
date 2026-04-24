@@ -1,0 +1,168 @@
+╔════════════════════════════════════════════════════════════════════════════════════════════════════╗
+║                    ER DIAGRAM - قاعدة بيانات المصادقة (smartjudi_auth)                              ║
+╚════════════════════════════════════════════════════════════════════════════════════════════════════╝
+
+┌─────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                   الجداول الأساسية                                                 │
+└─────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────┐
+│        auth_user             │ (المستخدمون)
+├──────────────────────────────┤
+│ PK: id (integer)             │
+│ username (varchar)           │
+│ email (varchar)              │
+│ password (varchar)           │
+│ first_name (varchar)         │
+│ last_name (varchar)          │
+│ is_active (boolean)          │
+│ is_staff (boolean)           │
+│ is_superuser (boolean)       │
+│ last_login (timestamp)       │
+│ date_joined (timestamp)      │
+└──────────────────────────────┘
+        │
+        │ (1:1)
+        ├─────────────────────────────────────────────────────┐
+        │                                                     │
+        │                                                     ▼
+        │                          ┌─────────────────────────────────────┐
+        │                          │    accounts_userprofile             │ (ملف المستخدم الشخصي)
+        │                          ├─────────────────────────────────────┤
+        │                          │ PK: id (bigint)                     │
+        │ FK: user_id ◄───────────│ FK: user_id → auth_user.id          │
+        │                          │ FK: supervisor_id → auth_user.id    │
+        │                          │ role (varchar)                      │
+        │                          │ phone_number (varchar)              │
+        │                          │ national_id (varchar)               │
+        │                          │ subscription_plan (varchar)         │
+        │                          │ subscription_expiry (timestamp)     │
+        │                          │ is_trial (boolean)                  │
+        │                          │ is_active (boolean)                 │
+        │                          │ created_at (timestamp)              │
+        │                          │ updated_at (timestamp)              │
+        │                          └─────────────────────────────────────┘
+        │
+        │ (1:M)
+        ├─────────────────────────────────────────────────────┐
+        │                                                     │
+        ▼                                                     ▼
+┌──────────────────────────────┐  ┌──────────────────────────────┐
+│   accounts_otpcode           │  │  auth_user_groups            │
+├──────────────────────────────┤  ├──────────────────────────────┤
+│ PK: id (bigint)              │  │ PK: id (bigint)              │
+│ FK: user_id → auth_user.id ◄┤  │ FK: user_id → auth_user.id ◄─┤
+│ code (varchar)               │  │ FK: group_id → auth_group.id│
+│ purpose (varchar)            │  └──────────────────────────────┘
+│ is_used (boolean)            │           │
+│ created_at (timestamp)       │           │ (M:M)
+│ expires_at (timestamp)       │           │
+└──────────────────────────────┘           ▼
+                               ┌──────────────────────────────┐
+                               │      auth_group              │ (المجموعات)
+                               ├──────────────────────────────┤
+                               │ PK: id (integer)             │
+                               │ name (varchar)               │
+                               └──────────────────────────────┘
+                                        │
+                                        │ (M:M)
+                                        ▼
+                        ┌──────────────────────────────┐
+                        │ auth_group_permissions       │
+                        ├──────────────────────────────┤
+                        │ PK: id (bigint)              │
+                        │ FK: group_id                 │
+                        │ FK: permission_id            │
+                        └──────────────────────────────┘
+                                        │
+                                        ▼
+                        ┌──────────────────────────────┐
+                        │    auth_permission           │ (الصلاحيات)
+                        ├──────────────────────────────┤
+                        │ PK: id (integer)             │
+                        │ name (varchar)               │
+                        │ codename (varchar)           │
+                        │ FK: content_type_id          │
+                        └──────────────────────────────┘
+
+        │ (1:M)
+        ├─────────────────────────────────────────────────────┐
+        │                                                     │
+        ▼                                                     ▼
+┌──────────────────────────────────┐  ┌──────────────────────────────────┐
+│ auth_user_user_permissions       │  │ token_blacklist_outstandingtoken │
+├──────────────────────────────────┤  ├──────────────────────────────────┤
+│ PK: id (bigint)                  │  │ PK: id (bigint)                  │
+│ FK: user_id → auth_user.id       │  │ FK: user_id → auth_user.id       │
+│ FK: permission_id                │  │ token (text)                     │
+└──────────────────────────────────┘  │ jti (varchar)                    │
+                                       │ created_at (timestamp)           │
+                                       │ expires_at (timestamp)           │
+                                       └──────────────────────────────────┘
+                                               │
+                                               │ (1:M)
+                                               ▼
+                                       ┌──────────────────────────────────┐
+                                       │ token_blacklist_blacklistedtoken │
+                                       ├──────────────────────────────────┤
+                                       │ PK: id (bigint)                  │
+                                       │ FK: token_id                     │
+                                       │ blacklisted_at (timestamp)       │
+                                       └──────────────────────────────────┘
+
+
+┌─────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                              جداول الدعم (Django System)                                            │
+└─────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────┐  ┌──────────────────────────────┐  ┌──────────────────────────────┐
+│   django_content_type        │  │    django_migrations         │  │    django_session            │
+├──────────────────────────────┤  ├──────────────────────────────┤  ├──────────────────────────────┤
+│ PK: id (integer)             │  │ PK: id (bigint)              │  │ PK: session_key (varchar)    │
+│ app_label (varchar)          │  │ app (varchar)                │  │ session_data (text)          │
+│ model (varchar)              │  │ name (varchar)               │  │ expire_date (timestamp)      │
+└──────────────────────────────┘  │ applied (timestamp)          │  └──────────────────────────────┘
+                                   └──────────────────────────────┘
+
+
+╔════════════════════════════════════════════════════════════════════════════════════════════════════╗
+║                                    العلاقات والروابط                                               ║
+╚════════════════════════════════════════════════════════════════════════════════════════════════════╝
+
+1. المستخدم ← الملف الشخصي (1:1)
+   auth_user.id ← accounts_userprofile.user_id
+
+2. المستخدم ← المشرف (1:M)
+   auth_user.id ← accounts_userprofile.supervisor_id
+
+3. المستخدم ← أكواد OTP (1:M)
+   auth_user.id ← accounts_otpcode.user_id
+
+4. المستخدم ← مجموعات (M:M)
+   auth_user.id ← auth_user_groups.user_id ← auth_group.id
+
+5. المستخدم ← صلاحيات (M:M)
+   auth_user.id ← auth_user_user_permissions.user_id ← auth_permission.id
+
+6. مجموعة ← صلاحيات (M:M)
+   auth_group.id ← auth_group_permissions.group_id ← auth_permission.id
+
+7. المستخدم ← التوكنات (1:M)
+   auth_user.id ← token_blacklist_outstandingtoken.user_id
+
+8. التوكن ← التوكنات المحظورة (1:M)
+   token_blacklist_outstandingtoken.id ← token_blacklist_blacklistedtoken.token_id
+
+
+╔════════════════════════════════════════════════════════════════════════════════════════════════════╗
+║                                    إحصائيات قاعدة البيانات                                          ║
+╚════════════════════════════════════════════════════════════════════════════════════════════════════╝
+
+إجمالي الجداول: 13 جدول
+  - جداول أساسية: 5
+  - جداول ربط (Junction Tables): 3
+  - جداول نظام Django: 3
+  - جداول التوثيق والجلسات: 2
+
+إجمالي العلاقات الأجنبية: 12
+المفاتيح الأساسية: 13

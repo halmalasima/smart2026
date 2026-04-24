@@ -46,7 +46,7 @@ class AttachmentModel {
       pageCount: json['page_count'] ?? 1,
       content: json['content'] ?? '',
       evidenceBasis: json['evidence_basis'] ?? '',
-      fileUrl: json['file'],
+      fileUrl: json['file_url'] ?? json['file'],
       originalFilename: json['original_filename'],
       fileSize: json['file_size'],
       localPath: json['local_path'],

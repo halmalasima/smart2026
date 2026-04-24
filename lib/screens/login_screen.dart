@@ -8,6 +8,7 @@ import '../services/biometric_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_theme.dart';
+import 'forgot_password_screen.dart';
 
 /// Login Screen - شاشة الدخول بتصميم 2025+
 class LoginScreen extends StatefulWidget {
@@ -19,17 +20,22 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _usernameController = TextEditingController();
+  final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
+  
   bool _obscurePassword = true;
   bool _rememberMe = true;
+  bool _savePassword = false;
   bool _discovering = false;
   bool _biometricAvailable = false;
+  String? _phoneError;
+  String? _passwordError;
 
   @override
   void initState() {
     super.initState();
-    _loadSavedUsername();
+    _loadSavedPhone();
+    _loadSavedPassword();
     _checkBiometric();
   }
 
@@ -55,19 +61,31 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Future<void> _loadSavedUsername() async {
+  Future<void> _loadSavedPhone() async {
     final prefs = await SharedPreferences.getInstance();
-    final savedUsername = prefs.getString('saved_username');
-    if (savedUsername != null && mounted) {
+    final savedPhone = prefs.getString('saved_phone');
+    if (savedPhone != null && mounted) {
       setState(() {
-        _usernameController.text = savedUsername;
+        _phoneController.text = savedPhone;
+      });
+    }
+  }
+
+  Future<void> _loadSavedPassword() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savePassword = prefs.getBool('save_password') ?? false;
+    final savedPassword = prefs.getString('saved_password');
+    if (savePassword && savedPassword != null && mounted) {
+      setState(() {
+        _savePassword = true;
+        _passwordController.text = savedPassword;
       });
     }
   }
 
   @override
   void dispose() {
-    _usernameController.dispose();
+    _phoneController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -95,23 +113,46 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _handleLogin() async {
+    // مسح رسائل الخطأ القديمة
+    setState(() {
+      _phoneError = null;
+      _passwordError = null;
+    });
+    
     if (!_formKey.currentState!.validate()) return;
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     ScaffoldMessenger.of(context).clearSnackBars();
 
-    final success = await authProvider.login(
-      _usernameController.text.trim(),
-      _passwordController.text,
-    );
+    bool success = false;
+    try {
+      success = await authProvider.login(
+        _phoneController.text.trim(),
+        _passwordController.text,
+      );
+    } catch (e) {
+      // Safety net: ensure any unexpected error is shown
+      if (authProvider.errorMessage == null) {
+        authProvider.setError('حدث خطأ غير متوقع أثناء تسجيل الدخول');
+      }
+      success = false;
+    }
 
     if (success && mounted) {
       final prefs = await SharedPreferences.getInstance();
       if (!mounted) return;
       if (_rememberMe) {
-        await prefs.setString('saved_username', _usernameController.text.trim());
+        await prefs.setString('saved_phone', _phoneController.text.trim());
       } else {
-        await prefs.remove('saved_username');
+        await prefs.remove('saved_phone');
+      }
+      if (!mounted) return;
+      if (_savePassword) {
+        await prefs.setBool('save_password', true);
+        await prefs.setString('saved_password', _passwordController.text);
+      } else {
+        await prefs.remove('save_password');
+        await prefs.remove('saved_password');
       }
       if (!mounted) return;
 
@@ -129,12 +170,29 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     } else if (mounted) {
       final errorMessage = authProvider.errorMessage ?? 'فشل تسجيل الدخول';
-      final isNetworkError = errorMessage.contains('لا يوجد اتصال') ||
-          errorMessage.contains('انتهت مهلة') ||
-          errorMessage.contains('لا يمكن الاتصال');
-      final isAuthError = errorMessage.contains('اسم المستخدم') ||
+      final isNetworkError = errorMessage.contains('الاتصال') ||
+          errorMessage.contains('الخادم') ||
+          errorMessage.contains('مهلة');
+      final isAuthError = errorMessage.contains('رقم الهاتف') ||
           errorMessage.contains('كلمة المرور') ||
+          errorMessage.contains('بيانات الدخول') ||
           errorMessage.contains('غير صحيحة');
+
+      // إذا كان الخطأ في المصادقة، اعرض رسالة تحت الحقل المناسب
+      if (isAuthError) {
+        // تحديد أي حيل يحتوي على خطأ بناءً على الرسالة
+        setState(() {
+          // إذا كانت الرسالة تشير إلى كلمة المرور
+          if (errorMessage.contains('كلمة المرور')) {
+            _passwordError = 'كلمة المرور غير صحيحة';
+          } else if (errorMessage.contains('رقم الهاتف') || errorMessage.contains('لا يوجد حساب')) {
+            _phoneError = 'رقم الهاتف غير مسجل';
+          } else {
+            // رسالة عامة
+            _passwordError = 'رقم الهاتف أو كلمة المرور غير صحيحة';
+          }
+        });
+      }
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -152,7 +210,7 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: Text(
-                  errorMessage,
+                  isAuthError ? 'فشل تسجيل الدخول - تحقق من البيانات' : errorMessage,
                   style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
                 ),
               ),
@@ -273,14 +331,28 @@ class _LoginScreenState extends State<LoginScreen> {
                       
                       const SizedBox(height: AppSpacing.xxxl),
 
-                      // Username
+                      // Phone Number
                       TextFormField(
-                        controller: _usernameController,
-                        decoration: const InputDecoration(
-                          labelText: 'اسم المستخدم',
-                          prefixIcon: Icon(Icons.person_rounded),
+                        controller: _phoneController,
+                        keyboardType: TextInputType.phone,
+                        decoration: InputDecoration(
+                          labelText: 'رقم الهاتف',
+                          prefixIcon: const Icon(Icons.phone_rounded),
+                          errorText: _phoneError,
+                          errorStyle: const TextStyle(fontSize: 12),
                         ),
-                        validator: (v) => v!.isEmpty ? 'يرجى إدخال اسم المستخدم' : null,
+                        validator: (v) {
+                          if (v == null || v.isEmpty) return 'يرجى إدخال رقم الهاتف';
+                          if (v.length != 9) return 'يجب أن يكون 9 أرقام';
+                          if (!v.startsWith('7')) return 'يجب أن يبدأ بـ 7';
+                          return null;
+                        },
+                        onChanged: (v) {
+                          // مسح رسالة الخطأ عند الكتابة
+                          if (_phoneError != null) {
+                            setState(() => _phoneError = null);
+                          }
+                        },
                       ).animate().fade(delay: 600.ms).slideX(begin: 0.1),
                       
                       const SizedBox(height: AppSpacing.lg),
@@ -296,8 +368,16 @@ class _LoginScreenState extends State<LoginScreen> {
                             icon: Icon(_obscurePassword ? Icons.visibility_rounded : Icons.visibility_off_rounded),
                             onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                           ),
+                          errorText: _passwordError,
+                          errorStyle: const TextStyle(fontSize: 12),
                         ),
                         validator: (v) => v!.isEmpty ? 'يرجى إدخال كلمة المرور' : null,
+                        onChanged: (v) {
+                          // مسح رسالة الخطأ عند الكتابة
+                          if (_passwordError != null) {
+                            setState(() => _passwordError = null);
+                          }
+                        },
                       ).animate().fade(delay: 700.ms).slideX(begin: 0.1),
                       
                       const SizedBox(height: AppSpacing.md),
@@ -313,28 +393,74 @@ class _LoginScreenState extends State<LoginScreen> {
                             value: _rememberMe,
                             onChanged: (v) => setState(() => _rememberMe = v!),
                           ),
-                          Text('تذكرني', style: theme.textTheme.bodyMedium),
-                          const Spacer(),
-                          TextButton(
-                            onPressed: () {},
-                            child: const Text('نسيت المرور؟'),
+                          Expanded(
+                            child: Text('تذكرني', style: theme.textTheme.bodyMedium),
+                          ),
+                          Checkbox(
+                            value: _savePassword,
+                            onChanged: (v) => setState(() => _savePassword = v!),
+                          ),
+                          Expanded(
+                            child: Text(' بدون نت ', style: theme.textTheme.bodySmall),
                           ),
                         ],
                       ).animate().fade(delay: 900.ms),
+                      
+                      const SizedBox(height: AppSpacing.md),
+                      
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton(
+                          onPressed: () {
+                            Navigator.push(context, MaterialPageRoute(builder: (_) => const ForgotPasswordScreen()));
+                          },
+                          child: const Text('نسيت كلمة المرور؟'),
+                        ),
+                      ),
                       
                       const SizedBox(height: AppSpacing.xl),
 
                       // Login Button
                       Consumer<AuthProvider>(
-                        builder: (context, auth, _) => ElevatedButton(
-                          onPressed: auth.isLoading ? null : _handleLogin,
-                          child: auth.isLoading
-                              ? const SizedBox(
-                                  width: 24,
-                                  height: 24,
-                                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                                )
-                              : const Text('تسجيل الدخول'),
+                        builder: (context, auth, _) => Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            ElevatedButton(
+                              onPressed: auth.isLoading ? null : _handleLogin,
+                              child: auth.isLoading
+                                  ? const SizedBox(
+                                      width: 24,
+                                      height: 24,
+                                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                    )
+                                  : const Text('تسجيل الدخول'),
+                            ),
+                            if (auth.errorMessage != null && !auth.isLoading) ...[
+                              const SizedBox(height: AppSpacing.md),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+                                decoration: BoxDecoration(
+                                  color: AppColors.error.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: AppColors.error.withOpacity(0.3)),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.error_outline, color: AppColors.error, size: 18),
+                                    const SizedBox(width: AppSpacing.sm),
+                                    Flexible(
+                                      child: Text(
+                                        auth.errorMessage!,
+                                        style: TextStyle(color: AppColors.error, fontSize: 13, fontWeight: FontWeight.w500),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                       ).animate().fade(delay: 1000.ms).slideY(begin: 0.2),
                       

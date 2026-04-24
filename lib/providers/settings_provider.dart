@@ -9,14 +9,20 @@ class SettingsProvider with ChangeNotifier {
   static const String _keyNotifications = 'notifications_enabled';
   static const String _keyDarkMode = 'dark_mode_enabled';
   static const String _keyLanguage = 'language';
+  static const String _keySessionTimeout = 'session_timeout_minutes';
+  static const String _keyAutoLock = 'auto_lock_enabled';
   
   bool _notificationsEnabled = true;
   bool _darkModeEnabled = false;
   String _language = 'ar';
+  int _sessionTimeoutMinutes = 60; // Default 1 hour
+  bool _autoLockEnabled = false;
   
   bool get notificationsEnabled => _notificationsEnabled;
   bool get darkModeEnabled => _darkModeEnabled;
   String get language => _language;
+  int get sessionTimeoutMinutes => _sessionTimeoutMinutes;
+  bool get autoLockEnabled => _autoLockEnabled;
   
   /// Initialize settings from SharedPreferences
   Future<void> initialize() async {
@@ -25,8 +31,10 @@ class SettingsProvider with ChangeNotifier {
       _notificationsEnabled = prefs.getBool(_keyNotifications) ?? true;
       _darkModeEnabled = prefs.getBool(_keyDarkMode) ?? false;
       _language = prefs.getString(_keyLanguage) ?? 'ar';
+      _sessionTimeoutMinutes = prefs.getInt(_keySessionTimeout) ?? 60;
+      _autoLockEnabled = prefs.getBool(_keyAutoLock) ?? false;
       notifyListeners();
-      developer.log('Settings initialized: notifications=$_notificationsEnabled, darkMode=$_darkModeEnabled, language=$_language', name: 'SettingsProvider');
+      developer.log('Settings initialized: notifications=$_notificationsEnabled, darkMode=$_darkModeEnabled, language=$_language, sessionTimeout=$_sessionTimeoutMinutes, autoLock=$_autoLockEnabled', name: 'SettingsProvider');
     } catch (e) {
       developer.log('Error initializing settings: $e', name: 'SettingsProvider');
     }
@@ -71,6 +79,32 @@ class SettingsProvider with ChangeNotifier {
     }
   }
   
+  /// Set session timeout in minutes
+  Future<void> setSessionTimeoutMinutes(int value) async {
+    _sessionTimeoutMinutes = value;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(_keySessionTimeout, value);
+      developer.log('Session timeout setting saved: $value minutes', name: 'SettingsProvider');
+    } catch (e) {
+      developer.log('Error saving session timeout setting: $e', name: 'SettingsProvider');
+    }
+  }
+  
+  /// Toggle auto lock
+  Future<void> setAutoLockEnabled(bool value) async {
+    _autoLockEnabled = value;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_keyAutoLock, value);
+      developer.log('Auto lock setting saved: $value', name: 'SettingsProvider');
+    } catch (e) {
+      developer.log('Error saving auto lock setting: $e', name: 'SettingsProvider');
+    }
+  }
+  
   /// Clear all local data
   Future<void> clearLocalData() async {
     try {
@@ -85,6 +119,8 @@ class SettingsProvider with ChangeNotifier {
       _notificationsEnabled = true;
       _darkModeEnabled = false;
       _language = 'ar';
+      _sessionTimeoutMinutes = 60;
+      _autoLockEnabled = false;
       notifyListeners();
       developer.log('Local data cleared', name: 'SettingsProvider');
     } catch (e) {

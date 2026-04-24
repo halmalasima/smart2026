@@ -48,12 +48,20 @@ class ApiConfig {
     if (Platform.isAndroid) {
       await _loadAndroidPhysicalFlag();
     }
+    // If --dart-define=API_BASE_URL is provided, it takes priority and replaces
+    // any stale saved override (e.g. when moving to a different WiFi).
+    final envUrl = _fromEnvironment.trim();
+    if (envUrl.isNotEmpty) {
+      final normalized = _normalizeUrl(envUrl);
+      _savedOverride = normalized;
+      await prefs.setString(prefsKeyApiBaseUrl, normalized);
+      return;
+    }
     final saved = prefs.getString(prefsKeyApiBaseUrl)?.trim();
     if (saved != null && saved.isNotEmpty) {
       _savedOverride = _normalizeUrl(saved);
       return;
     }
-    if (_fromEnvironment.trim().isNotEmpty) return;
 
     if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
       final allowEmuFallback = _androidIsPhysicalDevice == false;
@@ -130,6 +138,15 @@ class ApiConfig {
     var s = u.trim();
     if (s.endsWith('/')) {
       s = s.substring(0, s.length - 1);
+    }
+    if (s.isNotEmpty && !s.startsWith('http://') && !s.startsWith('https://')) {
+      s = 'http://$s';
+    }
+    if (s.isNotEmpty && !RegExp(r':\d+$').hasMatch(Uri.parse(s).host.isEmpty ? '' : s)) {
+      final uri = Uri.tryParse(s);
+      if (uri != null && uri.port == 0) {
+        s = '$s:$_defaultBackendPort';
+      }
     }
     return s;
   }

@@ -127,9 +127,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         lastName: _lastNameController.text.trim().isNotEmpty 
             ? _lastNameController.text.trim() 
             : null,
-        phoneNumber: _phoneController.text.trim().isNotEmpty 
-            ? _phoneController.text.trim() 
-            : null,
+        // Phone number is not editable - do not send
         address: _addressController.text.trim().isNotEmpty 
             ? _addressController.text.trim() 
             : null,
@@ -319,6 +317,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   border: OutlineInputBorder(),
                 ),
                 keyboardType: TextInputType.phone,
+                readOnly: true, // Phone number cannot be changed
+                enabled: false,
               ),
               const SizedBox(height: 16),
               TextFormField(

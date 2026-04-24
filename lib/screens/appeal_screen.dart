@@ -407,6 +407,38 @@ class _AppealScreenState extends State<AppealScreen> {
             ),
             const SizedBox(height: 24),
 
+            // Appeal Reasons
+            TextFormField(
+              controller: _appealReasonsController,
+              textAlign: TextAlign.right,
+              decoration: const InputDecoration(
+                labelText: 'أسباب الطعن *',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.notes),
+              ),
+              maxLines: 4,
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'يرجى إدخال أسباب الطعن';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+
+            // Appeal Requests
+            TextFormField(
+              controller: _appealRequestsController,
+              textAlign: TextAlign.right,
+              decoration: const InputDecoration(
+                labelText: 'طلبات الطعن',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.list_alt),
+              ),
+              maxLines: 3,
+            ),
+            const SizedBox(height: 16),
+
             // Legal Templates Section
             if (_isLoadingTemplates)
               const Center(child: CircularProgressIndicator())

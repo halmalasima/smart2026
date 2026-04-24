@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import '../services/api_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
+import 'dart:ui' as ui;
+import 'otp_verification_screen.dart';
 import 'dart:developer' as developer;
 
 class RegisterScreen extends StatefulWidget {
@@ -66,10 +68,30 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
       
       if (mounted) {
-        _showSuccessDialog();
+        // Navigate to OTP verification screen
+        final verified = await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => OtpVerificationScreen(
+              phoneNumber: _phoneController.text.trim(),
+              purpose: 'verify_email',
+            ),
+          ),
+        );
+        if (verified == true && mounted) {
+          _showSuccessDialog();
+        }
       }
     } catch (e) {
-      _showError(e.toString());
+      String errorMsg = e.toString();
+      // Extract Arabic error message from ApiException if available
+      if (errorMsg.contains('ApiException') && errorMsg.contains(':')) {
+        final parts = errorMsg.split(': ');
+        if (parts.length > 1) {
+          errorMsg = parts.sublist(1).join(': ');
+        }
+      }
+      _showError(errorMsg);
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -79,29 +101,32 @@ class _RegisterScreenState extends State<RegisterScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Icon(Icons.check_circle_rounded, color: Colors.green, size: 64),
-        content: const Text(
-          'تم إنشاء الحساب بنجاح! يمكنك الآن تسجيل الدخول باستخدام بياناتك الجديدة.',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        actions: [
-          Center(
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              onPressed: () {
-                Navigator.pop(context);
-                Navigator.pop(context);
-              },
-              child: const Text('دخول الآن', style: TextStyle(color: Colors.white)),
-            ),
+      builder: (context) => Directionality(
+        textDirection: ui.TextDirection.rtl,
+        child: AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Icon(Icons.check_circle_rounded, color: Colors.green, size: 64),
+          content: const Text(
+            'تم إنشاء الحساب وتفعيله بنجاح! يمكنك الآن تسجيل الدخول.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontWeight: FontWeight.bold),
           ),
-        ],
+          actions: [
+            Center(
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: () {
+                  Navigator.pop(context);
+                  Navigator.pop(context);
+                },
+                child: const Text('دخول الآن', style: TextStyle(color: Colors.white)),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -143,7 +168,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               const SizedBox(height: 12),
               _buildTextField('الاسم الكامل (رباعي)', _fullNameController, Icons.person_outline_rounded),
               const SizedBox(height: 16),
-              _buildTextField('رقم الهاتف', _phoneController, Icons.phone_android_rounded, keyboard: TextInputType.phone),
+              _buildTextField('رقم الهاتف (مطلوب للتحقق)', _phoneController, Icons.phone_android_rounded, keyboard: TextInputType.phone, required: true),
               const SizedBox(height: 16),
               _buildTextField('الرقم الوطني / الهوية', _nationalIdController, Icons.badge_outlined),
               
@@ -195,7 +220,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  Widget _buildTextField(String label, TextEditingController controller, IconData icon, {TextInputType? keyboard}) {
+  Widget _buildTextField(String label, TextEditingController controller, IconData icon, {TextInputType? keyboard, bool required = false}) {
     return TextFormField(
       controller: controller,
       keyboardType: keyboard,
@@ -205,8 +230,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
         filled: true,
         fillColor: context.isDark ? const Color(0xFF1E293B) : Colors.white,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+        errorStyle: const TextStyle(fontSize: 12),
       ),
-      validator: (v) => v!.isEmpty ? 'هذا الحقل مطلوب' : null,
+      validator: (v) {
+        if (required && v!.isEmpty) return 'هذا الحقل مطلوب';
+        if (required && keyboard == TextInputType.phone) {
+          if (v!.length != 9) return 'رقم الهاتف يجب أن يكون 9 أرقام';
+          if (!v.startsWith('7')) return 'رقم الهاتف يجب أن يبدأ بـ 7';
+        }
+        return null;
+      },
+      onChanged: (v) {
+        // Trigger validation on change for immediate feedback
+        if (required && v.isNotEmpty && keyboard == TextInputType.phone) {
+          if (v.length != 9 || !v.startsWith('7')) {
+            setState(() {});
+          }
+        }
+      },
     );
   }
 

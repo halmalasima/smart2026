@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'providers/auth_provider.dart';
@@ -16,6 +18,7 @@ import 'screens/home_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'providers/settings_provider.dart';
 import 'providers/notification_provider.dart';
+import 'providers/session_provider.dart';
 import 'screens/register_screen.dart';
 import 'screens/legal_library_screen.dart';
 import 'screens/smart_assistant_screen.dart';
@@ -52,7 +55,7 @@ import 'screens/electronic_services_screen.dart';
 import 'screens/edit_profile_screen.dart';
 import 'screens/change_password_screen.dart';
 import 'screens/lawyer_dashboard_screen.dart';
-import 'screens/case_archive_details_screen.dart';
+import 'screens/case_detail_screen.dart';
 import 'screens/messages_list_screen.dart';
 import 'screens/chat_screen.dart';
 import 'screens/citizen_dashboard_screen.dart';
@@ -70,6 +73,7 @@ void main() {
     configureWebUrlStrategy();
 
     await ApiConfig.initialize();
+    await initializeDateFormatting('ar', null);
     
     final prefs = await SharedPreferences.getInstance();
     final bool showOnboarding = prefs.getBool('onboarding_completed') != true;
@@ -94,10 +98,23 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AuthProvider(apiService: apiService)..initialize()),
         ChangeNotifierProvider(create: (_) => LawsuitProvider(apiService: apiService)),
         ChangeNotifierProvider(create: (_) => SettingsProvider()..initialize()),
-        ChangeNotifierProvider(create: (_) => AIChatProvider()),
-        ChangeNotifierProvider(create: (_) => ChatProvider()), 
+        ChangeNotifierProxyProvider<AuthProvider, AIChatProvider>(
+          create: (_) => AIChatProvider(),
+          update: (_, auth, prev) {
+            prev!.setAccessToken(apiService.accessToken);
+            return prev;
+          },
+        ),
+        ChangeNotifierProxyProvider<AuthProvider, ChatProvider>(
+          create: (_) => ChatProvider(),
+          update: (_, auth, prev) {
+            prev!.setAccessToken(apiService.accessToken);
+            return prev;
+          },
+        ),
         ChangeNotifierProvider(create: (_) => LawyerProvider(apiService: apiService)),
         ChangeNotifierProvider(create: (_) => InheritanceProvider(apiService: apiService)),
+        ChangeNotifierProvider(create: (_) => SessionProvider(apiService)),
         ChangeNotifierProxyProvider<AuthProvider, NotificationProvider>(
           create: (_) => NotificationProvider(apiService),
           update: (_, auth, prev) => NotificationProvider(apiService),
@@ -112,6 +129,16 @@ class MyApp extends StatelessWidget {
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,
             themeMode: settings.darkModeEnabled ? ThemeMode.dark : ThemeMode.light,
+            locale: const Locale('ar'),
+            supportedLocales: const [
+              Locale('ar'),
+              Locale('en'),
+            ],
+            localizationsDelegates: const [
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
             routes: {
               '/': (context) => AuthWrapper(showOnboarding: showOnboarding),
               '/login': (context) => const LoginScreen(),
@@ -158,11 +185,7 @@ class MyApp extends StatelessWidget {
               '/profile': (context) => EditProfileScreen(),
               '/case-detail': (context) {
                 final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
-                return CaseArchiveDetailsScreen(
-                  lawsuitId: args['id'] as int,
-                  caseTitle: args['title'] as String? ?? 'بدون عنوان',
-                  caseNumber: args['number'] as String? ?? '',
-                );
+                return CaseDetailScreen(caseId: args['id'] as int);
               },
               '/messages': (context) => const MessagesListScreen(),
               '/citizen-dashboard': (context) => const CitizenDashboardScreen(),
