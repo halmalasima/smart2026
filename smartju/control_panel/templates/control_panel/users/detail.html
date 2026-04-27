@@ -1,82 +1,223 @@
 {% extends "control_panel/base.html" %}
 
-{% block page_actions %}
-  <div class="col-auto">
-    <div class="btn-list">
-      <a href="{% url 'control_panel:user_update' u.pk %}" class="btn btn-primary">
-        <i class="ti ti-edit me-1"></i> تعديل
-      </a>
-      <form method="post" action="{% url 'control_panel:user_toggle_active' u.pk %}" class="d-inline">
-        {% csrf_token %}
-        <button class="btn {% if u.is_active %}btn-outline-warning{% else %}btn-outline-success{% endif %}">
-          {% if u.is_active %}<i class="ti ti-ban me-1"></i> تعطيل{% else %}<i class="ti ti-check me-1"></i> تفعيل{% endif %}
-        </button>
-      </form>
-      <form method="post" action="{% url 'control_panel:user_delete' u.pk %}" class="d-inline" onsubmit="return confirm('هل أنت متأكد من حذف هذا المستخدم؟');">
-        {% csrf_token %}
-        <button class="btn btn-outline-danger"><i class="ti ti-trash me-1"></i> حذف</button>
-      </form>
+{% block page_header %}
+<div class="page-header d-print-none mb-3">
+  <div class="row g-2 align-items-center">
+    <div class="col">
+      <div class="page-pretitle text-secondary">إدارة المستخدمين</div>
+      <h2 class="page-title">{{ page_title }}</h2>
+    </div>
+    <div class="col-auto ms-auto">
+      <div class="btn-list">
+        <a href="{% url 'control_panel:user_update' u.pk %}" class="btn btn-info"><i class="ti ti-edit me-1"></i> تعديل</a>
+        {% if u.is_active %}
+          <form method="post" action="{% url 'control_panel:user_toggle_active' u.pk %}" class="d-inline">{% csrf_token %}
+            <button class="btn btn-warning"><i class="ti ti-ban me-1"></i> تعطيل</button>
+          </form>
+        {% else %}
+          <form method="post" action="{% url 'control_panel:user_toggle_active' u.pk %}" class="d-inline">{% csrf_token %}
+            <button class="btn btn-success"><i class="ti ti-check me-1"></i> تفعيل</button>
+          </form>
+        {% endif %}
+        <a href="{% url 'control_panel:user_delete' u.pk %}" class="btn btn-danger"><i class="ti ti-trash me-1"></i> حذف</a>
+        <a href="{% url 'control_panel:user_list' %}" class="btn btn-outline-secondary"><i class="ti ti-arrow-right me-1"></i> رجوع</a>
+      </div>
     </div>
   </div>
+</div>
 {% endblock %}
 
 {% block content %}
-<div class="row row-cards">
-  <div class="col-lg-4">
+<div class="row">
+  <!-- Left Column: User Card -->
+  <div class="col-lg-4 mb-4">
     <div class="card">
-      <div class="card-body text-center">
-        <span class="avatar avatar-xl cp-avatar mb-3">{{ u.username|first|upper }}</span>
-        <h3 class="m-0 mb-1">{{ u.get_full_name|default:u.username }}</h3>
-        <div class="text-secondary">@{{ u.username }}</div>
-        <div class="mt-3 d-flex justify-content-center gap-2">
-          {% if u.is_superuser %}<span class="badge bg-red-lt">مدير عام</span>{% endif %}
-          {% if u.is_staff %}<span class="badge bg-orange-lt">موظف</span>{% endif %}
-          {% if u.is_active %}<span class="badge bg-success-lt">نشط</span>{% else %}<span class="badge bg-secondary-lt">معطّل</span>{% endif %}
+      <div class="card-body text-center py-4">
+        <span class="avatar avatar-xl mb-3" style="background: linear-gradient(135deg, #206bc4 0%, #4299e1 100%); color: white; font-size: 2rem; font-weight: 700;">
+          {{ u.username|first|upper }}
+        </span>
+        <h3 class="mb-0">{{ u.get_full_name|default:u.username }}</h3>
+        <div class="text-secondary mb-2">@{{ u.username }}</div>
+        
+        <!-- Role Badge -->
+        {% if u.is_superuser %}
+          <span class="badge bg-red-lt fs-5"><i class="ti ti-crown me-1"></i>مدير عام</span>
+        {% elif u.profile.role == 'admin' %}
+          <span class="badge bg-purple-lt"><i class="ti ti-shield me-1"></i>مدير</span>
+        {% elif u.profile.role == 'judge' %}
+          <span class="badge bg-orange-lt"><i class="ti ti-gavel me-1"></i>قاضي</span>
+        {% elif u.profile.role == 'lawyer' %}
+          <span class="badge bg-blue-lt"><i class="ti ti-scale me-1"></i>محامي</span>
+        {% elif u.profile.role == 'assistant' %}
+          <span class="badge bg-cyan-lt"><i class="ti ti-user-plus me-1"></i>معاون محامي</span>
+        {% elif u.profile.role == 'notary' %}
+          <span class="badge bg-teal-lt"><i class="ti ti-writing me-1"></i>كاتب عدل</span>
+        {% else %}
+          <span class="badge bg-secondary-lt"><i class="ti ti-user me-1"></i>مواطن</span>
+        {% endif %}
+
+        {% if u.is_active %}
+          <span class="badge bg-green-lt ms-1"><i class="ti ti-circle-check me-1"></i>نشط</span>
+        {% else %}
+          <span class="badge bg-red-lt ms-1"><i class="ti ti-ban me-1"></i>معطّل</span>
+        {% endif %}
+      </div>
+
+      <div class="card-body border-top">
+        <div class="datagrid">
+          <div class="datagrid-item">
+            <div class="datagrid-title">ID</div>
+            <div class="datagrid-content"><code>{{ u.pk }}</code></div>
+          </div>
+          <div class="datagrid-item">
+            <div class="datagrid-title">البريد الإلكتروني</div>
+            <div class="datagrid-content">{{ u.email|default:"—" }}</div>
+          </div>
+          <div class="datagrid-item">
+            <div class="datagrid-title">رقم الهاتف</div>
+            <div class="datagrid-content"><code>{{ u.profile.phone_number|default:"—" }}</code></div>
+          </div>
+          <div class="datagrid-item">
+            <div class="datagrid-title">الرقم الوطني</div>
+            <div class="datagrid-content"><code>{{ u.profile.national_id|default:"—" }}</code></div>
+          </div>
+          <div class="datagrid-item">
+            <div class="datagrid-title">تاريخ الانضمام</div>
+            <div class="datagrid-content">{{ u.date_joined|date:"Y-m-d H:i" }}</div>
+          </div>
+          <div class="datagrid-item">
+            <div class="datagrid-title">آخر تسجيل دخول</div>
+            <div class="datagrid-content">{{ u.last_login|date:"Y-m-d H:i"|default:"لم يسجل" }}</div>
+          </div>
+          <div class="datagrid-item">
+            <div class="datagrid-title">المسؤول/المشرف</div>
+            <div class="datagrid-content">{{ u.profile.supervisor|default:"—" }}</div>
+          </div>
+          <div class="datagrid-item">
+            <div class="datagrid-title">طاقم إداري (Staff)</div>
+            <div class="datagrid-content">
+              {% if u.is_staff %}<span class="status status-green">نعم</span>{% else %}<span class="status status-red">لا</span>{% endif %}
+            </div>
+          </div>
         </div>
       </div>
-      <div class="list-group list-group-flush">
-        <div class="list-group-item d-flex"><span class="text-secondary flex-fill">البريد</span><span>{{ u.email|default:"—" }}</span></div>
-        <div class="list-group-item d-flex"><span class="text-secondary flex-fill">آخر دخول</span><span>{{ u.last_login|date:"Y-m-d H:i"|default:"—" }}</span></div>
-        <div class="list-group-item d-flex"><span class="text-secondary flex-fill">انضم في</span><span>{{ u.date_joined|date:"Y-m-d" }}</span></div>
-        <div class="list-group-item d-flex"><span class="text-secondary flex-fill">معرّف المستخدم</span><span>#{{ u.pk }}</span></div>
+    </div>
+
+    <!-- Subscription Card -->
+    <div class="card mt-3">
+      <div class="card-header">
+        <h3 class="card-title"><i class="ti ti-diamond me-2"></i>خطة الاشتراك</h3>
+        <div class="card-actions">
+          <a href="{% url 'control_panel:assign_plan' u.pk %}" class="btn btn-sm btn-primary">
+            <i class="ti ti-plus me-1"></i> تعيين/تعديل خطة
+          </a>
+        </div>
+      </div>
+      <div class="card-body">
+        {% if subscription and subscription.plan %}
+          <div class="d-flex align-items-center mb-3">
+            <span class="avatar bg-yellow-lt me-2"><i class="ti ti-crown"></i></span>
+            <div>
+              <div class="fw-bold">{{ subscription.plan.name }}</div>
+              <div class="text-secondary small">${{ subscription.plan.price }}/{{ subscription.plan.duration_days }} يوم</div>
+            </div>
+            {% if subscription.is_active %}
+              <span class="badge bg-green-lt ms-auto">فعّال</span>
+            {% else %}
+              <span class="badge bg-red-lt ms-auto">منتهي</span>
+            {% endif %}
+          </div>
+          <div class="small text-secondary">
+            من: {{ subscription.start_date|date:"Y-m-d" }}<br>
+            إلى: {{ subscription.end_date|date:"Y-m-d" }}
+          </div>
+        {% else %}
+          <div class="text-center text-secondary py-3">
+            <i class="ti ti-diamond-off" style="font-size: 1.5rem;"></i><br>
+            لا يوجد اشتراك
+          </div>
+        {% endif %}
       </div>
     </div>
   </div>
 
+  <!-- Right Column: Details -->
   <div class="col-lg-8">
-    <div class="card mb-3">
-      <div class="card-header"><h3 class="card-title">الأدوار</h3></div>
-      <div class="card-body">
-        {% for g in u.groups.all %}
-          <span class="badge bg-blue-lt me-1 mb-1">{{ g.name }}</span>
-        {% empty %}
-          <div class="text-secondary">لا يوجد أدوار مخصصة</div>
-        {% endfor %}
+    <!-- Sessions -->
+    <div class="card mb-4">
+      <div class="card-header">
+        <h3 class="card-title"><i class="ti ti-device-laptop me-2"></i>سجل الجلسات</h3>
       </div>
-    </div>
-
-    <div class="card">
-      <div class="card-header"><h3 class="card-title">آخر نشاط لهذا المستخدم</h3></div>
+      {% if sessions %}
       <div class="table-responsive">
-        <table class="table card-table table-vcenter">
+        <table class="table table-vcenter card-table table-sm">
           <thead>
-            <tr><th>الإجراء</th><th>الهدف</th><th>الوصف</th><th>IP</th><th>التاريخ</th></tr>
+            <tr>
+              <th>الجهاز</th>
+              <th>المتصفح</th>
+              <th>IP</th>
+              <th>الموقع</th>
+              <th>وقت الدخول</th>
+              <th>الحالة</th>
+            </tr>
           </thead>
           <tbody>
-            {% for a in activity %}
-              <tr>
-                <td><span class="badge cp-action-{{ a.action }}">{{ a.get_action_display }}</span></td>
-                <td>{{ a.target|default:"—" }}</td>
-                <td class="text-secondary">{{ a.description|default:"—"|truncatechars:60 }}</td>
-                <td class="text-secondary">{{ a.ip_address|default:"—" }}</td>
-                <td class="text-secondary">{{ a.created_at|date:"Y-m-d H:i" }}</td>
-              </tr>
-            {% empty %}
-              <tr><td colspan="5" class="text-center text-secondary py-4">لا يوجد نشاط مسجّل</td></tr>
+            {% for s in sessions %}
+            <tr>
+              <td><i class="ti ti-device-mobile me-1"></i>{{ s.device_type|default:"—" }}</td>
+              <td>{{ s.browser|default:"—" }}</td>
+              <td><code>{{ s.ip_address|default:"—" }}</code></td>
+              <td>{{ s.country|default:"" }} {{ s.governorate|default:"" }} {{ s.city|default:"" }}</td>
+              <td class="small">{{ s.login_time|date:"Y-m-d H:i" }}</td>
+              <td>
+                {% if s.is_active %}
+                  <span class="status status-green"><span class="status-dot status-dot-animated"></span> نشط</span>
+                {% else %}
+                  <span class="status status-red">منتهية</span>
+                {% endif %}
+              </td>
+            </tr>
             {% endfor %}
           </tbody>
         </table>
       </div>
+      {% else %}
+      <div class="card-body text-center text-secondary py-4">
+        <i class="ti ti-device-laptop-off" style="font-size: 1.5rem;"></i><br>لا توجد جلسات مسجلة
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Activity Log -->
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title"><i class="ti ti-history me-2"></i>سجل النشاط</h3>
+      </div>
+      {% if activity %}
+      <div class="list-group list-group-flush" style="max-height: 400px; overflow-y: auto;">
+        {% for a in activity %}
+        <div class="list-group-item d-flex align-items-center">
+          <span class="avatar avatar-xs 
+            {% if a.action == 'login' %}bg-green-lt{% elif a.action == 'create' %}bg-blue-lt{% elif a.action == 'delete' %}bg-red-lt{% else %}bg-secondary-lt{% endif %} me-2">
+            {% if a.action == 'login' %}<i class="ti ti-login"></i>
+            {% elif a.action == 'create' %}<i class="ti ti-plus"></i>
+            {% elif a.action == 'delete' %}<i class="ti ti-trash"></i>
+            {% elif a.action == 'update' %}<i class="ti ti-edit"></i>
+            {% else %}<i class="ti ti-activity"></i>{% endif %}
+          </span>
+          <div class="flex-fill">
+            <div class="fw-medium small">{{ a.get_action_display }}</div>
+            <div class="text-secondary small">{{ a.target|default:"—" }} · {{ a.description|default:"" }}</div>
+          </div>
+          <div class="text-secondary small">{{ a.timestamp|timesince }} مضت</div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="card-body text-center text-secondary py-4">
+        <i class="ti ti-history-off" style="font-size: 1.5rem;"></i><br>لا يوجد نشاط
+      </div>
+      {% endif %}
     </div>
   </div>
 </div>

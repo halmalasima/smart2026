@@ -201,8 +201,25 @@ def home_view(request):
     }, json_dumps_params={'ensure_ascii': False, 'indent': 2})
 
 
-from dashboard.views import intro_page, custom_login, custom_register, web_portal
+from dashboard.views import intro_page, custom_login, custom_register
 
+from django.urls import re_path
+from django.views.static import serve
+import os
+import mimetypes
+from django.conf import settings
+
+# Fix MIME type for Windows
+mimetypes.add_type("application/javascript", ".js", True)
+mimetypes.add_type("application/wasm", ".wasm", True)
+
+FLUTTER_WEB_DIR = os.path.join(settings.BASE_DIR.parent, 'build', 'web')
+
+def serve_flutter_app(request, path):
+    if path != "" and os.path.exists(os.path.join(FLUTTER_WEB_DIR, path)):
+        return serve(request, path, document_root=FLUTTER_WEB_DIR)
+    else:
+        return serve(request, 'index.html', document_root=FLUTTER_WEB_DIR)
 
 urlpatterns = [
     # Health check endpoints (for Discovery and Render)
@@ -214,10 +231,8 @@ urlpatterns = [
     path('', intro_page, name='landing'),
     path('login/', custom_login, name='custom-login'),
     path('register/', custom_register, name='custom-register'),
-    path('portal/', web_portal, name='portal'),
-    
-    # API info legacy endpoint
-    path('api/info/', home_view, name='home'),
+    # Serve Flutter Web App
+    re_path(r'^app/(?P<path>.*)$', serve_flutter_app, name='flutter_app'),
     
     # Auto-fix browser caching redirects to accounts/login
     path('accounts/login/', RedirectView.as_view(url='/login/', permanent=False)),

@@ -60,7 +60,7 @@ def custom_login(request):
     Custom login page — accepts phone number (or username/email) + password.
     """
     if request.user.is_authenticated:
-        return RedirectView.as_view(url='/portal/')(request)
+        return RedirectView.as_view(url='/app/')(request)
 
     if request.method == 'POST':
         identifier = (request.POST.get('phone') or request.POST.get('username') or '').strip()
@@ -71,10 +71,10 @@ def custom_login(request):
             login(request, user)
             if user.is_superuser or (hasattr(user, 'profile') and user.profile.role == 'admin'):
                 return RedirectView.as_view(url='/cp/')(request)
-            return RedirectView.as_view(url='/portal/')(request)
+            return RedirectView.as_view(url='/app/')(request)
         else:
             messages.error(request, 'رقم الهاتف أو كلمة المرور غير صحيحة')
-
+            
     return render(request, 'dashboard/login_custom.html')
 
 
@@ -83,7 +83,7 @@ def custom_register(request):
     Custom registration page — phone is the primary identifier.
     """
     if request.user.is_authenticated:
-        return RedirectView.as_view(url='/portal/')(request)
+        return RedirectView.as_view(url='/app/')(request)
 
     if request.method == 'POST':
         full_name   = (request.POST.get('full_name') or '').strip()
@@ -133,10 +133,9 @@ def custom_register(request):
 
         login(request, user, backend='accounts.auth_backends.PhoneOrUsernameBackend')
         messages.success(request, 'تم إنشاء حسابك بنجاح، أهلاً بك في منصة القضاء الذكية')
-        return RedirectView.as_view(url='/portal/')(request)
+        return RedirectView.as_view(url='/app/')(request)
 
     return render(request, 'dashboard/register_custom.html')
-
 @login_required(login_url='/login/')
 def dashboard_home(request):
     if not request.user.is_superuser and not (hasattr(request.user, 'profile') and request.user.profile.role == 'admin'):

@@ -1,0 +1,132 @@
+{% extends "control_panel/base.html" %}
+
+{% block page_header %}
+<div class="page-header d-print-none mb-3">
+  <div class="row g-2 align-items-center">
+    <div class="col">
+      <div class="page-pretitle text-secondary">إدارة</div>
+      <h2 class="page-title">{{ page_title }}</h2>
+    </div>
+    <div class="col-auto ms-auto">
+      <a href="{% url 'control_panel:plan_create' %}" class="btn btn-primary">
+        <i class="ti ti-plus me-1"></i> إنشاء خطة جديدة
+      </a>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- Stats -->
+<div class="row row-cards mb-4">
+  <div class="col-sm-6 col-lg-3">
+    <div class="card card-sm">
+      <div class="card-body">
+        <div class="row align-items-center">
+          <div class="col-auto"><span class="bg-primary text-white avatar"><i class="ti ti-diamond"></i></span></div>
+          <div class="col">
+            <div class="font-weight-medium">{{ plan_data|length }}</div>
+            <div class="text-secondary small">إجمالي الخطط</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="card card-sm">
+      <div class="card-body">
+        <div class="row align-items-center">
+          <div class="col-auto"><span class="bg-green text-white avatar"><i class="ti ti-users"></i></span></div>
+          <div class="col">
+            <div class="font-weight-medium">{{ total_subs }}</div>
+            <div class="text-secondary small">مشترك نشط</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Plans Grid -->
+<div class="row row-cards">
+  {% for item in plan_data %}
+  <div class="col-md-6 col-lg-3">
+    <div class="card h-100">
+      <div class="card-body text-center">
+        <!-- Icon -->
+        <div class="mb-3">
+          {% if item.plan.price == 0 %}
+            <span class="avatar avatar-xl bg-secondary-lt"><i class="ti ti-gift" style="font-size: 2rem;"></i></span>
+          {% elif item.plan.price <= 10 %}
+            <span class="avatar avatar-xl bg-blue-lt"><i class="ti ti-star" style="font-size: 2rem;"></i></span>
+          {% elif item.plan.price <= 30 %}
+            <span class="avatar avatar-xl bg-purple-lt"><i class="ti ti-diamond" style="font-size: 2rem;"></i></span>
+          {% else %}
+            <span class="avatar avatar-xl bg-yellow-lt"><i class="ti ti-crown" style="font-size: 2rem;"></i></span>
+          {% endif %}
+        </div>
+
+        <h3 class="mb-1">{{ item.plan.name }}</h3>
+        <div class="display-6 fw-bold text-primary mb-1">${{ item.plan.price }}</div>
+        <div class="text-secondary small mb-3">/ {{ item.plan.duration_days }} يوم</div>
+
+        {% if not item.plan.is_active %}
+          <span class="badge bg-red-lt mb-2">غير مفعّلة</span>
+        {% endif %}
+
+        <!-- Features -->
+        <div class="text-start mb-3">
+          {% for key, val in item.plan.features.items %}
+            <div class="d-flex align-items-center mb-1 small">
+              {% if val == True %}
+                <i class="ti ti-circle-check text-green me-2"></i>
+              {% elif val == False %}
+                <i class="ti ti-circle-x text-red me-2"></i>
+              {% elif val == -1 %}
+                <i class="ti ti-infinity text-blue me-2"></i>
+              {% else %}
+                <i class="ti ti-circle-dot text-secondary me-2"></i>
+              {% endif %}
+              <span>
+                {% if key == "max_cases" %}القضايا: {% if val == -1 %}غير محدود{% else %}{{ val }}{% endif %}
+                {% elif key == "max_attachments" %}المرفقات: {% if val == -1 %}غير محدود{% else %}{{ val }}{% endif %}
+                {% elif key == "ai_assistant" %}المساعد الذكي
+                {% elif key == "priority_support" %}دعم أولوية
+                {% elif key == "legal_library" %}المكتبة القانونية
+                {% elif key == "api_access" %}وصول API
+                {% elif key == "white_label" %}علامة تجارية مخصصة
+                {% elif key == "custom_domain" %}نطاق مخصص
+                {% else %}{{ key }}: {{ val }}{% endif %}
+              </span>
+            </div>
+          {% endfor %}
+        </div>
+
+        <div class="text-secondary small mb-3">
+          <i class="ti ti-users me-1"></i> {{ item.subscribers }} مشترك
+        </div>
+
+        <!-- Actions -->
+        <div class="btn-list">
+          <a href="{% url 'control_panel:plan_edit' item.plan.pk %}" class="btn btn-sm btn-outline-primary"><i class="ti ti-edit me-1"></i>تعديل</a>
+          <form method="post" action="{% url 'control_panel:plan_delete' item.plan.pk %}" class="d-inline" onsubmit="return confirm('هل أنت متأكد من حذف هذه الخطة؟')">
+            {% csrf_token %}
+            <button class="btn btn-sm btn-outline-danger"><i class="ti ti-trash me-1"></i>حذف</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% empty %}
+  <div class="col-12">
+    <div class="card">
+      <div class="card-body text-center text-secondary py-5">
+        <i class="ti ti-diamond-off" style="font-size: 3rem;"></i>
+        <h3 class="mt-3">لا توجد خطط اشتراك</h3>
+        <a href="{% url 'control_panel:plan_create' %}" class="btn btn-primary mt-2"><i class="ti ti-plus me-1"></i>إنشاء أول خطة</a>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

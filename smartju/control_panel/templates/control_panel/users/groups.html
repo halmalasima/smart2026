@@ -28,12 +28,12 @@
             <td class="text-center"><span class="badge bg-purple-lt">{{ g.perm_count }}</span></td>
             <td>
               <div class="btn-list flex-nowrap">
-                <a href="{% url 'control_panel:group_update' g.pk %}" class="btn btn-sm btn-icon btn-ghost-secondary" title="تعديل">
-                  <i class="ti ti-edit"></i>
+                <a href="{% url 'control_panel:group_update' g.pk %}" class="btn btn-sm btn-outline-info">
+                  تعديل
                 </a>
                 <form method="post" action="{% url 'control_panel:group_delete' g.pk %}" class="d-inline" onsubmit="return confirm('حذف هذا الدور؟');">
                   {% csrf_token %}
-                  <button class="btn btn-sm btn-icon btn-ghost-danger" title="حذف"><i class="ti ti-trash"></i></button>
+                  <button class="btn btn-sm btn-outline-danger">حذف</button>
                 </form>
               </div>
             </td>

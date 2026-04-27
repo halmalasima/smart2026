@@ -11,6 +11,8 @@ class MicroserviceRouter:
         'auth': 'auth_db',
         'sessions': 'auth_db',
         'contenttypes': 'auth_db',
+        'dashboard': 'auth_db',
+        'control_panel': 'auth_db',
         
         # Cases & Lawsuits
         'lawsuits': 'cases_db',
@@ -52,6 +54,12 @@ class MicroserviceRouter:
         db2 = self.APP_MAP.get(obj2._meta.app_label, 'default')
         if db1 == db2:
             return True
+        
+        # Allow cross-database logical relations between any microservice and auth_db 
+        # (Needed to assign User to Lawsuits, Hearings, etc. without ValueError)
+        if db1 == 'auth_db' or db2 == 'auth_db':
+            return True
+            
         return None
 
     def allow_migrate(self, db, app_label, model_name=None, **hints):

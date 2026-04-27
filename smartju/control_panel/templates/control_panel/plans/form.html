@@ -1,0 +1,112 @@
+{% extends "control_panel/base.html" %}
+
+{% block page_header %}
+<div class="page-header d-print-none mb-3">
+  <div class="row g-2 align-items-center">
+    <div class="col">
+      <div class="page-pretitle text-secondary">خطط الاشتراك</div>
+      <h2 class="page-title">{{ page_title }}</h2>
+    </div>
+    <div class="col-auto ms-auto">
+      <a href="{% url 'control_panel:plan_list' %}" class="btn btn-outline-secondary"><i class="ti ti-arrow-right me-1"></i> رجوع</a>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-body">
+        <form method="post">
+          {% csrf_token %}
+
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label">اسم الخطة <span class="text-red">*</span></label>
+              <input type="text" name="name" class="form-control" value="{{ plan.name|default:'' }}" required>
+            </div>
+            <div class="col-md-3 mb-3">
+              <label class="form-label">السعر ($) <span class="text-red">*</span></label>
+              <input type="number" name="price" class="form-control" step="0.01" min="0" value="{{ plan.price|default:'0' }}" required>
+            </div>
+            <div class="col-md-3 mb-3">
+              <label class="form-label">المدة (أيام) <span class="text-red">*</span></label>
+              <input type="number" name="duration_days" class="form-control" min="1" value="{{ plan.duration_days|default:'30' }}" required>
+            </div>
+          </div>
+
+          {% if mode == 'edit' %}
+          <div class="mb-3">
+            <label class="form-check">
+              <input type="checkbox" name="is_active" class="form-check-input" {% if plan.is_active %}checked{% endif %}>
+              <span class="form-check-label">خطة مفعّلة</span>
+            </label>
+          </div>
+          {% endif %}
+
+          <hr class="my-3">
+          <h4 class="mb-3"><i class="ti ti-list-check me-2"></i>المميزات والحدود</h4>
+
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label">الحد الأقصى للقضايا <small class="text-secondary">(-1 = غير محدود)</small></label>
+              <input type="number" name="max_cases" class="form-control" min="-1" value="{% if plan %}{{ plan.features.max_cases|default:'0' }}{% else %}3{% endif %}">
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label">الحد الأقصى للمرفقات <small class="text-secondary">(-1 = غير محدود)</small></label>
+              <input type="number" name="max_attachments" class="form-control" min="-1" value="{% if plan %}{{ plan.features.max_attachments|default:'0' }}{% else %}5{% endif %}">
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-6 mb-2">
+              <label class="form-check">
+                <input type="checkbox" name="ai_assistant" class="form-check-input" {% if plan.features.ai_assistant %}checked{% endif %}>
+                <span class="form-check-label"><i class="ti ti-robot me-1"></i> المساعد الذكي (AI)</span>
+              </label>
+            </div>
+            <div class="col-md-6 mb-2">
+              <label class="form-check">
+                <input type="checkbox" name="priority_support" class="form-check-input" {% if plan.features.priority_support %}checked{% endif %}>
+                <span class="form-check-label"><i class="ti ti-headset me-1"></i> دعم أولوية</span>
+              </label>
+            </div>
+            <div class="col-md-6 mb-2">
+              <label class="form-check">
+                <input type="checkbox" name="legal_library" class="form-check-input" {% if plan.features.legal_library %}checked{% endif %}>
+                <span class="form-check-label"><i class="ti ti-books me-1"></i> المكتبة القانونية</span>
+              </label>
+            </div>
+            <div class="col-md-6 mb-2">
+              <label class="form-check">
+                <input type="checkbox" name="api_access" class="form-check-input" {% if plan.features.api_access %}checked{% endif %}>
+                <span class="form-check-label"><i class="ti ti-api me-1"></i> وصول API</span>
+              </label>
+            </div>
+            <div class="col-md-6 mb-2">
+              <label class="form-check">
+                <input type="checkbox" name="white_label" class="form-check-input" {% if plan.features.white_label %}checked{% endif %}>
+                <span class="form-check-label"><i class="ti ti-tag me-1"></i> علامة تجارية مخصصة</span>
+              </label>
+            </div>
+            <div class="col-md-6 mb-2">
+              <label class="form-check">
+                <input type="checkbox" name="custom_domain" class="form-check-input" {% if plan.features.custom_domain %}checked{% endif %}>
+                <span class="form-check-label"><i class="ti ti-world me-1"></i> نطاق مخصص</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="form-footer mt-4">
+            <button type="submit" class="btn btn-primary w-100">
+              <i class="ti ti-check me-1"></i> {% if mode == 'edit' %}حفظ التعديلات{% else %}إنشاء الخطة{% endif %}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

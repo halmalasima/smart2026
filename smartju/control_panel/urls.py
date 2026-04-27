@@ -27,6 +27,13 @@ urlpatterns = [
     path("groups/<int:pk>/edit/", views.group_update, name="group_update"),
     path("groups/<int:pk>/delete/", views.group_delete, name="group_delete"),
 
+    # Subscription Plans
+    path("plans/", views.plan_list, name="plan_list"),
+    path("plans/new/", views.plan_create, name="plan_create"),
+    path("plans/<int:pk>/edit/", views.plan_edit, name="plan_edit"),
+    path("plans/<int:pk>/delete/", views.plan_delete, name="plan_delete"),
+    path("users/<int:user_id>/assign-plan/", views.assign_plan, name="assign_plan"),
+
     # Generic models browser
     path("models/", views.models_index, name="models_index"),
     path("models/<str:app_label>/<str:model_name>/", views.model_browse, name="model_browse"),

@@ -4,7 +4,7 @@
   <div class="page-header d-print-none mb-3">
     <div class="row g-2 align-items-center">
       <div class="col">
-        <div class="page-pretitle text-secondary">{{ app_label }} · موديل</div>
+        <div class="page-pretitle text-secondary">{{ app_label }}</div>
         <h2 class="page-title">{{ verbose_name_plural|title }}</h2>
       </div>
       <div class="col-auto ms-auto">
@@ -18,9 +18,6 @@
           <a href="{% url 'control_panel:model_create' app_label model_name %}" class="btn btn-primary">
             <i class="ti ti-plus me-1"></i> إضافة جديد
           </a>
-          <a href="{% url 'control_panel:models_index' %}" class="btn btn-outline-secondary">
-            <i class="ti ti-arrow-right me-1"></i> رجوع للموديلات
-          </a>
         </div>
       </div>
     </div>
@@ -28,23 +25,95 @@
 {% endblock %}
 
 {% block content %}
-<div class="card">
-  <div class="card-body border-bottom py-2">
-    <form method="get" class="d-flex">
-      <input type="text" name="q" value="{{ q }}" class="form-control me-2" placeholder="بحث في الحقول النصية…">
-      <button type="submit" class="btn btn-primary"><i class="ti ti-search me-1"></i> بحث</button>
+<!-- Stats Cards -->
+<div class="row row-cards mb-4">
+  <div class="col-sm-6 col-lg-3">
+    <div class="card card-sm">
+      <div class="card-body">
+        <div class="row align-items-center">
+          <div class="col-auto"><span class="bg-primary text-white avatar"><i class="ti ti-table"></i></span></div>
+          <div class="col">
+            <div class="font-weight-medium">{{ total_count }}</div>
+            <div class="text-secondary small">إجمالي السجلات</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% if today_count > 0 %}
+  <div class="col-sm-6 col-lg-3">
+    <div class="card card-sm">
+      <div class="card-body">
+        <div class="row align-items-center">
+          <div class="col-auto"><span class="bg-green text-white avatar"><i class="ti ti-trending-up"></i></span></div>
+          <div class="col">
+            <div class="font-weight-medium">{{ today_count }}</div>
+            <div class="text-secondary small">تمت إضافتها اليوم</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Filters -->
+<div class="card mb-3">
+  <div class="card-body py-3">
+    <form method="get" class="row g-2 align-items-end">
+      <!-- Search Input -->
+      <div class="col-md-3">
+        <label class="form-label small">بحث عام</label>
+        <div class="input-icon">
+          <span class="input-icon-addon"><i class="ti ti-search"></i></span>
+          <input type="text" name="q" value="{{ q }}" class="form-control" placeholder="بحث...">
+        </div>
+      </div>
+
+      <!-- Dynamic Filters -->
+      {% for filter in filterable_fields|slice:":4" %}
+      <div class="col-md-2">
+        <label class="form-label small text-truncate" title="{{ filter.verbose_name }}">{{ filter.verbose_name }}</label>
+        <select name="{{ filter.name }}" class="form-select">
+          <option value="">الكل</option>
+          {% for val, label in filter.choices %}
+            <option value="{{ val }}" {% if filter.current == val|stringformat:"s" %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endfor %}
+
+      <!-- Hidden Sort Input -->
+      {% if request.GET.sort %}
+        <input type="hidden" name="sort" value="{{ request.GET.sort }}">
+      {% endif %}
+
+      <div class="col-md-auto ms-auto">
+        <button type="submit" class="btn btn-primary"><i class="ti ti-filter me-1"></i> فلترة</button>
+        <a href="?{% if request.GET.sort %}sort={{ request.GET.sort }}{% endif %}" class="btn btn-outline-secondary" title="إلغاء الفلترة"><i class="ti ti-x"></i></a>
+      </div>
     </form>
   </div>
+</div>
+
+<!-- Data Table -->
+<div class="card">
   <div class="table-responsive">
     <table class="table table-vcenter card-table table-hover">
       <thead>
         <tr>
-          <th>#</th>
+          <th class="w-1">#</th>
           {% for f in fields %}
           <th>
-            <a href="?q={{ q }}&sort={% if request.GET.sort == f.name %}-{% endif %}{{ f.name }}" class="text-secondary">
+            <a href="?q={{ q }}{% for key, value in request.GET.items %}{% if key != 'q' and key != 'sort' and key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}&sort={% if request.GET.sort == f.name %}-{% endif %}{{ f.name }}" class="text-secondary text-decoration-none">
               {{ f.verbose_name|default:f.name }}
-              {% if request.GET.sort == f.name %}<i class="ti ti-chevron-up"></i>{% elif request.GET.sort == '-'|add:f.name %}<i class="ti ti-chevron-down"></i>{% endif %}
+              {% if request.GET.sort == f.name %}
+                <i class="ti ti-chevron-up text-primary"></i>
+              {% elif request.GET.sort == '-'|add:f.name %}
+                <i class="ti ti-chevron-down text-primary"></i>
+              {% else %}
+                <i class="ti ti-arrows-sort text-muted opacity-50 ms-1" style="font-size: 10px;"></i>
+              {% endif %}
             </a>
           </th>
           {% endfor %}
@@ -54,18 +123,39 @@
       <tbody>
         {% for r in rows %}
           <tr>
-            <td class="text-secondary">{{ r.pk }}</td>
-            {% for v in r.values %}<td class="cp-cell">{{ v }}</td>{% endfor %}
+            <td class="text-secondary small">{{ r.pk }}</td>
+            {% for item in r.values %}
+              <td class="cp-cell">
+                {% if item.type == 'BooleanField' %}
+                  {% if item.value == '✓' or item.value == True or item.value == 'True' %}
+                    <span class="status status-green"><span class="status-dot status-dot-animated"></span>نعم</span>
+                  {% else %}
+                    <span class="status status-red">لا</span>
+                  {% endif %}
+                {% elif item.type == 'FileField' or item.type == 'ImageField' %}
+                  {% if item.value and item.value != '—' %}
+                    <a href="#" class="badge bg-blue-lt"><i class="ti ti-file me-1"></i> ملف</a>
+                  {% else %}
+                    <span class="text-secondary">—</span>
+                  {% endif %}
+                {% else %}
+                  {{ item.value|truncatechars:50 }}
+                {% endif %}
+              </td>
+            {% endfor %}
             <td>
               <div class="btn-list flex-nowrap">
-                <a href="{% url 'control_panel:model_detail' app_label model_name r.pk %}" class="btn btn-sm btn-icon btn-ghost-primary" title="عرض"><i class="ti ti-eye"></i></a>
-                <a href="{% url 'control_panel:model_edit' app_label model_name r.pk %}" class="btn btn-sm btn-icon btn-ghost-info" title="تعديل"><i class="ti ti-edit"></i></a>
-                <a href="{% url 'control_panel:model_delete' app_label model_name r.pk %}" class="btn btn-sm btn-icon btn-ghost-danger" title="حذف"><i class="ti ti-trash"></i></a>
+                <a href="{% url 'control_panel:model_detail' app_label model_name r.pk %}" class="btn btn-sm btn-outline-primary">عرض</a>
+                <a href="{% url 'control_panel:model_edit' app_label model_name r.pk %}" class="btn btn-sm btn-outline-info">تعديل</a>
+                <a href="{% url 'control_panel:model_delete' app_label model_name r.pk %}" class="btn btn-sm btn-outline-danger">حذف</a>
               </div>
             </td>
           </tr>
         {% empty %}
-          <tr><td colspan="{{ fields|length|add:'2' }}" class="text-center text-secondary py-5">لا توجد سجلات</td></tr>
+          <tr><td colspan="{{ fields|length|add:'2' }}" class="text-center text-secondary py-5">
+            <i class="ti ti-database-off mb-3" style="font-size: 3rem; opacity: 0.5;"></i><br>
+            لا توجد سجلات مطابقة
+          </td></tr>
         {% endfor %}
       </tbody>
     </table>

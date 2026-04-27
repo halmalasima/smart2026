@@ -199,28 +199,52 @@ def dashboard(request):
 
 @staff_required
 def user_list(request):
+    from accounts.models import UserProfile
+    from dashboard.models import SubscriptionPlan
+
     q = request.GET.get("q", "").strip()
     role = request.GET.get("role", "")
     status = request.GET.get("status", "")
+    plan_filter = request.GET.get("plan", "")
 
-    qs = User.objects.all().order_by("-date_joined")
+    qs = User.objects.select_related("profile").prefetch_related("subscription", "subscription__plan").all().order_by("-date_joined")
     if q:
         qs = qs.filter(
             Q(username__icontains=q)
             | Q(email__icontains=q)
             | Q(first_name__icontains=q)
             | Q(last_name__icontains=q)
+            | Q(profile__phone_number__icontains=q)
+            | Q(profile__national_id__icontains=q)
         )
-    if role == "staff":
+    # Role filter (from UserProfile)
+    if role and role not in ("staff", "superuser", "regular"):
+        qs = qs.filter(profile__role=role)
+    elif role == "staff":
         qs = qs.filter(is_staff=True)
     elif role == "superuser":
         qs = qs.filter(is_superuser=True)
     elif role == "regular":
         qs = qs.filter(is_staff=False, is_superuser=False)
+
     if status == "active":
         qs = qs.filter(is_active=True)
     elif status == "inactive":
         qs = qs.filter(is_active=False)
+
+    if plan_filter:
+        qs = qs.filter(subscription__plan_id=plan_filter)
+
+    # Stats
+    total_users = User.objects.count()
+    active_users = User.objects.filter(is_active=True).count()
+    staff_users = User.objects.filter(is_staff=True).count()
+
+    # Role choices for filter
+    role_choices = UserProfile.ROLE_CHOICES
+
+    # Available plans for filter
+    plans = SubscriptionPlan.objects.filter(is_active=True)
 
     paginator = Paginator(qs, 15)
     page = paginator.get_page(request.GET.get("page"))
@@ -232,6 +256,12 @@ def user_list(request):
             "q": q,
             "role": role,
             "status": status,
+            "plan_filter": plan_filter,
+            "role_choices": role_choices,
+            "plans": plans,
+            "total_users": total_users,
+            "active_users": active_users,
+            "staff_users": staff_users,
             "page_title": "إدارة المستخدمين",
             "active_section": "users",
         },
@@ -260,14 +290,34 @@ def user_create(request):
 
 @staff_required
 def user_detail(request, pk):
-    user = get_object_or_404(User, pk=pk)
+    user = get_object_or_404(User.objects.select_related("profile"), pk=pk)
     activity = ActivityLog.objects.filter(user=user)[:20]
+
+    # Get subscription
+    subscription = None
+    try:
+        subscription = user.subscription
+    except Exception:
+        pass
+
+    # Get sessions (from search_db or default)
+    sessions = []
+    try:
+        from logs.models import UserSession
+        # Use list() to force query execution here so we catch any DB errors!
+        sessions = list(UserSession.objects.filter(user=user).order_by("-login_time")[:10])
+    except Exception as e:
+        print("Session error:", e)
+        pass
+
     return render(
         request,
         "control_panel/users/detail.html",
         {
             "u": user,
             "activity": activity,
+            "subscription": subscription,
+            "sessions": sessions,
             "page_title": f"المستخدم: {user.get_username()}",
             "active_section": "users",
         },
@@ -403,6 +453,9 @@ def models_index(request):
 
 @staff_required
 def model_browse(request, app_label, model_name):
+    from django.utils import timezone
+    from datetime import timedelta
+
     Model = get_model_or_404(app_label, model_name)
     fields = visible_fields(Model)
     q = request.GET.get("q", "").strip()
@@ -421,34 +474,76 @@ def model_browse(request, app_label, model_name):
 
     # Automatic Filtering for choices or foreign keys if provided in GET
     for param, value in request.GET.items():
-        if param in ("q", "page"): continue
+        if param in ("q", "page", "sort"): continue
         if value:
             try:
                 # Check if param is a valid field
-                Model._meta.get_field(param)
-                qs = qs.filter(**{param: value})
+                f = Model._meta.get_field(param)
+                if f.get_internal_type() == 'BooleanField':
+                    qs = qs.filter(**{param: value == 'true'})
+                else:
+                    qs = qs.filter(**{param: value})
             except Exception:
                 pass
 
     # Sorting
-    sort = request.GET.get("sort", "-pk")
-    try:
+    sort = request.GET.get("sort")
+    if sort:
         qs = qs.order_by(sort)
-    except Exception:
-        qs = qs.order_by("-pk")
+    else:
+        # Default ordering
+        if hasattr(Model._meta, 'ordering') and Model._meta.ordering:
+            qs = qs.order_by(*Model._meta.ordering)
+        else:
+            qs = qs.order_by('-pk')
 
-    paginator = Paginator(qs, 25)
+    # Generate Dynamic Filters metadata
+    filterable_fields = []
+    for f in Model._meta.get_fields():
+        if not f.concrete or f.many_to_many: continue
+        if f.is_relation and f.many_to_one:
+            # Foreign Key
+            try:
+                related_qs = f.related_model.objects.all()[:50] # Limit to 50 for performance
+                choices = [(str(obj.pk), str(obj)) for obj in related_qs]
+                filterable_fields.append({"name": f.name, "verbose_name": getattr(f, 'verbose_name', f.name), "choices": choices, "type": "fk", "current": request.GET.get(f.name, "")})
+            except Exception:
+                pass
+        elif getattr(f, 'choices', None):
+            # Choice field
+            filterable_fields.append({"name": f.name, "verbose_name": getattr(f, 'verbose_name', f.name), "choices": [(str(k), str(v)) for k, v in f.choices], "type": "choice", "current": request.GET.get(f.name, "")})
+        elif f.get_internal_type() == 'BooleanField':
+            # Boolean
+            filterable_fields.append({"name": f.name, "verbose_name": getattr(f, 'verbose_name', f.name), "choices": [("true", "نعم (True)"), ("false", "لا (False)")], "type": "bool", "current": request.GET.get(f.name, "")})
+
+    # Generate Stats
+    total_count = Model._default_manager.count()
+    today_count = 0
+    date_field = None
+    for f in Model._meta.get_fields():
+        if f.get_internal_type() in ('DateTimeField', 'DateField') and getattr(f, 'auto_now_add', False):
+            date_field = f.name
+            break
+    if not date_field:
+        for f in Model._meta.get_fields():
+            if f.name in ('created_at', 'date_joined'):
+                date_field = f.name
+                break
+    
+    if date_field:
+        from django.utils import timezone
+        today_count = Model._default_manager.filter(**{f"{date_field}__date": timezone.localdate()}).count()
+
+    paginator = Paginator(qs, 15)
     page = paginator.get_page(request.GET.get("page"))
 
     rows = []
     for obj in page.object_list:
-        rows.append(
-            {
-                "pk": obj.pk,
-                "values": [field_display(obj, f) for f in fields],
-                "str": str(obj),
-            }
-        )
+        values = []
+        for f in fields:
+            val = field_display(obj, f)
+            values.append({"value": val, "type": f.get_internal_type()})
+        rows.append({"pk": obj.pk, "values": values})
 
     return render(
         request,
@@ -460,6 +555,9 @@ def model_browse(request, app_label, model_name):
             "verbose_name": Model._meta.verbose_name,
             "verbose_name_plural": Model._meta.verbose_name_plural,
             "fields": fields,
+            "filterable_fields": filterable_fields,
+            "total_count": total_count,
+            "today_count": today_count,
             "rows": rows,
             "page": page,
             "q": q,
@@ -706,6 +804,124 @@ def microservices_status(request):
             "services": services,
         }
     )
+
+
+# ──────────────────── Subscription Plans ───────────────────────────
+
+@staff_required
+def plan_list(request):
+    from dashboard.models import SubscriptionPlan, UserSubscription
+    plans = SubscriptionPlan.objects.all()
+    plan_data = []
+    for p in plans:
+        sub_count = UserSubscription.objects.filter(plan=p, is_active=True).count()
+        plan_data.append({"plan": p, "subscribers": sub_count})
+    total_subs = UserSubscription.objects.filter(is_active=True).count()
+    return render(request, "control_panel/plans/list.html", {
+        "plan_data": plan_data,
+        "total_subs": total_subs,
+        "page_title": "خطط الاشتراك",
+        "active_section": "plans",
+    })
+
+
+@staff_required
+def plan_create(request):
+    from dashboard.models import SubscriptionPlan
+    if request.method == "POST":
+        name = request.POST.get("name", "")
+        price = request.POST.get("price", 0)
+        duration = request.POST.get("duration_days", 30)
+        features = {}
+        for key in ["max_cases", "max_attachments"]:
+            val = request.POST.get(key, "0")
+            features[key] = int(val) if val else 0
+        for key in ["ai_assistant", "priority_support", "legal_library", "api_access", "white_label", "custom_domain"]:
+            features[key] = request.POST.get(key) == "on"
+        plan = SubscriptionPlan.objects.create(
+            name=name, price=price, duration_days=duration, features=features
+        )
+        _log(request, "create", target=f"Plan:{plan.name}")
+        messages.success(request, f"تم إنشاء الخطة '{plan.name}' بنجاح.")
+        return redirect("control_panel:plan_list")
+    return render(request, "control_panel/plans/form.html", {
+        "mode": "create",
+        "page_title": "إنشاء خطة جديدة",
+        "active_section": "plans",
+    })
+
+
+@staff_required
+def plan_edit(request, pk):
+    from dashboard.models import SubscriptionPlan
+    plan = get_object_or_404(SubscriptionPlan, pk=pk)
+    if request.method == "POST":
+        plan.name = request.POST.get("name", plan.name)
+        plan.price = request.POST.get("price", plan.price)
+        plan.duration_days = request.POST.get("duration_days", plan.duration_days)
+        plan.is_active = request.POST.get("is_active") == "on"
+        features = {}
+        for key in ["max_cases", "max_attachments"]:
+            val = request.POST.get(key, "0")
+            features[key] = int(val) if val else 0
+        for key in ["ai_assistant", "priority_support", "legal_library", "api_access", "white_label", "custom_domain"]:
+            features[key] = request.POST.get(key) == "on"
+        plan.features = features
+        plan.save()
+        _log(request, "update", target=f"Plan:{plan.name}")
+        messages.success(request, f"تم تحديث الخطة '{plan.name}'.")
+        return redirect("control_panel:plan_list")
+    return render(request, "control_panel/plans/form.html", {
+        "plan": plan,
+        "mode": "edit",
+        "page_title": f"تعديل: {plan.name}",
+        "active_section": "plans",
+    })
+
+
+@staff_required
+@require_POST
+def plan_delete(request, pk):
+    from dashboard.models import SubscriptionPlan
+    plan = get_object_or_404(SubscriptionPlan, pk=pk)
+    name = plan.name
+    plan.delete()
+    _log(request, "delete", target=f"Plan:{name}")
+    messages.success(request, f"تم حذف الخطة '{name}'.")
+    return redirect("control_panel:plan_list")
+
+
+@staff_required
+def assign_plan(request, user_id):
+    from dashboard.models import SubscriptionPlan, UserSubscription
+    from django.utils import timezone
+    from datetime import timedelta
+
+    user = get_object_or_404(User, pk=user_id)
+    plans = SubscriptionPlan.objects.filter(is_active=True)
+
+    if request.method == "POST":
+        plan_id = request.POST.get("plan_id")
+        plan = get_object_or_404(SubscriptionPlan, pk=plan_id)
+        sub, created = UserSubscription.objects.update_or_create(
+            user=user,
+            defaults={
+                "plan": plan,
+                "start_date": timezone.now(),
+                "end_date": timezone.now() + timedelta(days=plan.duration_days),
+                "is_active": True,
+            }
+        )
+        _log(request, "update", target=f"User:{user.username}", description=f"Assigned plan: {plan.name}")
+        messages.success(request, f"تم تعيين خطة '{plan.name}' للمستخدم {user.username}.")
+        return redirect("control_panel:user_detail", pk=user_id)
+
+    return render(request, "control_panel/plans/assign.html", {
+        "target_user": user,
+        "plans": plans,
+        "page_title": f"تعيين خطة لـ {user.username}",
+        "active_section": "users",
+    })
 
 
 # ───────────────────────── Activity log ────────────────────────────

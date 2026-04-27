@@ -9,8 +9,7 @@
 
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.3.0/tabler-icons.min.css">
     <script>
       // Apply theme BEFORE first paint (no flash)
       (function () {
@@ -175,8 +174,8 @@
           <button onclick="toggleTheme()" aria-label="تبديل الوضع"
                   class="w-10 h-10 grid place-items-center rounded-xl border border-gray-200 dark:border-ink-700
                          hover:bg-gray-100 dark:hover:bg-ink-800 transition">
-            <i class="fas fa-moon dark:hidden text-gray-600"></i>
-            <i class="fas fa-sun hidden dark:inline text-gold"></i>
+            <i class="ti ti-moon dark:hidden text-gray-600"></i>
+            <i class="ti ti-sun hidden dark:inline text-gold"></i>
           </button>
           <a href="/login/" class="hidden sm:inline-flex items-center px-4 py-2 rounded-xl font-bold text-sm
                                     text-brand dark:text-brand-lighter hover:bg-brand/5 dark:hover:bg-white/5 transition">
@@ -186,7 +185,7 @@
                                        bg-gradient-to-l from-gold to-gold-light text-brand-darker shadow-gold
                                        hover:shadow-cardLg hover:-translate-y-0.5 transition">
             ابدأ الآن
-            <i class="fas fa-arrow-left text-xs"></i>
+            <i class="ti ti-arrow-left text-xs"></i>
           </a>
         </div>
       </div>
@@ -218,21 +217,21 @@
           <a href="/register/" class="inline-flex items-center gap-3 px-7 py-4 rounded-2xl font-black text-base
                                        bg-gradient-to-l from-gold to-gold-light text-brand-darker shadow-gold
                                        hover:shadow-cardLg hover:-translate-y-0.5 transition">
-            <i class="fas fa-rocket"></i>
+            <i class="ti ti-rocket"></i>
             ابدأ مجاناً
           </a>
           <a href="#services" class="inline-flex items-center gap-3 px-7 py-4 rounded-2xl font-black text-base
                                       bg-white/10 border border-white/20 backdrop-blur hover:bg-white/15 transition">
-            <i class="fas fa-compass"></i>
+            <i class="ti ti-compass"></i>
             استكشف الخدمات
           </a>
         </div>
 
         <div class="mt-12 flex flex-wrap gap-x-8 gap-y-4 text-sm text-white/70">
-          <div class="flex items-center gap-2"><i class="fas fa-shield-halved text-gold"></i> أمان عالي</div>
-          <div class="flex items-center gap-2"><i class="fas fa-bolt text-gold"></i> أداء سريع</div>
-          <div class="flex items-center gap-2"><i class="fas fa-mobile-screen text-gold"></i> ويب وموبايل</div>
-          <div class="flex items-center gap-2"><i class="fas fa-language text-gold"></i> عربية بالكامل</div>
+          <div class="flex items-center gap-2"><i class="ti ti-shield text-gold"></i> أمان عالي</div>
+          <div class="flex items-center gap-2"><i class="ti ti-bolt text-gold"></i> أداء سريع</div>
+          <div class="flex items-center gap-2"><i class="ti ti-device-mobile text-gold"></i> ويب وموبايل</div>
+          <div class="flex items-center gap-2"><i class="ti ti-language text-gold"></i> عربية بالكامل</div>
         </div>
       </div>
 
@@ -244,7 +243,7 @@
           <div class="col-span-3 p-6 rounded-3xl bg-white/10 backdrop-blur-xl border border-white/15 shadow-2xl">
             <div class="flex items-center gap-3">
               <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-gold to-gold-dark grid place-items-center text-brand-darker text-xl">
-                <i class="fas fa-wand-magic-sparkles"></i>
+                <i class="ti ti-wand"></i>
               </div>
               <div>
                 <div class="font-black text-lg">المساعد القانوني الذكي</div>
@@ -259,17 +258,17 @@
 
           <!-- mini cards -->
           <div class="p-4 rounded-2xl bg-white/10 backdrop-blur border border-white/15 animate-float">
-            <div class="w-10 h-10 rounded-xl bg-service-ocean/30 grid place-items-center"><i class="fas fa-gavel text-service-ocean"></i></div>
+            <div class="w-10 h-10 rounded-xl bg-service-ocean/30 grid place-items-center"><i class="ti ti-gavel text-service-ocean"></i></div>
             <div class="mt-3 text-sm font-bold">القضايا</div>
             <div class="text-[11px] text-white/60">8 نشطة</div>
           </div>
           <div class="p-4 rounded-2xl bg-white/10 backdrop-blur border border-white/15 animate-float" style="animation-delay:-1.5s">
-            <div class="w-10 h-10 rounded-xl bg-service-violet/30 grid place-items-center"><i class="fas fa-file-contract text-service-violet"></i></div>
+            <div class="w-10 h-10 rounded-xl bg-service-violet/30 grid place-items-center"><i class="ti ti-file-certificate text-service-violet"></i></div>
             <div class="mt-3 text-sm font-bold">الوثائق</div>
             <div class="text-[11px] text-white/60">12 جاهزة</div>
           </div>
           <div class="p-4 rounded-2xl bg-white/10 backdrop-blur border border-white/15 animate-float" style="animation-delay:-3s">
-            <div class="w-10 h-10 rounded-xl bg-service-amber/30 grid place-items-center"><i class="fas fa-bell text-service-amber"></i></div>
+            <div class="w-10 h-10 rounded-xl bg-service-amber/30 grid place-items-center"><i class="ti ti-bell text-service-amber"></i></div>
             <div class="mt-3 text-sm font-bold">الإشعارات</div>
             <div class="text-[11px] text-white/60">3 جديدة</div>
           </div>
@@ -325,7 +324,7 @@
         <!-- 4 about cards -->
         <div class="reveal p-6 rounded-2xl bg-white dark:bg-ink-900 border border-gray-100 dark:border-ink-700 shadow-card hover:shadow-cardLg svc-card">
           <div class="w-12 h-12 rounded-xl grid place-items-center text-white bg-gradient-to-br from-service-emerald to-brand">
-            <i class="fas fa-layer-group"></i>
+            <i class="ti ti-layers-intersect"></i>
           </div>
           <h3 class="mt-4 font-black text-lg">مكان واحد لكل شيء</h3>
           <p class="mt-2 text-sm text-gray-600 dark:text-ink-200 leading-relaxed">كل خدماتك في تطبيق واحد متكامل بدلاً من التنقّل بين عشرات التطبيقات.</p>
@@ -333,7 +332,7 @@
 
         <div class="reveal p-6 rounded-2xl bg-white dark:bg-ink-900 border border-gray-100 dark:border-ink-700 shadow-card hover:shadow-cardLg svc-card" style="transition-delay:.1s">
           <div class="w-12 h-12 rounded-xl grid place-items-center text-white bg-gradient-to-br from-service-amber to-gold">
-            <i class="fas fa-bolt"></i>
+            <i class="ti ti-bolt"></i>
           </div>
           <h3 class="mt-4 font-black text-lg">بساطة وسرعة</h3>
           <p class="mt-2 text-sm text-gray-600 dark:text-ink-200 leading-relaxed">تجربة استخدام سلسة وواضحة، حتى لمن ليست لديهم خبرة تقنية.</p>
@@ -341,7 +340,7 @@
 
         <div class="reveal p-6 rounded-2xl bg-white dark:bg-ink-900 border border-gray-100 dark:border-ink-700 shadow-card hover:shadow-cardLg svc-card" style="transition-delay:.2s">
           <div class="w-12 h-12 rounded-xl grid place-items-center text-white bg-gradient-to-br from-service-ocean to-service-indigo">
-            <i class="fas fa-shield-halved"></i>
+            <i class="ti ti-shield"></i>
           </div>
           <h3 class="mt-4 font-black text-lg">أمان وخصوصية</h3>
           <p class="mt-2 text-sm text-gray-600 dark:text-ink-200 leading-relaxed">حماية بياناتك أولوية قصوى لتقديم تجربة موثوقة تعتمد عليها يومياً.</p>
@@ -349,7 +348,7 @@
 
         <div class="reveal p-6 rounded-2xl bg-white dark:bg-ink-900 border border-gray-100 dark:border-ink-700 shadow-card hover:shadow-cardLg svc-card" style="transition-delay:.3s">
           <div class="w-12 h-12 rounded-xl grid place-items-center text-white bg-gradient-to-br from-service-violet to-service-rose">
-            <i class="fas fa-clock"></i>
+            <i class="ti ti-clock"></i>
           </div>
           <h3 class="mt-4 font-black text-lg">في أي وقت ومكان</h3>
           <p class="mt-2 text-sm text-gray-600 dark:text-ink-200 leading-relaxed">أنجز معاملاتك من أي جهاز ومن أي مكان دون تعقيد أو خطوات طويلة.</p>
@@ -376,96 +375,96 @@
         <div class="svc-card reveal group p-6 rounded-3xl bg-white dark:bg-ink-900 border border-gray-100 dark:border-ink-700 shadow-card hover:shadow-cardLg">
           <div class="w-14 h-14 rounded-2xl grid place-items-center text-white text-xl shadow-lg shadow-service-ocean/30
                       bg-gradient-to-br from-service-ocean to-service-indigo">
-            <i class="fas fa-gavel"></i>
+            <i class="ti ti-gavel"></i>
           </div>
           <h3 class="mt-5 font-black text-lg">القضايا والدعاوى</h3>
           <p class="mt-2 text-sm text-gray-600 dark:text-ink-200 leading-relaxed">رفع، متابعة، وإدارة قضاياك ومستنداتها إلكترونياً مع جميع الأطراف.</p>
           <div class="mt-4 flex items-center gap-1.5 text-brand dark:text-brand-lighter text-sm font-bold opacity-0 group-hover:opacity-100 transition">
-            ابدأ الآن <i class="fas fa-arrow-left text-xs"></i>
+            ابدأ الآن <i class="ti ti-arrow-left text-xs"></i>
           </div>
         </div>
         <!-- 2 -->
         <div class="svc-card reveal group p-6 rounded-3xl bg-white dark:bg-ink-900 border border-gray-100 dark:border-ink-700 shadow-card hover:shadow-cardLg" style="transition-delay:.05s">
           <div class="w-14 h-14 rounded-2xl grid place-items-center text-white text-xl shadow-lg shadow-service-violet/30
                       bg-gradient-to-br from-service-violet to-service-rose">
-            <i class="fas fa-calendar-check"></i>
+            <i class="ti ti-calendar-check"></i>
           </div>
           <h3 class="mt-5 font-black text-lg">الجلسات والمواعيد</h3>
           <p class="mt-2 text-sm text-gray-600 dark:text-ink-200 leading-relaxed">جدولة الجلسات وإشعارك تلقائياً بمواعيدها وتفاصيلها.</p>
           <div class="mt-4 flex items-center gap-1.5 text-brand dark:text-brand-lighter text-sm font-bold opacity-0 group-hover:opacity-100 transition">
-            ابدأ الآن <i class="fas fa-arrow-left text-xs"></i>
+            ابدأ الآن <i class="ti ti-arrow-left text-xs"></i>
           </div>
         </div>
         <!-- 3 -->
         <div class="svc-card reveal group p-6 rounded-3xl bg-white dark:bg-ink-900 border border-gray-100 dark:border-ink-700 shadow-card hover:shadow-cardLg" style="transition-delay:.1s">
           <div class="w-14 h-14 rounded-2xl grid place-items-center text-white text-xl shadow-lg shadow-service-amber/30
                       bg-gradient-to-br from-service-amber to-gold">
-            <i class="fas fa-file-contract"></i>
+            <i class="ti ti-file-certificate"></i>
           </div>
           <h3 class="mt-5 font-black text-lg">الوثائق والعقود</h3>
           <p class="mt-2 text-sm text-gray-600 dark:text-ink-200 leading-relaxed">إنشاء وإدارة وأرشفة وثائقك القانونية وعقودك بأمان تام.</p>
           <div class="mt-4 flex items-center gap-1.5 text-brand dark:text-brand-lighter text-sm font-bold opacity-0 group-hover:opacity-100 transition">
-            ابدأ الآن <i class="fas fa-arrow-left text-xs"></i>
+            ابدأ الآن <i class="ti ti-arrow-left text-xs"></i>
           </div>
         </div>
         <!-- 4 -->
         <div class="svc-card reveal group p-6 rounded-3xl bg-white dark:bg-ink-900 border border-gray-100 dark:border-ink-700 shadow-card hover:shadow-cardLg" style="transition-delay:.15s">
           <div class="w-14 h-14 rounded-2xl grid place-items-center text-white text-xl shadow-lg shadow-service-emerald/30
                       bg-gradient-to-br from-service-emerald to-brand">
-            <i class="fas fa-scale-balanced"></i>
+            <i class="ti ti-scale"></i>
           </div>
           <h3 class="mt-5 font-black text-lg">القوانين والتشريعات</h3>
           <p class="mt-2 text-sm text-gray-600 dark:text-ink-200 leading-relaxed">قاعدة بيانات شاملة محدّثة لجميع القوانين مع بحث فوري داخل النصوص.</p>
           <div class="mt-4 flex items-center gap-1.5 text-brand dark:text-brand-lighter text-sm font-bold opacity-0 group-hover:opacity-100 transition">
-            ابدأ الآن <i class="fas fa-arrow-left text-xs"></i>
+            ابدأ الآن <i class="ti ti-arrow-left text-xs"></i>
           </div>
         </div>
         <!-- 5 -->
         <div class="svc-card reveal group p-6 rounded-3xl bg-white dark:bg-ink-900 border border-gray-100 dark:border-ink-700 shadow-card hover:shadow-cardLg" style="transition-delay:.2s">
           <div class="w-14 h-14 rounded-2xl grid place-items-center text-white text-xl shadow-lg shadow-service-coral/30
                       bg-gradient-to-br from-service-coral to-service-rose">
-            <i class="fas fa-wand-magic-sparkles"></i>
+            <i class="ti ti-wand"></i>
           </div>
           <h3 class="mt-5 font-black text-lg">المساعد الذكي AI</h3>
           <p class="mt-2 text-sm text-gray-600 dark:text-ink-200 leading-relaxed">يجيب على استفساراتك القانونية ويوجّهك للخدمة المناسبة فورياً.</p>
           <div class="mt-4 flex items-center gap-1.5 text-brand dark:text-brand-lighter text-sm font-bold opacity-0 group-hover:opacity-100 transition">
-            ابدأ الآن <i class="fas fa-arrow-left text-xs"></i>
+            ابدأ الآن <i class="ti ti-arrow-left text-xs"></i>
           </div>
         </div>
         <!-- 6 -->
         <div class="svc-card reveal group p-6 rounded-3xl bg-white dark:bg-ink-900 border border-gray-100 dark:border-ink-700 shadow-card hover:shadow-cardLg" style="transition-delay:.25s">
           <div class="w-14 h-14 rounded-2xl grid place-items-center text-white text-xl shadow-lg shadow-service-teal/30
                       bg-gradient-to-br from-service-teal to-service-emerald">
-            <i class="fas fa-magnifying-glass-chart"></i>
+            <i class="ti ti-search"></i>
           </div>
           <h3 class="mt-5 font-black text-lg">البحث الذكي</h3>
           <p class="mt-2 text-sm text-gray-600 dark:text-ink-200 leading-relaxed">بحث متقدم داخل القضايا، الوثائق، والقوانين بنتائج دقيقة وفورية.</p>
           <div class="mt-4 flex items-center gap-1.5 text-brand dark:text-brand-lighter text-sm font-bold opacity-0 group-hover:opacity-100 transition">
-            ابدأ الآن <i class="fas fa-arrow-left text-xs"></i>
+            ابدأ الآن <i class="ti ti-arrow-left text-xs"></i>
           </div>
         </div>
         <!-- 7 -->
         <div class="svc-card reveal group p-6 rounded-3xl bg-white dark:bg-ink-900 border border-gray-100 dark:border-ink-700 shadow-card hover:shadow-cardLg" style="transition-delay:.3s">
           <div class="w-14 h-14 rounded-2xl grid place-items-center text-white text-xl shadow-lg shadow-service-rose/30
                       bg-gradient-to-br from-service-rose to-service-coral">
-            <i class="fas fa-people-roof"></i>
+            <i class="ti ti-people-roof"></i>
           </div>
           <h3 class="mt-5 font-black text-lg">المواريث والأنصبة</h3>
           <p class="mt-2 text-sm text-gray-600 dark:text-ink-200 leading-relaxed">حاسبة المواريث الشرعية الذكية مع تقارير تفصيلية للأنصبة.</p>
           <div class="mt-4 flex items-center gap-1.5 text-brand dark:text-brand-lighter text-sm font-bold opacity-0 group-hover:opacity-100 transition">
-            ابدأ الآن <i class="fas fa-arrow-left text-xs"></i>
+            ابدأ الآن <i class="ti ti-arrow-left text-xs"></i>
           </div>
         </div>
         <!-- 8 -->
         <div class="svc-card reveal group p-6 rounded-3xl bg-white dark:bg-ink-900 border border-gray-100 dark:border-ink-700 shadow-card hover:shadow-cardLg" style="transition-delay:.35s">
           <div class="w-14 h-14 rounded-2xl grid place-items-center text-white text-xl shadow-lg shadow-service-indigo/30
                       bg-gradient-to-br from-service-indigo to-service-violet">
-            <i class="fas fa-bell"></i>
+            <i class="ti ti-bell"></i>
           </div>
           <h3 class="mt-5 font-black text-lg">الإشعارات الذكية</h3>
           <p class="mt-2 text-sm text-gray-600 dark:text-ink-200 leading-relaxed">إشعارات فورية بكل تحديث يهمّك، بقنوات متعددة وقابلة للتخصيص.</p>
           <div class="mt-4 flex items-center gap-1.5 text-brand dark:text-brand-lighter text-sm font-bold opacity-0 group-hover:opacity-100 transition">
-            ابدأ الآن <i class="fas fa-arrow-left text-xs"></i>
+            ابدأ الآن <i class="ti ti-arrow-left text-xs"></i>
           </div>
         </div>
       </div>
@@ -473,7 +472,7 @@
       <div class="mt-12 text-center reveal">
         <a href="/register/" class="inline-flex items-center gap-3 px-7 py-4 rounded-2xl font-black
                                      bg-brand text-white hover:bg-brand-dark shadow-soft transition">
-          <i class="fas fa-grip"></i>
+          <i class="ti ti-grip"></i>
           استكشف جميع الخدمات
         </a>
       </div>
@@ -489,24 +488,24 @@
           <div class="relative grid grid-cols-2 gap-4">
             <div class="space-y-4">
               <div class="p-5 rounded-2xl bg-white dark:bg-ink-900 border border-gray-100 dark:border-ink-700 shadow-card">
-                <div class="w-10 h-10 rounded-xl bg-service-emerald/15 text-service-emerald grid place-items-center text-lg"><i class="fas fa-check-double"></i></div>
+                <div class="w-10 h-10 rounded-xl bg-service-emerald/15 text-service-emerald grid place-items-center text-lg"><i class="ti ti-check-double"></i></div>
                 <div class="mt-3 font-black text-sm">تحقق فوري</div>
                 <div class="text-xs text-gray-500 dark:text-ink-300 mt-1">من صحة وثائقك</div>
               </div>
               <div class="p-5 rounded-2xl bg-brand text-white shadow-soft">
-                <div class="w-10 h-10 rounded-xl bg-white/15 text-gold grid place-items-center text-lg"><i class="fas fa-fingerprint"></i></div>
+                <div class="w-10 h-10 rounded-xl bg-white/15 text-gold grid place-items-center text-lg"><i class="ti ti-fingerprint"></i></div>
                 <div class="mt-3 font-black text-sm">دخول آمن</div>
                 <div class="text-xs text-white/70 mt-1">بصمة وتحقق ثنائي</div>
               </div>
             </div>
             <div class="space-y-4 mt-8">
               <div class="p-5 rounded-2xl bg-gradient-to-br from-gold to-gold-dark text-brand-darker shadow-gold">
-                <div class="w-10 h-10 rounded-xl bg-brand/15 text-brand-dark grid place-items-center text-lg"><i class="fas fa-headset"></i></div>
+                <div class="w-10 h-10 rounded-xl bg-brand/15 text-brand-dark grid place-items-center text-lg"><i class="ti ti-headset"></i></div>
                 <div class="mt-3 font-black text-sm">دعم 24/7</div>
                 <div class="text-xs opacity-80 mt-1">فريق متاح دائماً</div>
               </div>
               <div class="p-5 rounded-2xl bg-white dark:bg-ink-900 border border-gray-100 dark:border-ink-700 shadow-card">
-                <div class="w-10 h-10 rounded-xl bg-service-ocean/15 text-service-ocean grid place-items-center text-lg"><i class="fas fa-cloud-arrow-up"></i></div>
+                <div class="w-10 h-10 rounded-xl bg-service-ocean/15 text-service-ocean grid place-items-center text-lg"><i class="ti ti-cloud-arrow-up"></i></div>
                 <div class="mt-3 font-black text-sm">سحابة آمنة</div>
                 <div class="text-xs text-gray-500 dark:text-ink-300 mt-1">نسخ احتياطية تلقائية</div>
               </div>
@@ -526,19 +525,19 @@
 
         <ul class="mt-8 space-y-4">
           <li class="flex gap-4">
-            <span class="shrink-0 w-10 h-10 rounded-xl bg-brand/10 text-brand dark:bg-brand-lighter/15 dark:text-brand-lighter grid place-items-center"><i class="fas fa-check"></i></span>
+            <span class="shrink-0 w-10 h-10 rounded-xl bg-brand/10 text-brand dark:bg-brand-lighter/15 dark:text-brand-lighter grid place-items-center"><i class="ti ti-check"></i></span>
             <div><div class="font-black">واجهة موحَّدة لكل الخدمات</div><div class="text-sm text-gray-500 dark:text-ink-300">تجربة استخدام متّسقة عبر كل الأقسام والشاشات.</div></div>
           </li>
           <li class="flex gap-4">
-            <span class="shrink-0 w-10 h-10 rounded-xl bg-brand/10 text-brand dark:bg-brand-lighter/15 dark:text-brand-lighter grid place-items-center"><i class="fas fa-check"></i></span>
+            <span class="shrink-0 w-10 h-10 rounded-xl bg-brand/10 text-brand dark:bg-brand-lighter/15 dark:text-brand-lighter grid place-items-center"><i class="ti ti-check"></i></span>
             <div><div class="font-black">تكامل مع الجهات الرسمية</div><div class="text-sm text-gray-500 dark:text-ink-300">تواصل مباشر مع الجهات والخدمات من خلال واجهة واحدة.</div></div>
           </li>
           <li class="flex gap-4">
-            <span class="shrink-0 w-10 h-10 rounded-xl bg-brand/10 text-brand dark:bg-brand-lighter/15 dark:text-brand-lighter grid place-items-center"><i class="fas fa-check"></i></span>
+            <span class="shrink-0 w-10 h-10 rounded-xl bg-brand/10 text-brand dark:bg-brand-lighter/15 dark:text-brand-lighter grid place-items-center"><i class="ti ti-check"></i></span>
             <div><div class="font-black">تشفير من طرف لطرف</div><div class="text-sm text-gray-500 dark:text-ink-300">حماية كاملة لبياناتك وخصوصيتك بأحدث المعايير.</div></div>
           </li>
           <li class="flex gap-4">
-            <span class="shrink-0 w-10 h-10 rounded-xl bg-brand/10 text-brand dark:bg-brand-lighter/15 dark:text-brand-lighter grid place-items-center"><i class="fas fa-check"></i></span>
+            <span class="shrink-0 w-10 h-10 rounded-xl bg-brand/10 text-brand dark:bg-brand-lighter/15 dark:text-brand-lighter grid place-items-center"><i class="ti ti-check"></i></span>
             <div><div class="font-black">يعمل على الويب والموبايل</div><div class="text-sm text-gray-500 dark:text-ink-300">Android · iOS · Web — تجربة سلسة على كل الأجهزة.</div></div>
           </li>
         </ul>
@@ -591,7 +590,7 @@
               <div class="text-right leading-tight"><div class="text-[10px] opacity-70">حمّل من</div><div class="font-black">Google Play</div></div>
             </a>
             <a href="/" class="inline-flex items-center gap-3 px-5 py-3 rounded-2xl border-2 border-brand text-brand dark:text-brand-lighter dark:border-brand-lighter hover:bg-brand hover:text-white transition">
-              <i class="fas fa-globe text-2xl"></i>
+              <i class="ti ti-globe text-2xl"></i>
               <div class="text-right leading-tight"><div class="text-[10px] opacity-70">جرّب على</div><div class="font-black">الويب</div></div>
             </a>
           </div>
@@ -605,7 +604,7 @@
               <div class="pt-10 px-4 text-white">
                 <div class="flex items-center justify-between text-xs">
                   <span>9:41</span>
-                  <div class="flex gap-1.5"><i class="fas fa-signal"></i><i class="fas fa-wifi"></i><i class="fas fa-battery-full"></i></div>
+                  <div class="flex gap-1.5"><i class="ti ti-signal"></i><i class="ti ti-wifi"></i><i class="ti ti-battery-full"></i></div>
                 </div>
                 <div class="mt-5 flex items-center gap-3">
                   <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-light to-brand grid place-items-center font-black">S</div>
@@ -616,12 +615,12 @@
                   <div class="text-2xl font-black mt-1">12 خدمة نشطة</div>
                 </div>
                 <div class="mt-4 grid grid-cols-3 gap-2 text-center text-[10px]">
-                  <div class="p-2 rounded-xl bg-white/5"><div class="w-9 h-9 mx-auto rounded-lg bg-service-ocean/30 grid place-items-center mb-1"><i class="fas fa-gavel text-service-ocean"></i></div>القضايا</div>
-                  <div class="p-2 rounded-xl bg-white/5"><div class="w-9 h-9 mx-auto rounded-lg bg-service-violet/30 grid place-items-center mb-1"><i class="fas fa-file-contract text-service-violet"></i></div>الوثائق</div>
-                  <div class="p-2 rounded-xl bg-white/5"><div class="w-9 h-9 mx-auto rounded-lg bg-service-amber/30 grid place-items-center mb-1"><i class="fas fa-calendar text-service-amber"></i></div>الجلسات</div>
-                  <div class="p-2 rounded-xl bg-white/5"><div class="w-9 h-9 mx-auto rounded-lg bg-service-emerald/30 grid place-items-center mb-1"><i class="fas fa-scale-balanced text-service-emerald"></i></div>القوانين</div>
-                  <div class="p-2 rounded-xl bg-white/5"><div class="w-9 h-9 mx-auto rounded-lg bg-service-rose/30 grid place-items-center mb-1"><i class="fas fa-people-roof text-service-rose"></i></div>المواريث</div>
-                  <div class="p-2 rounded-xl bg-gradient-to-br from-gold/30 to-gold/10"><div class="w-9 h-9 mx-auto rounded-lg bg-gold/40 grid place-items-center mb-1"><i class="fas fa-wand-magic-sparkles text-gold-light"></i></div>المساعد</div>
+                  <div class="p-2 rounded-xl bg-white/5"><div class="w-9 h-9 mx-auto rounded-lg bg-service-ocean/30 grid place-items-center mb-1"><i class="ti ti-gavel text-service-ocean"></i></div>القضايا</div>
+                  <div class="p-2 rounded-xl bg-white/5"><div class="w-9 h-9 mx-auto rounded-lg bg-service-violet/30 grid place-items-center mb-1"><i class="ti ti-file-certificate text-service-violet"></i></div>الوثائق</div>
+                  <div class="p-2 rounded-xl bg-white/5"><div class="w-9 h-9 mx-auto rounded-lg bg-service-amber/30 grid place-items-center mb-1"><i class="ti ti-calendar text-service-amber"></i></div>الجلسات</div>
+                  <div class="p-2 rounded-xl bg-white/5"><div class="w-9 h-9 mx-auto rounded-lg bg-service-emerald/30 grid place-items-center mb-1"><i class="ti ti-scale text-service-emerald"></i></div>القوانين</div>
+                  <div class="p-2 rounded-xl bg-white/5"><div class="w-9 h-9 mx-auto rounded-lg bg-service-rose/30 grid place-items-center mb-1"><i class="ti ti-people-roof text-service-rose"></i></div>المواريث</div>
+                  <div class="p-2 rounded-xl bg-gradient-to-br from-gold/30 to-gold/10"><div class="w-9 h-9 mx-auto rounded-lg bg-gold/40 grid place-items-center mb-1"><i class="ti ti-wand text-gold-light"></i></div>المساعد</div>
                 </div>
               </div>
             </div>
@@ -644,11 +643,11 @@
           <div class="mt-8 flex flex-wrap justify-center gap-3">
             <a href="/register/" class="inline-flex items-center gap-3 px-8 py-4 rounded-2xl font-black
                                          bg-gradient-to-l from-gold to-gold-light text-brand-darker shadow-gold hover:-translate-y-0.5 transition">
-              <i class="fas fa-user-plus"></i> ابدأ مجاناً
+              <i class="ti ti-user-plus"></i> ابدأ مجاناً
             </a>
             <a href="/login/" class="inline-flex items-center gap-3 px-8 py-4 rounded-2xl font-black
                                        bg-white/10 border border-white/20 backdrop-blur hover:bg-white/15 transition">
-              <i class="fas fa-right-to-bracket"></i> سجّل الدخول
+              <i class="ti ti-right-to-bracket"></i> سجّل الدخول
             </a>
           </div>
         </div>
@@ -702,9 +701,9 @@
       <div>
         <h4 class="font-black mb-4">تواصل</h4>
         <ul class="space-y-2 text-sm text-ink-200">
-          <li class="flex items-center gap-2"><i class="fas fa-envelope text-gold"></i> support@smart2026.app</li>
-          <li class="flex items-center gap-2"><i class="fas fa-phone text-gold"></i> 800-2026</li>
-          <li class="flex items-center gap-2"><i class="fas fa-headset text-gold"></i> دعم 24/7</li>
+          <li class="flex items-center gap-2"><i class="ti ti-envelope text-gold"></i> support@smart2026.app</li>
+          <li class="flex items-center gap-2"><i class="ti ti-phone text-gold"></i> 800-2026</li>
+          <li class="flex items-center gap-2"><i class="ti ti-headset text-gold"></i> دعم 24/7</li>
         </ul>
       </div>
     </div>

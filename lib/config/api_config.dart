@@ -24,7 +24,7 @@ class ApiConfig {
   static const int _defaultBackendPort = 8000;
 
   static Future<void> _loadAndroidPhysicalFlag() async {
-    if (!Platform.isAndroid) {
+    if (kIsWeb || !Platform.isAndroid) {
       _androidIsPhysicalDevice = null;
       return;
     }
@@ -38,14 +38,14 @@ class ApiConfig {
 
   static bool _isAndroidEmulatorHost(String url) {
     final n = _normalizeUrl(url);
-    return Platform.isAndroid && n == 'http://10.0.2.2:$_defaultBackendPort';
+    return !kIsWeb && Platform.isAndroid && n == 'http://10.0.2.2:$_defaultBackendPort';
   }
 
   /// يُستدعى من [main] بعد [WidgetsFlutterBinding.ensureInitialized].
   /// عند عدم وجود عنوان محفوظ أو من البيئة: يحاول اكتشاف الخادم على الشبكة الحالية.
   static Future<void> initialize() async {
     final prefs = await SharedPreferences.getInstance();
-    if (Platform.isAndroid) {
+    if (!kIsWeb && Platform.isAndroid) {
       await _loadAndroidPhysicalFlag();
     }
     // If --dart-define=API_BASE_URL is provided, it takes priority and replaces

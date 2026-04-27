@@ -7,7 +7,7 @@
     <h1 class="navbar-brand navbar-brand-autodark mb-0">
       <a href="{% url 'control_panel:dashboard' %}" class="d-flex align-items-center text-white text-decoration-none">
         <span class="cp-logo me-2">
-          <i class="ti ti-scale-outline"></i>
+          <img src="{% static 'img/logo.png' %}" alt="Logo" style="height: 32px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));">
         </span>
         <span class="d-flex flex-column">
           <span class="fw-bold">{{ CP_BRAND }}</span>
@@ -37,6 +37,12 @@
           <a class="nav-link" href="{% url 'control_panel:group_list' %}">
             <span class="nav-link-icon"><i class="ti ti-shield-lock"></i></span>
             <span class="nav-link-title">الأدوار والصلاحيات</span>
+          </a>
+        </li>
+        <li class="nav-item {% if active_section == 'plans' %}active{% endif %}">
+          <a class="nav-link" href="{% url 'control_panel:plan_list' %}">
+            <span class="nav-link-icon"><i class="ti ti-diamond"></i></span>
+            <span class="nav-link-title">خطط الاشتراك</span>
           </a>
         </li>
 
