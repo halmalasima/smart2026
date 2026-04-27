@@ -20,6 +20,10 @@ from .serializers import (
 )
 from permissions import IsJudgeOrLawyerOrAdmin
 from smartjudi_common.user_utils import get_user_role
+from .services import CasePartyService, LawsuitService
+from .repositories import LawsuitRepository
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
 
 
 
@@ -175,42 +179,21 @@ class CasePartyViewSet(viewsets.ModelViewSet):
         return qs.filter(Q(case__created_by=uid) | Q(case__client=uid))
 
     def create(self, request, *args, **kwargs):
-        import secrets
-        import string
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        party = serializer.save()
-
-        generated_password = None
-
-        # Auto-create user account for client (الموكل) if phone is provided
-        if party.role == CaseParty.ROLE_CLIENT and party.phone:
-            if not party.user_account:
-                username = party.phone.strip()
-                password = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(8))
-                user, created = User.objects.get_or_create(
-                    username=username,
-                    defaults={'first_name': party.name or '', 'is_active': True}
-                )
-                if created:
-                    user.set_password(password)
-                    user.save()
-                    if hasattr(user, 'profile'):
-                        user.profile.role = 'citizen'
-                        user.profile.phone_number = username
-                        user.profile.supervisor = request.user
-                        user.profile.save()
-                    generated_password = password
-                party.user_account = user
-                party.save()
+        
+        # Move business logic to Service Layer
+        party, generated_password, account_created = CasePartyService.create_party(
+            serializer.validated_data, 
+            request.user
+        )
 
         response_data = self.get_serializer(party).data
-        if generated_password:
+        if account_created:
             response_data['account_created'] = True
             response_data['account_username'] = party.phone.strip()
-            # Password is NOT returned in API response for security.
-            # It should be sent via SMS or secure channel instead.
-            logger.info(f"Auto-created account for party '{party.name}' (username: {party.phone.strip()}). Password must be communicated securely.")
+            logger.info(f"Auto-created account for party '{party.name}' via service.")
+            
         return Response(response_data, status=status.HTTP_201_CREATED)
 
 
@@ -245,8 +228,10 @@ class LawsuitViewSet(viewsets.ModelViewSet):
     ViewSet for Lawsuit - with advanced archive features
     """
     queryset = Lawsuit.objects.select_related(
-        'parent_lawsuit'
-    ).prefetch_related('financial_claims').all()
+        'parent_lawsuit', 'archived_by'
+    ).prefetch_related(
+        'financial_claims', 'plaintiffs', 'defendants'
+    ).all()
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_class = LawsuitFilter
@@ -277,68 +262,46 @@ class LawsuitViewSet(viewsets.ModelViewSet):
     
     def perform_update(self, serializer):
         instance = serializer.instance
-        user = self.request.user
-        from smartjudi_common.user_utils import get_user_role
-        if get_user_role(user) == 'citizen' and instance.created_by_id != user.id:
+        if not LawsuitService.can_modify(instance, self.request.user):
             from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied("You can only update your own lawsuits")
-        serializer.save()
+        
+        # Use service for update to handle cache invalidation
+        LawsuitService.update_lawsuit(instance, serializer.validated_data)
     
     def perform_destroy(self, instance):
-        """Soft delete instead of hard delete"""
-        user = self.request.user
-        from smartjudi_common.user_utils import get_user_role
-        if get_user_role(user) == 'citizen' and instance.created_by_id != user.id:
+        """Soft delete instead of hard delete via service"""
+        if not LawsuitService.can_modify(instance, self.request.user):
             from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied("You can only delete your own lawsuits")
-        # Soft delete
-        instance.is_deleted = True
-        instance.deleted_at = timezone.now()
-        instance.save(update_fields=['is_deleted', 'deleted_at'])
-    
+        
+        LawsuitService.soft_delete(instance)
+
+    @method_decorator(cache_page(60 * 5))  # Cache for 5 minutes
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
     def get_queryset(self):
-        queryset = super().get_queryset()
-        # Filter out soft-deleted by default
-        if not self.request.query_params.get('include_deleted'):
-            queryset = queryset.filter(is_deleted=False)
-        
-        # Filter out child lawsuits by default (only show parent lawsuits in main list)
-        # Child lawsuits should only appear inside their parent lawsuit details
-        if not self.request.query_params.get('include_child_lawsuits'):
-            queryset = queryset.filter(parent_lawsuit__isnull=True)
-        
-        # Filter out appeal, challenge, and payment order case types from main archive list
-        # These should only appear inside their parent lawsuit details
-        if not self.request.query_params.get('include_appeals'):
-            queryset = queryset.exclude(case_type__in=['طعن', 'استئناف', 'امر_اداء'])
-        
+        """
+        Visible lawsuits via Repository
+        """
         user = self.request.user
-        from smartjudi_common.user_utils import get_user_role
         user_role = get_user_role(user)
-
-        uid = user.id
-        if user_role in ('admin',):
-            return queryset
-        if user_role == 'citizen':
-            queryset = queryset.filter(Q(created_by=uid) | Q(client=uid))
-        elif user_role == 'assistant':
-            supervisor_id = None
-            try:
-                sup = user.profile.supervisor
-                supervisor_id = sup.id if sup else None
-            except Exception:
-                pass
-            if supervisor_id:
-                queryset = queryset.filter(
-                    Q(created_by=supervisor_id) | Q(client=supervisor_id) | Q(created_by=uid)
-                )
-            else:
-                queryset = queryset.filter(created_by=uid)
-        elif user_role in ('lawyer', 'notary'):
-            queryset = queryset.filter(Q(created_by=uid) | Q(client=uid))
-        else:
-            queryset = queryset.filter(created_by=uid)
-
+        
+        # 1. Get lawsuits based on user role
+        queryset = LawsuitRepository.get_for_user(user, user_role)
+        
+        # 2. Apply common filters (active only)
+        if not self.request.query_params.get('include_deleted'):
+            queryset = LawsuitRepository.filter_active(queryset)
+            
+        # 3. Apply structural filters (parents only, main archive types)
+        if not self.request.query_params.get('include_child_lawsuits'):
+            queryset = LawsuitRepository.filter_parents_only(queryset)
+            
+        if not self.request.query_params.get('include_appeals'):
+            queryset = LawsuitRepository.filter_main_archive(queryset)
+            
         return queryset
     
     # ========== Archive Actions ==========
@@ -347,18 +310,23 @@ class LawsuitViewSet(viewsets.ModelViewSet):
     def archive(self, request, pk=None):
         """
         Archive a lawsuit - أرشفة دعوى
-        POST /api/lawsuits/{id}/archive/
+        Safe implementation with logging and update_fields for efficiency.
         """
         lawsuit = self.get_object()
         reason = request.data.get('reason', '')
         
-        lawsuit.archive_status = Lawsuit.ARCHIVE_ARCHIVED
-        lawsuit.archive_date = timezone.now()
-        lawsuit.archive_reason = reason
-        lawsuit.archived_by = request.user
-        lawsuit.save(update_fields=[
-            'archive_status', 'archive_date', 'archive_reason', 'archived_by'
-        ])
+        try:
+            lawsuit.archive_status = Lawsuit.ARCHIVE_ARCHIVED
+            lawsuit.archive_date = timezone.now()
+            lawsuit.archive_reason = reason
+            lawsuit.archived_by = request.user
+            lawsuit.save(update_fields=[
+                'archive_status', 'archive_date', 'archive_reason', 'archived_by'
+            ])
+            logger.info(f"Lawsuit {lawsuit.id} archived by user {request.user.id}")
+        except Exception as e:
+            logger.error(f"Error archiving lawsuit {lawsuit.id}: {str(e)}")
+            return Response({'error': 'حدث خطأ أثناء الأرشفة'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
         serializer = self.get_serializer(lawsuit)
         return Response(serializer.data)

@@ -7,15 +7,15 @@ class AttachmentAdmin(admin.ModelAdmin):
     """
     Admin interface for Attachment
     """
-    list_display = ('document_type', 'lawsuit', 'gregorian_date', 'page_count', 'get_file_size_display', 'created_at')
+    list_display = ('document_type', 'lawsuit_id', 'gregorian_date', 'page_count', 'get_file_size_display', 'created_at')
     list_filter = ('document_type', 'created_at', 'gregorian_date')
-    search_fields = ('lawsuit__case_number', 'lawsuit__subject', 'content', 'evidence_basis', 'original_filename')
+    search_fields = ('lawsuit_case_number', 'content', 'evidence_basis', 'original_filename')
     readonly_fields = ('created_at', 'updated_at', 'file_size', 'original_filename')
     date_hierarchy = 'created_at'
     
     fieldsets = (
         ('معلومات المرفق', {
-            'fields': ('lawsuit', 'document_type', 'file')
+            'fields': ('lawsuit_id', 'document_type', 'file')
         }),
         ('التواريخ', {
             'fields': ('gregorian_date', 'hijri_date')
@@ -44,7 +44,6 @@ class AttachmentAdmin(admin.ModelAdmin):
     
     def get_queryset(self, request):
         """
-        Optimize queryset by selecting related objects
+        Optimize queryset
         """
-        qs = super().get_queryset(request)
-        return qs.select_related('lawsuit')
+        return super().get_queryset(request)

@@ -1,3 +1,5 @@
+import '../../../../theme/app_theme.dart';
+import '../../../../theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'webview_screen.dart';
@@ -36,7 +38,6 @@ class ElectronicServicesScreen extends StatelessWidget {
       color: const Color(0xFF1E3A8A),
       items: const [
         _ServiceItem(title: 'مجلس القضاء الأعلى', url: 'http://www.sjc-yemen.com/', icon: Icons.account_balance_rounded, color: Color(0xFF1E3A8A)),
-        _ServiceItem(title: 'المحكمة العليا', url: 'https://ysc.org.ye/', icon: Icons.balance_rounded, color: Color(0xFF7C3AED)),
         _ServiceItem(title: 'النيابة العامة', url: 'https://agoye.gov.ye/', icon: Icons.shield_rounded, color: Color(0xFFDC2626)),
         _ServiceItem(title: 'المعهد العالي للقضاء', url: 'http://www.hji-yemen.com/', icon: Icons.school_rounded, color: Color(0xFF059669)),
         _ServiceItem(title: 'الجريدة الرسمية', url: 'https://moj.gov.ye/OfficialGazette', icon: Icons.newspaper_rounded, color: Color(0xFFCA8A04)),
@@ -108,7 +109,7 @@ class ElectronicServicesScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F8FA),
+      backgroundColor: (context.isDark ? AppColors.darkBackground : AppColors.lightBackground),
       body: CustomScrollView(
         slivers: [
           // ── App Bar ──

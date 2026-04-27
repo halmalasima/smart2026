@@ -1,0 +1,109 @@
+{% extends "control_panel/base.html" %}
+
+{% block page_actions %}
+  <div class="col-auto">
+    <a href="{% url 'control_panel:user_create' %}" class="btn btn-primary">
+      <i class="ti ti-plus me-1"></i> مستخدم جديد
+    </a>
+  </div>
+{% endblock %}
+
+{% block content %}
+<div class="card mb-3">
+  <div class="card-body">
+    <form method="get" class="row g-2 align-items-end">
+      <div class="col-md-5">
+        <label class="form-label small">بحث</label>
+        <input type="text" name="q" value="{{ q }}" class="form-control" placeholder="الاسم، البريد، اسم المستخدم">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small">الدور</label>
+        <select name="role" class="form-select">
+          <option value="">كل الأدوار</option>
+          <option value="superuser" {% if role == 'superuser' %}selected{% endif %}>مدير عام</option>
+          <option value="staff" {% if role == 'staff' %}selected{% endif %}>موظف إداري</option>
+          <option value="regular" {% if role == 'regular' %}selected{% endif %}>مستخدم عادي</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small">الحالة</label>
+        <select name="status" class="form-select">
+          <option value="">الكل</option>
+          <option value="active" {% if status == 'active' %}selected{% endif %}>نشط</option>
+          <option value="inactive" {% if status == 'inactive' %}selected{% endif %}>معطّل</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <button type="submit" class="btn btn-secondary w-100">
+          <i class="ti ti-search me-1"></i> بحث
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-vcenter card-table">
+      <thead>
+        <tr>
+          <th>المستخدم</th>
+          <th>البريد</th>
+          <th>الدور</th>
+          <th>الحالة</th>
+          <th>تاريخ الانضمام</th>
+          <th>آخر دخول</th>
+          <th class="w-1"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in page.object_list %}
+          <tr>
+            <td>
+              <div class="d-flex align-items-center">
+                <span class="avatar avatar-sm cp-avatar me-2">{{ u.username|first|upper }}</span>
+                <div>
+                  <div class="fw-medium">{{ u.get_full_name|default:u.username }}</div>
+                  <div class="small text-secondary">@{{ u.username }}</div>
+                </div>
+              </div>
+            </td>
+            <td>{{ u.email|default:"—" }}</td>
+            <td>
+              {% if u.is_superuser %}
+                <span class="badge bg-red-lt">مدير عام</span>
+              {% elif u.is_staff %}
+                <span class="badge bg-orange-lt">موظف</span>
+              {% else %}
+                <span class="badge bg-blue-lt">مستخدم</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if u.is_active %}
+                <span class="badge bg-success-lt"><i class="ti ti-circle-check me-1"></i> نشط</span>
+              {% else %}
+                <span class="badge bg-secondary-lt"><i class="ti ti-ban me-1"></i> معطّل</span>
+              {% endif %}
+            </td>
+            <td class="text-secondary">{{ u.date_joined|date:"Y-m-d" }}</td>
+            <td class="text-secondary">{{ u.last_login|date:"Y-m-d H:i"|default:"—" }}</td>
+            <td>
+              <div class="btn-list flex-nowrap">
+                <a href="{% url 'control_panel:user_detail' u.pk %}" class="btn btn-sm btn-icon btn-ghost-primary" title="عرض">
+                  <i class="ti ti-eye"></i>
+                </a>
+                <a href="{% url 'control_panel:user_update' u.pk %}" class="btn btn-sm btn-icon btn-ghost-secondary" title="تعديل">
+                  <i class="ti ti-edit"></i>
+                </a>
+              </div>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="7" class="text-center text-secondary py-5">لا يوجد مستخدمون مطابقون</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include "control_panel/partials/pagination.html" with page=page %}
+</div>
+{% endblock %}

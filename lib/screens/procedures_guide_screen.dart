@@ -1,3 +1,5 @@
+import '../../../../theme/app_theme.dart';
+import '../../../../theme/app_colors.dart';
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -165,7 +167,7 @@ class _ProceduresGuideScreenState extends State<ProceduresGuideScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F8FA),
+      backgroundColor: (context.isDark ? AppColors.darkBackground : AppColors.lightBackground),
       body: _dbLoading
           ? _buildLoading()
           : _dbError != null

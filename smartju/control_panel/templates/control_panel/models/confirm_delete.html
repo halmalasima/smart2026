@@ -1,0 +1,37 @@
+{% extends "control_panel/base.html" %}
+
+{% block content %}
+<div class="row justify-content-center pt-5">
+  <div class="col-md-6">
+    <div class="card border-0 shadow-sm">
+      <div class="card-status-top bg-danger"></div>
+      <div class="card-body text-center py-4">
+        <div class="mb-3 text-danger">
+            <i class="ti ti-alert-triangle" style="font-size: 3rem;"></i>
+        </div>
+        <h3>تأكيد الحذف</h3>
+        <div class="text-secondary mb-4">
+          هل أنت متأكد من رغبتك في حذف السجل <strong>"{{ obj }}"</strong>؟<br>
+          <span class="text-danger small">هذا الإجراء لا يمكن التراجع عنه.</span>
+        </div>
+        
+        <form method="post">
+          {% csrf_token %}
+          <div class="row g-2">
+            <div class="col-6">
+              <a href="{{ request.META.HTTP_REFERER|default:'#' }}" class="btn btn-outline-secondary w-100">
+                إلغاء
+              </a>
+            </div>
+            <div class="col-6">
+              <button type="submit" class="btn btn-danger w-100">
+                تأكيد الحذف النهائي
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

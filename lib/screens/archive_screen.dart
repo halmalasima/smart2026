@@ -1,6 +1,7 @@
 ﻿import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_theme.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../providers/lawsuit_provider.dart';
@@ -220,7 +221,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> with SingleTickerProvider
                 )
               : FloatingActionButton.extended(
                   heroTag: 'add_new_case',
-                  backgroundColor: const Color(0xFFD4A940),
+                  backgroundColor: AppColors.brand,
                   onPressed: _showNewCaseForm,
                   icon: const Icon(Icons.create_new_folder_rounded, color: Colors.white),
                   label: const Text('إنشاء ملف قضية', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
@@ -233,10 +234,10 @@ class _ArchiveScreenState extends State<ArchiveScreen> with SingleTickerProvider
     return Container(
       padding: EdgeInsets.fromLTRB(6, isKeyboardVisible ? 1 : 1, 1, isKeyboardVisible ? 1 : 1),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.isDark ? AppColors.darkSurface : AppColors.lightSurface,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: AppColors.lightShadow,
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -252,7 +253,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> with SingleTickerProvider
                 // Toggle view
                 IconButton(
                   icon: Icon(_isGridView ? Icons.view_list : Icons.grid_view, 
-                    color: Colors.grey[600]),
+                    color: AppColors.lightTextSecondary),
                   onPressed: () => setState(() => _isGridView = !_isGridView),
                   tooltip: _isGridView ? 'عرض قائمة' : 'عرض شبكة',
                 ),
@@ -264,7 +265,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> with SingleTickerProvider
                         IconButton(
                           icon: Icon(
                             Icons.filter_list,
-                            color: provider.hasActiveFilters ? const Color(0xFFD4A940) : Colors.grey[600],
+                            color: provider.hasActiveFilters ? AppColors.brand : AppColors.lightTextSecondary,
                           ),
                           onPressed: _showFilterSheet,
                           tooltip: 'فلترة',
@@ -274,8 +275,8 @@ class _ArchiveScreenState extends State<ArchiveScreen> with SingleTickerProvider
                             top: 8, right: 8,
                             child: Container(
                               width: 8, height: 8,
-                              decoration: const BoxDecoration(
-                                color: Color(0xFFD4A940),
+                              decoration: BoxDecoration(
+                                color: AppColors.brand,
                                 shape: BoxShape.circle,
                               ),
                             ),
@@ -286,29 +287,29 @@ class _ArchiveScreenState extends State<ArchiveScreen> with SingleTickerProvider
                 ),
                 // Purge button (Delete All)
                 IconButton(
-                  icon: const Icon(Icons.delete_sweep_outlined, color: Colors.redAccent),
+                  icon: Icon(Icons.delete_sweep_outlined, color: AppColors.error),
                   onPressed: () => _confirmResetDatabase(provider),
                   tooltip: 'مسح الأرشيف بالكامل',
                 ),
                 // Refresh button
                 IconButton(
-                  icon: const Icon(Icons.refresh, color: Color(0xFFD4A940)),
+                  icon: Icon(Icons.refresh, color: AppColors.brand),
                   onPressed: () => provider.loadLawsuits(refresh: true),
                   tooltip: 'تحديث',
                 ),
                 Expanded(
                   child: Text(
                     'أرشيف القضايا',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF1A2138),
+                      color: AppColors.lightTextPrimary,
                     ),
                     textAlign: TextAlign.right,
                   ),
                 ),
                 const SizedBox(width: 7),
-                const Icon(Icons.archive_outlined, color: Color(0xFFD4A940), size: 28),
+                Icon(Icons.archive_outlined, color: AppColors.brand, size: 28),
               ],
             ),
           if (!isKeyboardVisible) const SizedBox(height: 3),
@@ -320,7 +321,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> with SingleTickerProvider
               if (isKeyboardVisible)
                 IconButton(
                   icon: Icon(_isGridView ? Icons.view_list : Icons.grid_view, 
-                    color: Colors.grey[500], size: 12),
+                    color: AppColors.lightTextTertiary, size: 12),
                   onPressed: () => setState(() => _isGridView = !_isGridView),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
@@ -335,7 +336,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> with SingleTickerProvider
                         IconButton(
                           icon: Icon(
                             Icons.filter_list,
-                            color: provider.hasActiveFilters ? const Color(0xFFD4A940) : Colors.grey[400],
+                            color: provider.hasActiveFilters ? AppColors.brand : AppColors.lightTextTertiary,
                             size: 14,
                           ),
                           onPressed: _showFilterSheet,
@@ -348,8 +349,8 @@ class _ArchiveScreenState extends State<ArchiveScreen> with SingleTickerProvider
                             top: 4, right: 4,
                             child: Container(
                               width: 5, height: 5,
-                              decoration: const BoxDecoration(
-                                color: Color(0xFFD4A940),
+                              decoration: BoxDecoration(
+                                color: AppColors.brand,
                                 shape: BoxShape.circle,
                               ),
                             ),
@@ -366,9 +367,9 @@ class _ArchiveScreenState extends State<ArchiveScreen> with SingleTickerProvider
                   textDirection: ui.TextDirection.rtl,
                   decoration: InputDecoration(
                     hintText: 'ابحث برقم الدعوى، الموضوع، الأطراف...',
-                    hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
+                    hintStyle: TextStyle(color: AppColors.lightTextTertiary, fontSize: 14),
                     prefixIcon: IconButton(
-                      icon: const Icon(Icons.search, color: Color(0xFFD4A940)),
+                      icon: Icon(Icons.search, color: AppColors.brand),
                       onPressed: _applySearch,
                     ),
                     suffixIcon: _searchController.text.isNotEmpty
@@ -381,7 +382,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> with SingleTickerProvider
                         )
                       : null,
                     filled: true,
-                    fillColor: const Color(0xFFF5F5F5),
+                    fillColor: AppColors.lightSurfaceVariant,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
                       borderSide: BorderSide.none,
@@ -412,9 +413,9 @@ class _ArchiveScreenState extends State<ArchiveScreen> with SingleTickerProvider
           child: IntrinsicHeight(
             child: Row(
               children: [
-                _buildStatChip('إجمالي القضايا', total, const Color(0xFF1A2138)),
+                _buildStatChip('إجمالي القضايا', total, (context.isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary)),
                 const SizedBox(width: 6),
-                _buildStatChip('المحملة', loaded, const Color(0xFFD4A940)),
+                _buildStatChip('المحملة', loaded, AppColors.brand),
               ],
             ),
           ),
@@ -466,12 +467,12 @@ class _ArchiveScreenState extends State<ArchiveScreen> with SingleTickerProvider
 
   Widget _buildTabs() {
     return Container(
-      color: Colors.white,
+      color: context.isDark ? AppColors.darkSurface : AppColors.lightSurface,
       child: TabBar(
         controller: _tabController,
-        indicatorColor: const Color(0xFFD4A940),
-        labelColor: const Color(0xFFD4A940),
-        unselectedLabelColor: Colors.grey,
+        indicatorColor: AppColors.brand,
+        labelColor: AppColors.brand,
+        unselectedLabelColor: AppColors.lightTextTertiary,
         labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
         tabs: const [
           Tab(text: 'جميع القضايا'),
@@ -522,9 +523,9 @@ class _ArchiveScreenState extends State<ArchiveScreen> with SingleTickerProvider
 
         chips.add(
           ActionChip(
-            label: const Text('مسح الكل', style: TextStyle(color: Colors.red, fontSize: 12)),
-            backgroundColor: Colors.red.withOpacity(0.05),
-            side: BorderSide(color: Colors.red.withOpacity(0.3)),
+            label: Text('مسح الكل', style: TextStyle(color: AppColors.error, fontSize: 12)),
+            backgroundColor: AppColors.error.withOpacity(0.05),
+            side: BorderSide(color: AppColors.error.withOpacity(0.3)),
             onPressed: _clearFilters,
           ),
         );
@@ -546,9 +547,9 @@ class _ArchiveScreenState extends State<ArchiveScreen> with SingleTickerProvider
       label: Text(label, style: const TextStyle(fontSize: 11)),
       deleteIcon: const Icon(Icons.close, size: 16),
       onDeleted: onDelete,
-      backgroundColor: const Color(0xFFD4A940).withOpacity(0.08),
-      deleteIconColor: const Color(0xFFD4A940),
-      side: BorderSide(color: const Color(0xFFD4A940).withOpacity(0.3)),
+      backgroundColor: AppColors.brand.withOpacity(0.08),
+      deleteIconColor: AppColors.brand,
+      side: BorderSide(color: AppColors.brand.withOpacity(0.3)),
       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
     );
   }
@@ -565,12 +566,12 @@ class _ArchiveScreenState extends State<ArchiveScreen> with SingleTickerProvider
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
+                Icon(Icons.error_outline, size: 64, color: AppColors.error),
                 const SizedBox(height: 14),
                 Text(
                   provider.casesErrorMessage ?? 'حدث خطأ',
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.red[300]),
+                  style: TextStyle(color: AppColors.error),
                 ),
                 const SizedBox(height: 14),
                 ElevatedButton.icon(
@@ -578,7 +579,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> with SingleTickerProvider
                   icon: const Icon(Icons.refresh),
                   label: const Text('إعادة المحاولة'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFD4A940),
+                    backgroundColor: AppColors.brand,
                     foregroundColor: Colors.white,
                   ),
                 ),
@@ -592,18 +593,18 @@ class _ArchiveScreenState extends State<ArchiveScreen> with SingleTickerProvider
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.folder_open_outlined, size: 80, color: Colors.grey[300]),
+                Icon(Icons.folder_open_outlined, size: 80, color: AppColors.lightTextTertiary),
                 const SizedBox(height: 14),
                 Text(
                   provider.hasActiveFilters ? 'لا توجد نتائج مطابقة' : 'لا توجد قضايا بعد',
-                  style: TextStyle(color: Colors.grey[600], fontSize: 14, fontWeight: FontWeight.bold),
+                  style: TextStyle(color: AppColors.lightTextSecondary, fontSize: 14, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 6),
                 Text(
                   provider.hasActiveFilters
                       ? 'جرّب تغيير معايير البحث أو الفلترة'
                       : 'اضغط إنشاء ملف قضية لإضافة قضية جديدة',
-                  style: TextStyle(color: Colors.grey[500], fontSize: 14),
+                  style: TextStyle(color: AppColors.lightTextTertiary, fontSize: 14),
                 ),
                 if (provider.hasActiveFilters) ...[
                   const SizedBox(height: 12),
@@ -619,7 +620,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> with SingleTickerProvider
         }
 
         return RefreshIndicator(
-          color: const Color(0xFFD4A940),
+          color: AppColors.brand,
           onRefresh: () async {
             await provider.loadCases(refresh: true);
             await provider.loadArchiveStats();
@@ -643,7 +644,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> with SingleTickerProvider
         if (index == cases.length) {
           return const Center(child: Padding(
             padding: EdgeInsets.all(16),
-            child: CircularProgressIndicator(color: Color(0xFFD4A940)),
+            child: CircularProgressIndicator(color: AppColors.brand),
           ));
         }
         return _CaseArchiveCard(caseModel: cases[index]);
@@ -667,7 +668,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> with SingleTickerProvider
       itemCount: cases.length + (provider.isLoadingCases && cases.isNotEmpty ? 1 : 0),
       itemBuilder: (context, index) {
         if (index == cases.length) {
-          return const Center(child: CircularProgressIndicator(color: Color(0xFFD4A940)));
+          return const Center(child: CircularProgressIndicator(color: AppColors.brand));
         }
         return _CaseArchiveCard(caseModel: cases[index], isGrid: true);
       },
@@ -682,7 +683,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> with SingleTickerProvider
           return const Center(child: CircularProgressIndicator(color: AppColors.brand));
         }
         if (prov.error != null && prov.sessions.isEmpty) {
-          return Center(child: Text(prov.error!, style: const TextStyle(color: Colors.red)));
+          return Center(child: Text(prov.error!, style: TextStyle(color: AppColors.error)));
         }
 
         final filtered = prov.filteredSessions;
@@ -710,12 +711,12 @@ class _ArchiveScreenState extends State<ArchiveScreen> with SingleTickerProvider
                             : 'مخصص',
                         style: TextStyle(
                           fontSize: 12,
-                          color: prov.periodFilter == 'custom' ? Colors.white : Colors.grey[700],
+                          color: prov.periodFilter == 'custom' ? Colors.white : AppColors.lightTextSecondary,
                         ),
                       ),
-                      backgroundColor: prov.periodFilter == 'custom' ? AppColors.brand : Colors.grey.shade100,
+                      backgroundColor: prov.periodFilter == 'custom' ? AppColors.brand : AppColors.lightSurfaceVariant,
                       side: BorderSide(
-                        color: prov.periodFilter == 'custom' ? AppColors.brand : Colors.grey.shade300,
+                        color: prov.periodFilter == 'custom' ? AppColors.brand : AppColors.lightBorder,
                       ),
                       onPressed: () async {
                         final range = await showDateRangePicker(
@@ -738,10 +739,10 @@ class _ArchiveScreenState extends State<ArchiveScreen> with SingleTickerProvider
               child: Row(
                 children: [
                   Text('${filtered.length} جلسة',
-                    style: TextStyle(fontSize: 12, color: Colors.grey[600], fontWeight: FontWeight.w600)),
+                    style: TextStyle(fontSize: 12, color: AppColors.lightTextSecondary, fontWeight: FontWeight.w600)),
                   const Spacer(),
                   IconButton(
-                    icon: const Icon(Icons.refresh, size: 18, color: AppColors.gold),
+                    icon: const Icon(Icons.refresh, size: 18, color: AppColors.brand),
                     onPressed: () => prov.loadSessions(),
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
@@ -756,10 +757,10 @@ class _ArchiveScreenState extends State<ArchiveScreen> with SingleTickerProvider
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.event_busy, size: 64, color: Colors.grey[300]),
+                          Icon(Icons.event_busy, size: 64, color: AppColors.lightTextTertiary),
                           const SizedBox(height: 12),
                           Text('لا توجد جلسات في هذه الفترة',
-                            style: TextStyle(color: Colors.grey[500], fontSize: 14)),
+                            style: TextStyle(color: AppColors.lightTextTertiary, fontSize: 14)),
                         ],
                       ),
                     )
@@ -782,11 +783,11 @@ class _ArchiveScreenState extends State<ArchiveScreen> with SingleTickerProvider
   Widget _periodChip(String label, String value, SessionProvider prov) {
     final isSelected = prov.periodFilter == value;
     return ChoiceChip(
-      label: Text(label, style: TextStyle(fontSize: 12, color: isSelected ? Colors.white : Colors.grey[700])),
+      label: Text(label, style: TextStyle(fontSize: 12, color: isSelected ? Colors.white : AppColors.lightTextSecondary)),
       selected: isSelected,
       selectedColor: AppColors.brand,
-      backgroundColor: Colors.grey.shade100,
-      side: BorderSide(color: isSelected ? AppColors.brand : Colors.grey.shade300),
+      backgroundColor: AppColors.lightSurfaceVariant,
+      side: BorderSide(color: isSelected ? AppColors.brand : AppColors.lightBorder),
       onSelected: (_) => prov.setPeriodFilter(value),
     );
   }
@@ -2028,12 +2029,12 @@ class _SessionCard extends StatelessWidget {
                       const SizedBox(height: 4),
                       Row(
                         children: [
-                          const Icon(Icons.balance, size: 12, color: AppColors.goldDark),
+                          const Icon(Icons.balance, size: 12, color: AppColors.brandDark),
                           const SizedBox(width: 4),
                           Expanded(
                             child: Text(session.courtDecision!,
                               maxLines: 1, overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontSize: 11, color: AppColors.goldDark)),
+                              style: const TextStyle(fontSize: 11, color: AppColors.brandDark)),
                           ),
                         ],
                       ),

@@ -1,0 +1,151 @@
+/* ============================================================
+   Control Panel — custom polish layered on top of Tabler RTL
+   ============================================================ */
+
+:root {
+  --cp-brand: #206bc4;
+  --cp-brand-2: #4263eb;
+  --cp-radius: 14px;
+}
+
+html, body { font-family: 'Cairo', 'Inter', system-ui, sans-serif; }
+
+.page-title { font-weight: 700; }
+
+/* ---------- Sidebar ---------- */
+.cp-sidebar {
+  background: linear-gradient(180deg, #11161d 0%, #0d1117 100%);
+  border-inline-end: 1px solid rgba(255,255,255,.04);
+}
+[data-bs-theme='light'] .cp-sidebar {
+  background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+}
+.cp-sidebar .navbar-brand { padding: 1rem 0.75rem; }
+.cp-sidebar .navbar-nav .nav-section span {
+  color: rgba(255,255,255,.45);
+  font-size: 11px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  padding: 1rem 1rem 0.25rem;
+  display: block;
+}
+.cp-sidebar .nav-link {
+  color: rgba(255,255,255,.78);
+  border-radius: 10px;
+  margin: 2px 8px;
+  padding: 0.55rem 0.85rem;
+  transition: all .15s ease;
+}
+.cp-sidebar .nav-link:hover { background: rgba(255,255,255,.06); color: #fff; }
+.cp-sidebar .nav-item.active > .nav-link {
+  background: linear-gradient(135deg, var(--cp-brand) 0%, var(--cp-brand-2) 100%);
+  color: #fff;
+  box-shadow: 0 6px 18px -8px rgba(32,107,196,.7);
+}
+.cp-sidebar .nav-link-icon { color: inherit; opacity: .85; }
+.cp-logo {
+  width: 36px; height: 36px; border-radius: 10px;
+  background: linear-gradient(135deg, #f59f00, #f76707);
+  color: #fff;
+  display: inline-flex; align-items: center; justify-content: center;
+  box-shadow: 0 6px 18px -6px rgba(245,159,0,.7);
+  font-size: 18px;
+}
+
+/* ---------- Topbar ---------- */
+.cp-topbar {
+  border-bottom: 1px solid var(--tblr-border-color);
+  background: var(--tblr-bg-surface);
+  backdrop-filter: blur(14px);
+}
+.cp-avatar {
+  background: linear-gradient(135deg, #4263eb, #206bc4);
+  color: #fff;
+  font-weight: 700;
+}
+.cp-theme-toggle {
+  background: transparent; border: 0; cursor: pointer;
+  width: 38px; height: 38px; border-radius: 10px;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--tblr-body-color);
+}
+.cp-theme-toggle:hover { background: var(--tblr-bg-surface-secondary); }
+.cp-theme-toggle .cp-icon-sun { display: none; }
+.cp-theme-toggle .cp-icon-moon { display: inline; }
+[data-bs-theme='dark'] .cp-theme-toggle .cp-icon-sun { display: inline; }
+[data-bs-theme='dark'] .cp-theme-toggle .cp-icon-moon { display: none; }
+
+/* ---------- Cards ---------- */
+.card { border-radius: var(--cp-radius); border: 1px solid var(--tblr-border-color); }
+.card-header { border-radius: var(--cp-radius) var(--cp-radius) 0 0; }
+.cp-stat-card { transition: transform .15s ease, box-shadow .15s ease; }
+.cp-stat-card:hover { transform: translateY(-2px); box-shadow: 0 14px 30px -18px rgba(15,23,42,.25); }
+.cp-stat-icon {
+  width: 52px; height: 52px; border-radius: 12px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 22px;
+}
+
+/* ---------- Action badges ---------- */
+.cp-action-create  { background: rgba(46,160,67,.15); color:#2ea043; }
+.cp-action-update  { background: rgba(245,159,0,.15); color:#f59f00; }
+.cp-action-delete  { background: rgba(244,63,94,.15);  color:#f43f5e; }
+.cp-action-login   { background: rgba(32,107,196,.15); color:#206bc4; }
+.cp-action-logout  { background: rgba(120,120,120,.15); color:#6b7280; }
+.cp-action-view    { background: rgba(168,85,247,.15); color:#a855f7; }
+.cp-action-other   { background: rgba(100,116,139,.15); color:#64748b; }
+.cp-action {
+  width: 28px; height: 28px; border-radius: 8px;
+  display: inline-flex; align-items: center; justify-content: center; font-size: 14px;
+}
+
+/* ---------- Models browser ---------- */
+.cp-app-card .card-header { display:flex; align-items:center; gap:.75rem; }
+.cp-app-icon {
+  width: 40px; height: 40px; border-radius: 10px;
+  background: linear-gradient(135deg,#4263eb,#206bc4);
+  color: #fff; display: inline-flex; align-items: center; justify-content: center;
+  font-size: 18px;
+}
+.cp-cell { max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---------- Login screen ---------- */
+.cp-login-bg {
+  min-height: 100vh;
+  background:
+    radial-gradient(1200px 600px at 100% 0%, rgba(66,99,235,.25), transparent 60%),
+    radial-gradient(800px 500px at 0% 100%, rgba(245,159,0,.18), transparent 60%),
+    #0b1220;
+}
+.cp-login-card {
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,.06);
+  background: rgba(255,255,255,.97);
+  box-shadow: 0 30px 60px -20px rgba(0,0,0,.4);
+}
+[data-bs-theme='dark'] .cp-login-card {
+  background: rgba(20,26,38,.92);
+}
+.cp-login-logo {
+  width: 72px; height: 72px; margin: 0 auto;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #f59f00, #f76707);
+  color: #fff; display: inline-flex; align-items: center; justify-content: center;
+  font-size: 32px;
+  box-shadow: 0 14px 30px -10px rgba(245,159,0,.6);
+}
+
+/* Form polish */
+.form-control, .form-select { border-radius: 10px; }
+.btn { border-radius: 10px; }
+.btn-primary {
+  background: linear-gradient(135deg, var(--cp-brand) 0%, var(--cp-brand-2) 100%);
+  border: none;
+}
+.btn-primary:hover { filter: brightness(1.08); }
+
+/* Tables */
+.table.card-table th { font-weight: 600; color: var(--tblr-secondary); }
+
+/* Alert close (RTL) */
+.alert-dismissible .btn-close { left: 1rem; right: auto; }

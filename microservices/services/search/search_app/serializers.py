@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import UserSession, SearchLog, AIChatLog
+from .models import UserSession, SearchLog, AIChatLog, AIConversation
 
 
 class UserSessionSerializer(serializers.ModelSerializer):
@@ -28,7 +28,19 @@ class AIChatLogSerializer(serializers.ModelSerializer):
     class Meta:
         model = AIChatLog
         fields = (
-            'id', 'user_id',
+            'id', 'conversation', 'user_id',
             'question', 'answer', 'model_version', 'created_at'
         )
         read_only_fields = ('id', 'created_at')
+
+
+class AIConversationSerializer(serializers.ModelSerializer):
+    messages_count = serializers.IntegerField(source='messages.count', read_only=True)
+    
+    class Meta:
+        model = AIConversation
+        fields = (
+            'id', 'user_id', 'title', 'is_archived', 'is_favorite',
+            'created_at', 'updated_at', 'messages_count'
+        )
+        read_only_fields = ('id', 'created_at', 'updated_at')

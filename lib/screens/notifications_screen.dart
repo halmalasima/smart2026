@@ -1,16 +1,16 @@
+import '../../../../theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../providers/notification_provider.dart';
 import '../providers/auth_provider.dart';
-
+import '../theme/app_colors.dart';
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
 
   @override
   State<NotificationsScreen> createState() => _NotificationsScreenState();
 }
-
 class _NotificationsScreenState extends State<NotificationsScreen> {
   @override
   void initState() {
@@ -20,18 +20,19 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       Provider.of<NotificationProvider>(context, listen: false).refreshNotifications();
     });
   }
-
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFFAF6F1),
+      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFFAF6F1),
+        backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
         elevation: 0,
-        title: const Text(
+        title: Text(
           'الإشعارات',
           style: TextStyle(
-            color: Colors.black87,
+            color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
             fontSize: 20,
             fontWeight: FontWeight.w600,
           ),
@@ -45,7 +46,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   icon: const Icon(Icons.done_all, size: 18),
                   label: const Text('قراءة الكل'),
                   style: TextButton.styleFrom(
-                    foregroundColor: const Color(0xFFE8A54B),
+                    foregroundColor: AppColors.brand,
                   ),
                 );
               }
@@ -59,7 +60,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           if (provider.isLoading && provider.notifications.isEmpty) {
             return const Center(child: CircularProgressIndicator());
           }
-
           if (provider.notifications.isEmpty) {
             return Center(
               child: Column(
@@ -68,14 +68,14 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   Icon(
                     Icons.notifications_none,
                     size: 80,
-                    color: Colors.grey[400],
+                    color: isDark ? AppColors.darkTextTertiary : AppColors.lightTextTertiary,
                   ),
                   const SizedBox(height: 16),
                   Text(
                     'لا توجد إشعارات',
                     style: TextStyle(
                       fontSize: 18,
-                      color: Colors.grey[600],
+                      color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -83,7 +83,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               ),
             );
           }
-
           return RefreshIndicator(
             onRefresh: () => provider.refreshNotifications(),
             child: ListView.builder(
@@ -99,33 +98,30 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       ),
     );
   }
-
   Widget _buildNotificationCard(AppNotification notification, NotificationProvider provider) {
     final isUnread = !notification.isRead;
     final dateFormat = DateFormat('yyyy-MM-dd HH:mm');
     final timeAgo = _getTimeAgo(notification.createdAt);
-
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     Color typeColor;
     IconData typeIcon;
-    
     switch (notification.type) {
       case 'admin':
-        typeColor = const Color(0xFF2196F3);
+        typeColor = AppColors.info;
         typeIcon = Icons.admin_panel_settings;
         break;
       case 'calendar':
-        typeColor = const Color(0xFFE8A54B);
+        typeColor = AppColors.brand;
         typeIcon = Icons.calendar_today;
         break;
       case 'system':
-        typeColor = const Color(0xFF4CAF50);
+        typeColor = AppColors.success;
         typeIcon = Icons.info;
         break;
       default:
-        typeColor = Colors.grey;
+        typeColor = isDark ? AppColors.darkTextTertiary : AppColors.lightTextTertiary;
         typeIcon = Icons.notifications;
     }
-
     return Dismissible(
       key: Key(notification.id),
       direction: DismissDirection.endToStart,
@@ -133,7 +129,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 20),
         decoration: BoxDecoration(
-          color: Colors.red,
+          color: AppColors.error,
           borderRadius: BorderRadius.circular(12),
         ),
         child: const Icon(Icons.delete, color: Colors.white),
@@ -141,15 +137,16 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       onDismissed: (direction) {
         provider.deleteNotification(notification.id);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('تم حذف الإشعار'),
-            backgroundColor: Color(0xFFE8A54B),
+          SnackBar(
+            content: const Text('تم حذف الإشعار'),
+            backgroundColor: AppColors.brand,
           ),
         );
       },
       child: Card(
         margin: const EdgeInsets.only(bottom: 12),
         elevation: isUnread ? 2 : 0,
+        color: isDark ? AppColors.darkCard : AppColors.lightCard,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
           side: BorderSide(
@@ -195,7 +192,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: isUnread ? FontWeight.bold : FontWeight.w500,
-                                color: Colors.black87,
+                                color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
                               ),
                             ),
                           ),
@@ -203,8 +200,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                             Container(
                               width: 8,
                               height: 8,
-                              decoration: const BoxDecoration(
-                                color: Color(0xFFE8A54B),
+                              decoration: BoxDecoration(
+                                color: AppColors.brand,
                                 shape: BoxShape.circle,
                               ),
                             ),
@@ -215,7 +212,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         notification.body,
                         style: TextStyle(
                           fontSize: 14,
-                          color: Colors.grey[700],
+                          color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
                           height: 1.4,
                         ),
                         maxLines: 2,
@@ -226,7 +223,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         timeAgo,
                         style: TextStyle(
                           fontSize: 12,
-                          color: Colors.grey[500],
+                          color: isDark ? AppColors.darkTextTertiary : AppColors.lightTextTertiary,
                         ),
                       ),
                     ],
@@ -239,7 +236,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       ),
     );
   }
-
   String _getTimeAgo(DateTime date) {
     final now = DateTime.now();
     final difference = now.difference(date);
@@ -284,13 +280,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       }
     }
   }
-
   Future<void> _markAllAsRead(NotificationProvider provider) async {
     await provider.markAllAsRead();
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('تم تحديد جميع الإشعارات كمقروءة'),
-        backgroundColor: Color(0xFFE8A54B),
+      SnackBar(
+        content: const Text('تم تحديد جميع الإشعارات كمقروءة'),
+        backgroundColor: AppColors.brand,
       ),
     );
   }

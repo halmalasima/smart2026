@@ -53,9 +53,9 @@ class AIApiService {
           // Convert legacy format to new format
           return {
             'ai_response': responseData['response'],
-            'conversation_history': responseData.get('conversation_history', []),
-            'source_documents': responseData.get('source_documents', []),
-            'suggested_questions': responseData.get('suggested_questions', []),
+            'conversation_history': responseData['conversation_history'] ?? [],
+            'source_documents': responseData['source_documents'] ?? [],
+            'suggested_questions': responseData['suggested_questions'] ?? [],
           };
         }
         return responseData;
@@ -129,5 +129,109 @@ class AIApiService {
       debugPrint('Exception during document deletion: $e');
       throw Exception('فشل الاتصال بخدمة حذف المستندات: $e');
     }
+  }
+
+  // ========== Chat History & Conversations ==========
+
+  /// Get all conversations for the current user
+  Future<List<Map<String, dynamic>>> getConversations({bool? archived}) async {
+    String url = '${ApiConfig.baseUrl}${ApiConfig.aiConversationsEndpoint}';
+    if (archived != null) {
+      url += '?is_archived=$archived';
+    }
+    
+    try {
+      final response = await http.get(Uri.parse(url), headers: _headers);
+      if (response.statusCode == 200) {
+        final data = json.decode(utf8.decode(response.bodyBytes));
+        if (data is List) return List<Map<String, dynamic>>.from(data);
+        if (data is Map && data.containsKey('results')) {
+          return List<Map<String, dynamic>>.from(data['results']);
+        }
+        return [];
+      }
+      throw Exception('فشل في جلب المحادثات');
+    } catch (e) {
+      debugPrint('Error getting conversations: $e');
+      return [];
+    }
+  }
+
+  /// Create a new conversation
+  Future<Map<String, dynamic>> createConversation(String title) async {
+    final url = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.aiConversationsEndpoint}');
+    final response = await http.post(
+      url,
+      headers: _headers,
+      body: json.encode({'title': title}),
+    );
+    if (response.statusCode == 201) {
+      return json.decode(utf8.decode(response.bodyBytes));
+    }
+    throw Exception('فشل في إنشاء محادثة جديدة');
+  }
+
+  /// Update a conversation (title, archived, favorite)
+  Future<Map<String, dynamic>> updateConversation(int id, Map<String, dynamic> data) async {
+    final url = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.aiConversationsEndpoint}$id/');
+    final response = await http.patch(
+      url,
+      headers: _headers,
+      body: json.encode(data),
+    );
+    if (response.statusCode == 200) {
+      return json.decode(utf8.decode(response.bodyBytes));
+    }
+    throw Exception('فشل في تحديث المحادثة');
+  }
+
+  /// Delete a conversation
+  Future<void> deleteConversation(int id) async {
+    final url = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.aiConversationsEndpoint}$id/');
+    final response = await http.delete(url, headers: _headers);
+    if (response.statusCode != 204) {
+      throw Exception('فشل في حذف المحادثة');
+    }
+  }
+
+  /// Get messages for a specific conversation
+  Future<List<Map<String, dynamic>>> getConversationMessages(int conversationId) async {
+    final url = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.aiConversationsEndpoint}$conversationId/messages/');
+    try {
+      final response = await http.get(url, headers: _headers);
+      if (response.statusCode == 200) {
+        final data = json.decode(utf8.decode(response.bodyBytes));
+        if (data is List) return List<Map<String, dynamic>>.from(data);
+        return [];
+      }
+      throw Exception('فشل في جلب رسائل المحادثة');
+    } catch (e) {
+      debugPrint('Error getting messages: $e');
+      return [];
+    }
+  }
+
+  /// Save a chat log (message pair)
+  Future<Map<String, dynamic>> saveChatLog({
+    required int conversationId,
+    required String question,
+    required String answer,
+    String? modelVersion,
+  }) async {
+    final url = Uri.parse('${ApiConfig.baseUrl}${ApiConfig.aiChatLogsEndpoint}');
+    final response = await http.post(
+      url,
+      headers: _headers,
+      body: json.encode({
+        'conversation': conversationId,
+        'question': question,
+        'answer': answer,
+        'model_version': modelVersion ?? 'llama-3.3-70b',
+      }),
+    );
+    if (response.statusCode == 201) {
+      return json.decode(utf8.decode(response.bodyBytes));
+    }
+    throw Exception('فشل في حفظ سجل المحادثة');
   }
 }

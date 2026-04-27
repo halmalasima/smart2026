@@ -1,0 +1,1 @@
+foreach ($s in "auth","cases","hearings","documents","legal","notifications","search","ai","inheritance") { echo "--- $s ---"; docker exec microservices-gateway-1 wget -S -O- --post-data "{}" --header "Content-Type: application/json" http://$s`:8000/api/token/ 2>&1 | Select-String "404 Not Found" -Context 0,2 }

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import LegalCategory, Law, LawChapter, LawSection, LawArticle, CaseLegalReference, LegalArticleFlat, LegalProcedureNode
+from .models import LegalCategory, Law, LawChapter, LawSection, LawArticle, CaseLegalReference, LegalArticleFlat, LegalProcedureNode, LawLibrary, Tag
 
 
 class LegalArticleFlatSerializer(serializers.ModelSerializer):
@@ -41,16 +41,30 @@ class LegalArticleFlatListSerializer(serializers.ModelSerializer):
 class LegalCategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = LegalCategory
-        fields = ('id', 'name', 'description', 'created_at', 'updated_at')
+        fields = ('id', 'name', 'slug', 'description', 'created_at', 'updated_at')
         read_only_fields = ('id', 'created_at', 'updated_at')
+
+
+class TagSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Tag
+        fields = ('id', 'name', 'slug', 'created_at')
+        read_only_fields = ('id', 'created_at')
 
 
 class LawSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source='category.name', read_only=True)
+    category_slug = serializers.CharField(source='category.slug', read_only=True)
+    tags_list = serializers.StringRelatedField(source='tags', many=True, read_only=True)
     
     class Meta:
         model = Law
-        fields = ('id', 'category', 'category_name', 'name', 'issue_year', 'description', 'created_at', 'updated_at')
+        fields = (
+            'id', 'category', 'category_name', 'category_slug', 
+            'name', 'slug', 'issue_year', 'description', 
+            'source_url', 'pdf_link', 'tags', 'tags_list', 
+            'created_at', 'updated_at'
+        )
         read_only_fields = ('id', 'created_at', 'updated_at')
 
 
@@ -105,3 +119,19 @@ class LegalProcedureNodeSerializer(serializers.ModelSerializer):
         model = LegalProcedureNode
         fields = '__all__'
 
+
+class LawLibrarySerializer(serializers.ModelSerializer):
+    """
+    Serializer للمكتبة القانونية (كتب) - محول لنموذج Law للحفاظ على التوافقية
+    """
+    title = serializers.CharField(source='name', read_only=True)
+    category = serializers.CharField(source='category.name', read_only=True)
+    pdf_url = serializers.URLField(source='pdf_link', read_only=True)
+    image_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Law
+        fields = ('id', 'title', 'category', 'source_url', 'pdf_url', 'image_url', 'created_at')
+        
+    def get_image_url(self, obj):
+        return None

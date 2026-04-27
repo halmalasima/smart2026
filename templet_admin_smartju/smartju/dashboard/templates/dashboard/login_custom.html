@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>تسجيل الدخول | منصة القضاء الذكية</title>
+
+  <link rel="icon" type="image/png" href="/static/img/logo.png">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Cairo', 'system-ui', 'sans-serif'] },
+          colors: {
+            brand: { DEFAULT:'#1B5E3B', light:'#2D8B57', lighter:'#3FA770', dark:'#0D3B23', darker:'#06291A' },
+            gold:  { DEFAULT:'#D4A940', light:'#E8C667', dark:'#B08C2A' },
+            ink:   { 950:'#0A0E14', 900:'#10151E', 850:'#141A26', 800:'#1A2030', 700:'#252B3D', 600:'#2D3245', 400:'#6B7280', 300:'#9CA3B0', 200:'#B0B6C5', 100:'#F0F1F5' },
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body { font-family: 'Cairo', sans-serif; background: #0A0E14; color: #F0F1F5; }
+    .auth-bg {
+      background:
+        radial-gradient(60% 80% at 80% 0%, rgba(212,169,64,.10), transparent 60%),
+        radial-gradient(60% 70% at 0% 100%, rgba(45,139,87,.12), transparent 60%),
+        radial-gradient(40% 50% at 50% 50%, rgba(27,94,59,.08), transparent 70%),
+        #0A0E14;
+    }
+    .field {
+      background: #141A26;
+      border: 1px solid #252B3D;
+      border-radius: 16px;
+      transition: border-color .2s, background .2s;
+    }
+    .field:focus-within { border-color: #2D8B57; background: #1A2030; }
+    .field input { background: transparent; outline: none; }
+    .field input::placeholder { color: #6B7280; }
+    .checkbox-mark {
+      width: 22px; height: 22px; border-radius: 6px;
+      border: 1.5px solid #2D3245; background: #141A26;
+      display: inline-flex; align-items: center; justify-content: center;
+      transition: all .2s;
+    }
+    input[type=checkbox]:checked + .checkbox-mark {
+      background: #1B5E3B; border-color: #1B5E3B;
+    }
+    input[type=checkbox]:checked + .checkbox-mark::after {
+      content: '✓'; color: #fff; font-weight: 900; font-size: 14px;
+    }
+    .btn-primary {
+      background: linear-gradient(180deg, #2D8B57 0%, #1B5E3B 100%);
+      box-shadow: 0 10px 25px -10px rgba(27,94,59,.7);
+    }
+    .btn-primary:hover { background: linear-gradient(180deg, #3FA770 0%, #2D8B57 100%); }
+    .btn-ghost {
+      background: transparent;
+      border: 1.5px solid #2D8B57;
+      color: #3FA770;
+    }
+    .btn-ghost:hover { background: rgba(45,139,87,.08); }
+    .deco-circle-1 { position:absolute; width:340px; height:340px; border-radius:50%; background:#10151E; top:-120px; right:-120px; }
+    .deco-circle-2 { position:absolute; width:240px; height:240px; border-radius:50%; background:#10151E; bottom:-60px; left:-80px; }
+  </style>
+</head>
+<body>
+
+  <main class="auth-bg min-h-screen flex items-center justify-center px-4 py-8 relative overflow-hidden">
+    <div class="deco-circle-1 opacity-60"></div>
+    <div class="deco-circle-2 opacity-60"></div>
+
+    <a href="/" class="absolute top-5 right-5 inline-flex items-center gap-2 text-sm text-ink-300 hover:text-gold transition">
+      <i class="fas fa-arrow-right"></i> العودة للرئيسية
+    </a>
+
+    <div class="relative w-full max-w-md">
+
+      <!-- Logo -->
+      <div class="flex flex-col items-center">
+        <div class="w-28 h-28 rounded-full bg-ink-900 border border-ink-700/60 grid place-items-center shadow-2xl">
+          <img src="/static/img/logo.png" alt="منصة القضاء الذكية" class="w-20 h-20 object-contain drop-shadow-[0_4px_12px_rgba(212,169,64,0.35)]">
+        </div>
+        <h1 class="mt-6 text-3xl sm:text-4xl font-black tracking-tight">
+          <span class="bg-gradient-to-l from-brand-lighter to-brand-light bg-clip-text text-transparent">منصة القضاء الذكية</span>
+        </h1>
+        <p class="mt-2 text-ink-300 text-sm">منصة الخدمات القضائية الذكية</p>
+      </div>
+
+      <!-- Messages -->
+      {% if messages %}
+        <div class="mt-6 space-y-2">
+          {% for m in messages %}
+            <div class="px-4 py-3 rounded-xl text-sm font-bold flex items-center gap-2
+                        {% if m.tags == 'error' %}bg-red-500/10 border border-red-500/30 text-red-400{% else %}bg-brand/10 border border-brand-light/30 text-brand-lighter{% endif %}">
+              <i class="fas {% if m.tags == 'error' %}fa-circle-exclamation{% else %}fa-circle-check{% endif %}"></i>
+              {{ m }}
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      <!-- Form -->
+      <form method="POST" class="mt-8 space-y-4" autocomplete="on">
+        {% csrf_token %}
+
+        <!-- Phone -->
+        <div class="field flex items-center gap-3 px-4 h-14">
+          <i class="fas fa-phone text-ink-300 text-lg"></i>
+          <input
+            name="phone" type="tel" inputmode="tel" required autocomplete="tel"
+            placeholder="رقم الهاتف"
+            dir="ltr"
+            class="flex-1 text-right text-base font-bold placeholder:font-medium text-ink-100">
+        </div>
+
+        <!-- Password -->
+        <div class="field flex items-center gap-3 px-4 h-14">
+          <button type="button" onclick="togglePw(this)" aria-label="إظهار/إخفاء كلمة المرور" class="text-ink-300 hover:text-brand-lighter">
+            <i class="fas fa-eye-slash text-lg"></i>
+          </button>
+          <input
+            name="password" type="password" required autocomplete="current-password"
+            placeholder="كلمة المرور"
+            class="flex-1 text-right text-base font-bold placeholder:font-medium text-ink-100">
+          <i class="fas fa-lock text-ink-300 text-lg"></i>
+        </div>
+
+        <!-- Options -->
+        <div class="flex items-center justify-between pt-2">
+          <label class="flex items-center gap-2 cursor-pointer select-none">
+            <input type="checkbox" name="offline" class="hidden peer">
+            <span class="checkbox-mark"></span>
+            <span class="text-sm text-ink-200">بدون نت</span>
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer select-none">
+            <input type="checkbox" name="remember" class="hidden peer" checked>
+            <span class="checkbox-mark"></span>
+            <span class="text-sm text-ink-200">تذكرني</span>
+          </label>
+        </div>
+
+        <div class="text-center pt-1">
+          <a href="#" class="text-sm text-brand-lighter font-bold hover:text-gold transition">نسيت كلمة المرور؟</a>
+        </div>
+
+        <!-- Submit -->
+        <button type="submit"
+          class="btn-primary w-full h-14 rounded-2xl text-white font-black text-lg mt-4 transition">
+          تسجيل الدخول
+        </button>
+
+        <!-- Guest -->
+        <a href="/" class="btn-ghost w-full h-14 rounded-2xl font-black text-lg flex items-center justify-center transition">
+          تصفّح كضيف
+        </a>
+      </form>
+
+      <p class="mt-8 text-center text-sm text-ink-300">
+        ليس لديك حساب؟
+        <a href="/register/" class="text-brand-lighter font-black hover:text-gold mr-1 transition">إنشاء حساب جديد</a>
+      </p>
+
+      <p class="mt-6 text-center text-[11px] text-ink-400">
+        © 2026 منصة القضاء الذكية · جميع الحقوق محفوظة
+      </p>
+    </div>
+  </main>
+
+  <script>
+    function togglePw(btn){
+      var input = btn.parentElement.querySelector('input[name=password]');
+      var icon = btn.querySelector('i');
+      if (input.type === 'password') { input.type = 'text'; icon.classList.replace('fa-eye-slash','fa-eye'); }
+      else { input.type = 'password'; icon.classList.replace('fa-eye','fa-eye-slash'); }
+    }
+  </script>
+</body>
+</html>

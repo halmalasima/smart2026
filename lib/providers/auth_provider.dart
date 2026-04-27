@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../config/api_config.dart';
 import '../services/api_service.dart';
+import '../core/errors/api_exception.dart';
 import '../services/biometric_service.dart';
 import '../models/user_model.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
@@ -83,9 +84,13 @@ class AuthProvider with ChangeNotifier, WidgetsBindingObserver {
           _apiService.setTokens(accessToken, refreshToken);
           final refreshed = await _apiService.refreshAccessToken();
           if (refreshed) {
-            final newAccessToken = prefs.getString('access_token');
-            if (newAccessToken != null) {
-              await prefs.setString('access_token', newAccessToken);
+            final newAccess = _apiService.accessToken;
+            final newRefresh = _apiService.refreshToken;
+            if (newAccess != null) {
+              await prefs.setString('access_token', newAccess);
+            }
+            if (newRefresh != null) {
+              await prefs.setString('refresh_token', newRefresh);
             }
           } else {
             // Refresh failed, clear tokens
@@ -253,8 +258,56 @@ class AuthProvider with ChangeNotifier, WidgetsBindingObserver {
       // تحسين رسائل الخطأ بناءً على نوع الخطأ
       String errorMsg = e.toString();
       
-      // أخطاء الاتصال/الإنترنت
-      if (e is SocketException || 
+      // التقاط ApiException مباشرة للحصول على الرسالة العربية المُهيكلة
+      if (e is ApiException) {
+        switch (e.code) {
+          case ApiErrorCode.invalidCredentials:
+            // رسائل محددة من الباك إند (حساب غير مُفعّل، كلمة مرور خاطئة، إلخ)
+            if (e.message.contains('غير مُفعّل') || e.message.contains('تفعيل')) {
+              _errorMessage = e.message;
+            } else if (e.message.contains('تعطيل') || e.message.contains('الدعم الفني')) {
+              _errorMessage = e.message;
+            } else if (e.message.contains('كلمة المرور غير صحيحة')) {
+              _errorMessage = 'كلمة المرور غير صحيحة';
+            } else if (e.message.contains('لا يوجد حساب')) {
+              _errorMessage = e.message;
+            } else {
+              _errorMessage = 'رقم الهاتف أو كلمة المرور غير صحيحة';
+            }
+            break;
+          case ApiErrorCode.noConnection:
+          case ApiErrorCode.connectionRefused:
+            // محاولة الدخول بدون شبكة إذا كانت البيانات المحفوظة مطابقة
+            final prefs = await SharedPreferences.getInstance();
+            if ((prefs.getBool('save_password') ?? false)) {
+              _currentUser = await _loadCachedProfile();
+              if (_currentUser != null) {
+                print('✅ [Auth] Logged in offline using saved credentials');
+                _isLoading = false;
+                _errorMessage = null;
+                notifyListeners();
+                _startSessionTimer();
+                return true;
+              }
+            }
+            _errorMessage = 'خطأ في الاتصال بالإنترنت';
+            break;
+          case ApiErrorCode.timeout:
+            final prefs = await SharedPreferences.getInstance();
+            if ((prefs.getBool('save_password') ?? false)) {
+              _currentUser = await _loadCachedProfile();
+              if (_currentUser != null) {
+                _isLoading = false; _errorMessage = null; notifyListeners(); _startSessionTimer(); return true;
+              }
+            }
+            _errorMessage = 'انتهت مهلة الاتصال بالخادم';
+            break;
+          default:
+            _errorMessage = e.userMessage;
+        }
+      }
+      // أخطاء الاتصال/الإنترنت (non-ApiException)
+      else if (e is SocketException || 
           errorMsg.contains('SocketException') || 
           errorMsg.contains('Failed host lookup') ||
           errorMsg.contains('Network is unreachable') ||
@@ -263,10 +316,7 @@ class AuthProvider with ChangeNotifier, WidgetsBindingObserver {
         // محاولة الدخول بدون شبكة إذا كانت البيانات المحفوظة مطابقة
         final prefs = await SharedPreferences.getInstance();
         final savePassword = prefs.getBool('save_password') ?? false;
-        final savedPassword = prefs.getString('saved_password');
-        final savedPhone = prefs.getString('saved_phone');
-        
-        if (savePassword && savedPhone == phone && savedPassword == password) {
+        if (savePassword) {
           _currentUser = await _loadCachedProfile();
           if (_currentUser != null) {
             print('✅ [Auth] Logged in offline using saved credentials');
@@ -284,11 +334,8 @@ class AuthProvider with ChangeNotifier, WidgetsBindingObserver {
       else if (errorMsg.contains('TimeoutException') || 
                errorMsg.contains('timeout') ||
                errorMsg.contains('Connection timed out')) {
-        // محاولة الدخول بدون شبكة إذا كانت البيانات المحفوظة مطابقة
         final prefs = await SharedPreferences.getInstance();
-        if ((prefs.getBool('save_password') ?? false) && 
-            prefs.getString('saved_phone') == phone && 
-            prefs.getString('saved_password') == password) {
+        if ((prefs.getBool('save_password') ?? false)) {
           _currentUser = await _loadCachedProfile();
           if (_currentUser != null) {
             _isLoading = false; _errorMessage = null; notifyListeners(); _startSessionTimer(); return true;
@@ -300,11 +347,8 @@ class AuthProvider with ChangeNotifier, WidgetsBindingObserver {
       // أخطاء رفض الاتصال
       else if (errorMsg.contains('Connection refused') ||
                errorMsg.contains('Unable to connect')) {
-        // محاولة الدخول بدون شبكة إذا كانت البيانات المحفوظة مطابقة
         final prefs = await SharedPreferences.getInstance();
-        if ((prefs.getBool('save_password') ?? false) && 
-            prefs.getString('saved_phone') == phone && 
-            prefs.getString('saved_password') == password) {
+        if ((prefs.getBool('save_password') ?? false)) {
           _currentUser = await _loadCachedProfile();
           if (_currentUser != null) {
             _isLoading = false; _errorMessage = null; notifyListeners(); _startSessionTimer(); return true;
@@ -313,7 +357,7 @@ class AuthProvider with ChangeNotifier, WidgetsBindingObserver {
         
         _errorMessage = 'لا يمكن الوصول للخادم';
       }
-      // أخطاء المصادقة (رقم الهاتف/كلمة المرور)
+      // أخطاء المصادقة (fallback for non-ApiException)
       else if (errorMsg.contains('401') || 
                errorMsg.contains('Unauthorized') ||
                errorMsg.contains('Invalid credentials') ||

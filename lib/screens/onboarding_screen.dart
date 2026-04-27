@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_theme.dart';
 
 class OnboardingScreen extends StatefulWidget {
   final VoidCallback onComplete;
@@ -18,21 +20,24 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     {
       'title': 'مرحباً بك في SmartJudi',
       'description':
-          'منصة ذكية لإدارة القضايا، متابعة الجلسات، والتواصل مع الجهات القانونية كلها في مكان واحد.',
-      'icon': Icons.gavel_rounded,
-      'accent': AppColors.coral,
+          'منصة ذكية متطورة لإدارة القضايا، متابعة الجلسات، والتواصل مع الجهات القانونية بكل احترافية.',
+      'isLogo': true,
+      'asset': 'assets/images/logo.png',
+      'accent': AppColors.brand,
     },
     {
       'title': 'المساعد القانوني الذكي',
       'description':
-          'استفد من تحليلات ذكية واقتراحات قانونية فورية تُسهل عليك اتخاذ القرار.',
+          'استفد من تحليلات ذكية مستندة على الذكاء الاصطناعي واقتراحات قانونية تدعم قراراتك بخطوات بسيطة.',
+      'isLogo': false,
       'icon': Icons.psychology_rounded,
       'accent': AppColors.ocean,
     },
     {
       'title': 'خدمات إلكترونية متكاملة',
       'description':
-          'ابدأ إجراءاتك، راجع البيانات، وتابع طلباتك القضائية بسرعة وسهولة.',
+          'ابدأ إجراءاتك، راجع الجلسات، وتصفح المكتبة القانونية وتابع طلباتك القضائية بسرعة، أمان، وموثوقية.',
+      'isLogo': false,
       'icon': Icons.account_balance_rounded,
       'accent': AppColors.amber,
     },
@@ -55,53 +60,62 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(gradient: AppColors.heroGradient),
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              AppColors.brandDark,
+              AppColors.brand,
+            ],
+          ),
+        ),
         child: Stack(
           children: [
+            // الديكور الخلفي العصري
             Positioned(
-              top: -80,
-              left: -80,
+              top: -100,
+              left: -50,
               child: Container(
-                width: 220,
-                height: 220,
+                width: 300,
+                height: 300,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  gradient: LinearGradient(
+                  gradient: RadialGradient(
                     colors: [
-                      AppColors.brand.withOpacity(0.35),
+                      Colors.white.withOpacity(0.1),
                       Colors.transparent,
                     ],
                   ),
                 ),
-              ),
+              ).animate(onPlay: (controller) => controller.repeat(reverse: true)).scaleXY(begin: 0.9, end: 1.1, duration: 4.seconds),
             ),
             Positioned(
-              bottom: -100,
-              right: -80,
+              bottom: -50,
+              right: -100,
               child: Container(
-                width: 260,
-                height: 260,
+                width: 400,
+                height: 400,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  gradient: LinearGradient(
+                  gradient: RadialGradient(
                     colors: [
-                      AppColors.goldLight.withOpacity(0.28),
+                      AppColors.brandLight.withOpacity(0.15),
                       Colors.transparent,
                     ],
                   ),
                 ),
-              ),
+              ).animate(onPlay: (controller) => controller.repeat(reverse: true)).scaleXY(begin: 1.1, end: 0.9, duration: 3.seconds),
             ),
             SafeArea(
               child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 20,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                 child: Column(
                   children: [
+                    // شريط العنوان والتخطي
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -112,16 +126,17 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                               'SmartJudi',
                               style: textTheme.titleLarge?.copyWith(
                                 color: Colors.white,
-                                fontWeight: FontWeight.w800,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 1.2,
                               ),
-                            ),
-                            const SizedBox(height: 4),
+                            ).animate().fadeIn(duration: 800.ms).slideX(begin: -0.2),
+                            const SizedBox(height: 2),
                             Text(
                               'قانونك الذكي',
                               style: textTheme.bodyMedium?.copyWith(
                                 color: Colors.white70,
                               ),
-                            ),
+                            ).animate().fadeIn(delay: 200.ms).slideX(begin: -0.2),
                           ],
                         ),
                         TextButton(
@@ -129,106 +144,117 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           style: TextButton.styleFrom(
                             foregroundColor: Colors.white70,
                           ),
-                          child: const Text('تخطي'),
-                        ),
+                          child: const Text('تخطي', style: TextStyle(fontWeight: FontWeight.bold)),
+                        ).animate().fadeIn(delay: 500.ms),
                       ],
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 30),
+                    
+                    // الصفحات
                     Expanded(
                       child: PageView.builder(
                         controller: _pageController,
-                        onPageChanged: (page) =>
-                            setState(() => _currentPage = page),
+                        onPageChanged: (page) => setState(() => _currentPage = page),
                         itemCount: _pages.length,
                         itemBuilder: (context, index) {
                           final page = _pages[index];
+                          final isLogo = page['isLogo'] == true;
+                          
                           return Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
+                              // العنصر البصري (شعار أو أيقونة)
                               Container(
-                                width: 150,
-                                height: 150,
+                                width: isLogo ? 200 : 160,
+                                height: isLogo ? 200 : 160,
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
-                                  gradient: LinearGradient(
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                    colors: [
-                                      page['accent'] as Color,
-                                      AppColors.brandLight.withOpacity(0.85),
-                                    ],
-                                  ),
-                                  boxShadow: [
+                                  color: isLogo ? Colors.transparent : Colors.white.withOpacity(0.1),
+                                  boxShadow: isLogo ? null : [
                                     BoxShadow(
-                                      color: Colors.black.withOpacity(0.18),
-                                      blurRadius: 26,
-                                      offset: const Offset(0, 18),
+                                      color: (page['accent'] as Color).withOpacity(0.2),
+                                      blurRadius: 40,
+                                      spreadRadius: 10,
                                     ),
                                   ],
                                 ),
-                                child: Icon(
-                                  page['icon'] as IconData,
-                                  size: 78,
-                                  color: Colors.white,
+                                child: Center(
+                                  child: isLogo
+                                      ? Image.asset(
+                                          page['asset'] as String,
+                                          width: 180,
+                                          height: 180,
+                                          fit: BoxFit.contain,
+                                        )
+                                          .animate(onPlay: (controller) => controller.repeat(reverse: true))
+                                          .scaleXY(begin: 0.95, end: 1.05, duration: 2.seconds, curve: Curves.easeInOut)
+                                          .shimmer(duration: 2.seconds, color: Colors.white24)
+                                      : Icon(
+                                          page['icon'] as IconData,
+                                          size: 80,
+                                          color: Colors.white,
+                                        )
+                                          .animate()
+                                          .scaleXY(begin: 0.8, end: 1.0, duration: 600.ms, curve: Curves.easeOutBack)
+                                          .fadeIn(),
                                 ),
                               ),
-                              const SizedBox(height: 28),
+                              const SizedBox(height: 48),
+                              
+                              // النصوص
                               Text(
                                 page['title'] as String,
                                 style: textTheme.headlineMedium?.copyWith(
                                   color: Colors.white,
                                   fontWeight: FontWeight.w900,
+                                  height: 1.2,
                                 ),
                                 textAlign: TextAlign.center,
-                              ),
+                              ).animate(key: ValueKey('title_$index')).fadeIn(duration: 400.ms).slideY(begin: 0.2),
+                              
                               const SizedBox(height: 16),
+                              
                               Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                ),
+                                padding: const EdgeInsets.symmetric(horizontal: 16),
                                 child: Text(
                                   page['description'] as String,
                                   style: textTheme.bodyLarge?.copyWith(
-                                    color: Colors.white70,
-                                    height: 1.7,
+                                    color: Colors.white.withOpacity(0.85),
+                                    height: 1.8,
+                                    fontSize: 16,
                                   ),
                                   textAlign: TextAlign.center,
-                                ),
+                                ).animate(key: ValueKey('desc_$index')).fadeIn(delay: 200.ms).slideY(begin: 0.2),
                               ),
                             ],
                           );
                         },
                       ),
                     ),
+                    
+                    // المؤشرات
                     Container(
-                      margin: const EdgeInsets.only(bottom: 20),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 10,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.14),
-                        borderRadius: BorderRadius.circular(40),
-                      ),
+                      margin: const EdgeInsets.symmetric(vertical: 32),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: List.generate(
                           _pages.length,
                           (index) => AnimatedContainer(
-                            duration: const Duration(milliseconds: 250),
-                            margin: const EdgeInsets.symmetric(horizontal: 6),
-                            width: _currentPage == index ? 28 : 10,
-                            height: 10,
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeOutCubic,
+                            margin: const EdgeInsets.symmetric(horizontal: 4),
+                            width: _currentPage == index ? 32 : 8,
+                            height: 8,
                             decoration: BoxDecoration(
-                              color: _currentPage == index
-                                  ? Colors.white
-                                  : Colors.white54,
-                              borderRadius: BorderRadius.circular(20),
+                              color: _currentPage == index ? Colors.white : Colors.white.withOpacity(0.3),
+                              borderRadius: BorderRadius.circular(10),
                             ),
                           ),
                         ),
                       ),
                     ),
+                    
+                    // الزر السفلي
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
@@ -237,30 +263,32 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                             _completeOnboarding();
                           } else {
                             _pageController.nextPage(
-                              duration: const Duration(milliseconds: 350),
-                              curve: Curves.easeOut,
+                              duration: const Duration(milliseconds: 500),
+                              curve: Curves.easeOutCubic,
                             );
                           }
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.white,
-                          foregroundColor: AppColors.brandDark,
-                          elevation: 0,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          foregroundColor: AppColors.brand,
+                          elevation: 8,
+                          shadowColor: Colors.black38,
+                          padding: const EdgeInsets.symmetric(vertical: 18),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
+                            borderRadius: BorderRadius.circular(20),
                           ),
                         ),
                         child: Text(
-                          _currentPage == _pages.length - 1
-                              ? 'ابدأ الآن'
-                              : 'التالي',
+                          _currentPage == _pages.length - 1 ? 'ابدأ الآن' : 'التالي',
                           style: textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.brandDark,
+                            fontSize: 18,
                           ),
                         ),
-                      ),
+                      ).animate(target: _currentPage == _pages.length - 1 ? 1 : 0).scaleXY(end: 1.05),
                     ),
+                    const SizedBox(height: 10),
                   ],
                 ),
               ),

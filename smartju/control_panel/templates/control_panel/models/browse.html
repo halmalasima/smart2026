@@ -1,0 +1,75 @@
+{% extends "control_panel/base.html" %}
+
+{% block page_header %}
+  <div class="page-header d-print-none mb-3">
+    <div class="row g-2 align-items-center">
+      <div class="col">
+        <div class="page-pretitle text-secondary">{{ app_label }} · موديل</div>
+        <h2 class="page-title">{{ verbose_name_plural|title }}</h2>
+      </div>
+      <div class="col-auto ms-auto">
+        <div class="btn-list">
+          <a href="{% url 'control_panel:model_export' app_label model_name %}" class="btn btn-outline-success">
+            <i class="ti ti-download me-1"></i> تصدير
+          </a>
+          <a href="{% url 'control_panel:model_import' app_label model_name %}" class="btn btn-outline-info">
+            <i class="ti ti-upload me-1"></i> استيراد
+          </a>
+          <a href="{% url 'control_panel:model_create' app_label model_name %}" class="btn btn-primary">
+            <i class="ti ti-plus me-1"></i> إضافة جديد
+          </a>
+          <a href="{% url 'control_panel:models_index' %}" class="btn btn-outline-secondary">
+            <i class="ti ti-arrow-right me-1"></i> رجوع للموديلات
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-body border-bottom py-2">
+    <form method="get" class="d-flex">
+      <input type="text" name="q" value="{{ q }}" class="form-control me-2" placeholder="بحث في الحقول النصية…">
+      <button type="submit" class="btn btn-primary"><i class="ti ti-search me-1"></i> بحث</button>
+    </form>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-vcenter card-table table-hover">
+      <thead>
+        <tr>
+          <th>#</th>
+          {% for f in fields %}
+          <th>
+            <a href="?q={{ q }}&sort={% if request.GET.sort == f.name %}-{% endif %}{{ f.name }}" class="text-secondary">
+              {{ f.verbose_name|default:f.name }}
+              {% if request.GET.sort == f.name %}<i class="ti ti-chevron-up"></i>{% elif request.GET.sort == '-'|add:f.name %}<i class="ti ti-chevron-down"></i>{% endif %}
+            </a>
+          </th>
+          {% endfor %}
+          <th class="w-1">الإجراءات</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+          <tr>
+            <td class="text-secondary">{{ r.pk }}</td>
+            {% for v in r.values %}<td class="cp-cell">{{ v }}</td>{% endfor %}
+            <td>
+              <div class="btn-list flex-nowrap">
+                <a href="{% url 'control_panel:model_detail' app_label model_name r.pk %}" class="btn btn-sm btn-icon btn-ghost-primary" title="عرض"><i class="ti ti-eye"></i></a>
+                <a href="{% url 'control_panel:model_edit' app_label model_name r.pk %}" class="btn btn-sm btn-icon btn-ghost-info" title="تعديل"><i class="ti ti-edit"></i></a>
+                <a href="{% url 'control_panel:model_delete' app_label model_name r.pk %}" class="btn btn-sm btn-icon btn-ghost-danger" title="حذف"><i class="ti ti-trash"></i></a>
+              </div>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="{{ fields|length|add:'2' }}" class="text-center text-secondary py-5">لا توجد سجلات</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include "control_panel/partials/pagination.html" with page=page %}
+</div>
+{% endblock %}

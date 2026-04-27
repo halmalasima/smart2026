@@ -165,7 +165,9 @@ class UserRegistrationSerializer(serializers.Serializer):
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     """Adds role, is_superuser, subscription_plan to JWT payload.
-    Supports login by phone number or username."""
+    Supports login by phone number or username.
+    The Flutter app sends phone number in the 'username' field,
+    so we auto-detect and resolve it."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -174,22 +176,73 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         self.fields[self.username_field].required = False
 
     def validate(self, attrs):
-        # Support phone-based login: if 'phone' provided, lookup user by phone
-        phone = attrs.pop('phone', None)
         username = attrs.get(self.username_field)
-        if phone and not username:
-            user = User.objects.filter(profile__phone_number=phone).first()
-            if user:
-                attrs[self.username_field] = user.get_username()
-            else:
-                raise serializers.ValidationError(
-                    {'phone': 'لا يوجد حساب بهذا الرقم.'}
-                )
-        elif not username:
-            raise serializers.ValidationError(
-                {self.username_field: 'هذا الحقل مطلوب.'}
-            )
-        return super().validate(attrs)
+        password = attrs.get('password')
+        
+        logger.info(f"--- LOGIN ATTEMPT: ident={username}, has_pwd={password is not None} ---")
+        print(f"DEBUG: Login attempt for {username}")
+        
+        resolved_user = None
+        
+        if username:
+            # Step 1: Try to find user by username directly
+            resolved_user = User.objects.filter(username=username).first()
+            logger.info(f"User lookup by username '{username}': {'found' if resolved_user else 'not found'}")
+            
+            # Step 2: If not found by username, try phone number
+            if not resolved_user:
+                resolved_user = User.objects.filter(profile__phone_number=username).first()
+                if resolved_user:
+                    attrs[self.username_field] = resolved_user.username
+                    logger.info(f"SUCCESS: Resolved phone {username} to user {resolved_user.username}")
+                    print(f"DEBUG: Resolved phone {username} to user {resolved_user.username}")
+                else:
+                    logger.info(f"FAIL: No user or profile found for '{username}'")
+            
+            # Step 3: Pre-check — give clear error messages before calling super()
+            if resolved_user:
+                # Check if user account is inactive (not verified via OTP)
+                if not resolved_user.is_active:
+                    logger.warning(f"INACTIVE USER: {resolved_user.username} (is_active=False)")
+                    raise serializers.ValidationError(
+                        {'detail': 'الحساب غير مُفعّل. يرجى تفعيل حسابك عبر رمز التحقق المرسل إلى هاتفك.'},
+                        code='account_inactive',
+                    )
+                # Check if UserProfile is inactive
+                try:
+                    profile = resolved_user.profile
+                    if not profile.is_active:
+                        logger.warning(f"PROFILE INACTIVE: {resolved_user.username} (profile.is_active=False)")
+                        raise serializers.ValidationError(
+                            {'detail': 'تم تعطيل حسابك. يرجى التواصل مع الدعم الفني.'},
+                            code='profile_disabled',
+                        )
+                except UserProfile.DoesNotExist:
+                    logger.warning(f"NO PROFILE: {resolved_user.username}")
+                    # Create profile on-the-fly to prevent crashes
+                    UserProfile.objects.create(user=resolved_user)
+                
+                # Check password before calling super() to give clear message
+                if password and not resolved_user.check_password(password):
+                    logger.info(f"WRONG PASSWORD for user {resolved_user.username}")
+                    raise serializers.ValidationError(
+                        {'detail': 'كلمة المرور غير صحيحة.'},
+                        code='wrong_password',
+                    )
+
+        try:
+            return super().validate(attrs)
+        except Exception as e:
+            error_msg = str(e)
+            logger.error(f"Token obtain failed: {error_msg}")
+            # Re-raise with a clearer Arabic message
+            if 'No active account' in error_msg or 'Unable to log in' in error_msg:
+                if not resolved_user:
+                    raise serializers.ValidationError(
+                        {'detail': 'لا يوجد حساب بهذا الرقم. يرجى إنشاء حساب جديد.'},
+                        code='no_account',
+                    )
+            raise
 
     @classmethod
     def get_token(cls, user):

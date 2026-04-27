@@ -1,3 +1,4 @@
+from django.contrib import admin
 from django.urls import path, include, re_path
 from django.conf import settings
 from django.views.static import serve as static_serve
@@ -9,6 +10,7 @@ router = DefaultRouter()
 router.register(r'attachments', AttachmentViewSet, basename='attachment')
 
 urlpatterns = [
+    path('admin/documents/', admin.site.urls),
     path('health/', health_check),
     path('api/', include(router.urls)),
     # Serve uploaded media files (works with DEBUG=False too).

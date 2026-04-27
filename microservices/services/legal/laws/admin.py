@@ -43,9 +43,9 @@ class LawArticleAdmin(admin.ModelAdmin):
 
 @admin.register(CaseLegalReference)
 class CaseLegalReferenceAdmin(admin.ModelAdmin):
-    list_display = ('lawsuit', 'article', 'confidence_score', 'is_ai', 'created_at')
+    list_display = ('lawsuit_id', 'article', 'confidence_score', 'is_ai', 'created_at')
     list_filter = ('is_ai', 'article__section__chapter__law')
-    search_fields = ('lawsuit__case_number', 'article__article_number')
+    search_fields = ('lawsuit_id', 'lawsuit_case_number', 'article__article_number')
     ordering = ('-confidence_score', '-created_at')
 
 

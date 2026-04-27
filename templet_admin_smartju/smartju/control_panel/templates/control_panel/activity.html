@@ -1,0 +1,47 @@
+{% extends "control_panel/base.html" %}
+
+{% block content %}
+<div class="card mb-3">
+  <div class="card-body">
+    <form method="get" class="row g-2 align-items-end">
+      <div class="col-md-4">
+        <label class="form-label small">الإجراء</label>
+        <select name="action" class="form-select">
+          <option value="">كل الإجراءات</option>
+          {% for value, label in actions %}
+            <option value="{{ value }}" {% if action == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <button type="submit" class="btn btn-secondary w-100">تصفية</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-vcenter card-table">
+      <thead>
+        <tr><th>الوقت</th><th>المستخدم</th><th>الإجراء</th><th>الهدف</th><th>الوصف</th><th>IP</th></tr>
+      </thead>
+      <tbody>
+        {% for a in page.object_list %}
+          <tr>
+            <td class="text-secondary small">{{ a.created_at|date:"Y-m-d H:i" }}</td>
+            <td>{{ a.user.username|default:"—" }}</td>
+            <td><span class="badge cp-action-{{ a.action }}">{{ a.get_action_display }}</span></td>
+            <td>{{ a.target|default:"—" }}</td>
+            <td class="text-secondary">{{ a.description|default:"—"|truncatechars:80 }}</td>
+            <td class="text-secondary small">{{ a.ip_address|default:"—" }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6" class="text-center text-secondary py-5">لا يوجد سجلات</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include "control_panel/partials/pagination.html" with page=page %}
+</div>
+{% endblock %}

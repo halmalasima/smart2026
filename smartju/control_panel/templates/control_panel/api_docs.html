@@ -1,0 +1,291 @@
+{% extends "control_panel/base.html" %}
+
+{% block page_header %}
+  <div class="page-header d-print-none mb-3">
+    <div class="row g-2 align-items-center">
+      <div class="col">
+        <div class="page-pretitle text-secondary">البنية التحتية</div>
+        <h2 class="page-title">{{ page_title }}</h2>
+      </div>
+      <div class="col-auto ms-auto">
+        <div class="btn-list">
+          <a href="/swagger/" target="_blank" class="btn btn-primary">
+            <i class="ti ti-external-link me-1"></i> Swagger التفاعلي
+          </a>
+          <a href="/redoc/" target="_blank" class="btn btn-outline-secondary">
+            <i class="ti ti-book me-1"></i> ReDoc
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block content %}
+
+<!-- Stats Row -->
+<div class="row row-cards mb-4">
+  <div class="col-sm-6 col-lg-3">
+    <div class="card card-sm">
+      <div class="card-body">
+        <div class="row align-items-center">
+          <div class="col-auto"><span class="bg-primary text-white avatar"><i class="ti ti-api"></i></span></div>
+          <div class="col">
+            <div class="font-weight-medium">{{ total_endpoints }} Endpoint</div>
+            <div class="text-secondary small">إجمالي نقاط الوصول</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="card card-sm">
+      <div class="card-body">
+        <div class="row align-items-center">
+          <div class="col-auto"><span class="bg-green text-white avatar"><i class="ti ti-category"></i></span></div>
+          <div class="col">
+            <div class="font-weight-medium">{{ groups|length }} قسم</div>
+            <div class="text-secondary small">أقسام الخدمات</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="card card-sm">
+      <div class="card-body">
+        <div class="row align-items-center">
+          <div class="col-auto"><span class="bg-yellow text-white avatar"><i class="ti ti-key"></i></span></div>
+          <div class="col">
+            <div class="font-weight-medium">JWT (RS256/HS256)</div>
+            <div class="text-secondary small">نظام المصادقة</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="card card-sm">
+      <div class="card-body">
+        <div class="row align-items-center">
+          <div class="col-auto"><span class="bg-azure text-white avatar"><i class="ti ti-shield-check"></i></span></div>
+          <div class="col">
+            <div class="font-weight-medium">5 أدوار</div>
+            <div class="text-secondary small">admin, judge, lawyer, notary, citizen</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Search -->
+<div class="card mb-3">
+  <div class="card-body py-2">
+    <input type="text" id="apiSearch" class="form-control" placeholder="🔍 ابحث عن endpoint... مثال: lawsuits, hearings, courts..." oninput="filterAPI()">
+  </div>
+</div>
+
+<!-- Authentication Guide Card -->
+<div class="card mb-4">
+  <div class="card-header">
+    <h3 class="card-title"><i class="ti ti-key me-2"></i>دليل المصادقة (Authentication)</h3>
+  </div>
+  <div class="card-body">
+    <div class="row">
+      <div class="col-md-6">
+        <h4 class="mb-2">الحصول على Token</h4>
+        <pre class="bg-dark text-light p-3 rounded" style="direction: ltr; text-align: left; font-size: 13px;"><code>POST /api/token/
+Content-Type: application/json
+
+{
+  "phone": "777123456",
+  "password": "your_password"
+}
+
+→ Response:
+{
+  "access": "eyJ...",
+  "refresh": "eyJ..."
+}</code></pre>
+      </div>
+      <div class="col-md-6">
+        <h4 class="mb-2">استخدام Token</h4>
+        <pre class="bg-dark text-light p-3 rounded" style="direction: ltr; text-align: left; font-size: 13px;"><code>GET /api/lawsuits/
+Authorization: Bearer eyJ...
+
+→ Response:
+{
+  "count": 150,
+  "results": [...]
+}</code></pre>
+        <div class="mt-3">
+          <h4 class="mb-2">تجديد Token</h4>
+          <pre class="bg-dark text-light p-3 rounded" style="direction: ltr; text-align: left; font-size: 13px;"><code>POST /api/token/refresh/
+{ "refresh": "eyJ..." }</code></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Extra Endpoints (non-router) -->
+<div class="card mb-4">
+  <div class="card-header">
+    <h3 class="card-title"><i class="ti ti-plug me-2"></i>نقاط وصول خاصة (غير مسجلة في الـ Router)</h3>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-vcenter card-table">
+      <thead>
+        <tr><th>المسار</th><th>الطريقة</th><th>الوصف</th><th>القسم</th></tr>
+      </thead>
+      <tbody>
+        {% for ep in extra_endpoints %}
+        <tr>
+          <td><code style="direction: ltr;">{{ ep.prefix }}</code></td>
+          <td>
+            {% if "GET" in ep.method %}<span class="badge bg-green-lt">{{ ep.method }}</span>
+            {% elif "POST" in ep.method %}<span class="badge bg-blue-lt">{{ ep.method }}</span>
+            {% else %}<span class="badge bg-secondary-lt">{{ ep.method }}</span>{% endif %}
+          </td>
+          <td>{{ ep.desc }}</td>
+          <td><span class="badge bg-azure-lt">{{ ep.group }}</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Grouped Endpoints -->
+{% for group_name, group_eps in groups.items %}
+<div class="card mb-4 api-card" data-group="{{ group_name }}">
+  <div class="card-header cursor-pointer" onclick="this.closest('.card').querySelector('.card-body').classList.toggle('d-none')">
+    <h3 class="card-title">
+      <i class="ti ti-folder me-2"></i>{{ group_name }}
+      <span class="badge bg-primary-lt ms-2">{{ group_eps|length }} endpoint{{ group_eps|length|pluralize:"s" }}</span>
+    </h3>
+  </div>
+  <div class="card-body p-0">
+    {% for ep in group_eps %}
+    <div class="border-bottom p-3 api-endpoint" data-prefix="{{ ep.prefix }}">
+      <!-- Header -->
+      <div class="d-flex align-items-center mb-2 cursor-pointer" onclick="this.parentElement.querySelector('.ep-details').classList.toggle('d-none')">
+        <code class="me-2" style="direction: ltr; font-size: 14px; color: var(--tblr-primary);">{{ ep.prefix }}</code>
+        {% if ep.model_label %}<span class="badge bg-secondary-lt ms-1">{{ ep.model_label }}</span>{% endif %}
+        <span class="ms-auto text-secondary"><i class="ti ti-chevron-down"></i></span>
+      </div>
+      
+      <!-- Methods -->
+      <div class="mb-2">
+        {% for act in ep.actions %}
+          {% if act.method == "GET" %}<span class="badge bg-green-lt me-1">{{ act.method }}</span>
+          {% elif act.method == "POST" %}<span class="badge bg-blue-lt me-1">{{ act.method }}</span>
+          {% elif act.method == "PUT" %}<span class="badge bg-yellow-lt me-1">{{ act.method }}</span>
+          {% elif act.method == "PATCH" %}<span class="badge bg-orange-lt me-1">{{ act.method }}</span>
+          {% elif act.method == "DELETE" %}<span class="badge bg-red-lt me-1">{{ act.method }}</span>{% endif %}
+        {% endfor %}
+      </div>
+
+      <!-- Expandable Details -->
+      <div class="ep-details d-none mt-3">
+        {% if ep.doc %}<div class="text-secondary mb-2">{{ ep.doc }}</div>{% endif %}
+
+        <!-- Actions Detail -->
+        {% if ep.actions %}
+        <h5 class="mb-2">العمليات المتاحة:</h5>
+        <div class="table-responsive mb-3">
+          <table class="table table-sm table-bordered">
+            <thead><tr><th>الطريقة</th><th>المسار</th><th>الوصف</th></tr></thead>
+            <tbody>
+              {% for act in ep.actions %}
+              <tr>
+                <td>
+                  {% if act.method == "GET" %}<span class="badge bg-green">{{ act.method }}</span>
+                  {% elif act.method == "POST" %}<span class="badge bg-blue">{{ act.method }}</span>
+                  {% elif act.method == "PUT" %}<span class="badge bg-yellow">{{ act.method }}</span>
+                  {% elif act.method == "PATCH" %}<span class="badge bg-orange">{{ act.method }}</span>
+                  {% elif act.method == "DELETE" %}<span class="badge bg-red">{{ act.method }}</span>{% endif %}
+                </td>
+                <td><code style="direction: ltr;">{{ ep.prefix }}{{ act.suffix }}</code></td>
+                <td>{{ act.desc }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% endif %}
+
+        <!-- Fields -->
+        {% if ep.fields %}
+        <h5 class="mb-2">حقول البيانات (Serializer Fields):</h5>
+        <div class="table-responsive mb-3">
+          <table class="table table-sm table-bordered">
+            <thead><tr><th>الحقل</th><th>النوع</th><th>التسمية</th><th>مطلوب</th><th>للقراءة</th></tr></thead>
+            <tbody>
+              {% for f in ep.fields %}
+              <tr>
+                <td><code>{{ f.name }}</code></td>
+                <td><span class="badge bg-secondary-lt">{{ f.type }}</span></td>
+                <td>{{ f.label }}</td>
+                <td>{% if f.required %}<i class="ti ti-check text-green"></i>{% else %}<i class="ti ti-x text-red"></i>{% endif %}</td>
+                <td>{% if f.read_only %}<i class="ti ti-lock text-secondary"></i>{% else %}<i class="ti ti-edit text-blue"></i>{% endif %}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% endif %}
+
+        <!-- Filter/Search -->
+        {% if ep.filter_fields or ep.search_fields or ep.ordering_fields %}
+        <div class="row">
+          {% if ep.filter_fields %}
+          <div class="col-md-4">
+            <h5>حقول الفلترة:</h5>
+            {% for f in ep.filter_fields %}<code class="me-1">{{ f }}</code>{% endfor %}
+          </div>
+          {% endif %}
+          {% if ep.search_fields %}
+          <div class="col-md-4">
+            <h5>حقول البحث:</h5>
+            {% for f in ep.search_fields %}<code class="me-1">{{ f }}</code>{% endfor %}
+          </div>
+          {% endif %}
+          {% if ep.ordering_fields %}
+          <div class="col-md-4">
+            <h5>حقول الترتيب:</h5>
+            {% for f in ep.ordering_fields %}<code class="me-1">{{ f }}</code>{% endfor %}
+          </div>
+          {% endif %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endfor %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function filterAPI() {
+  const q = document.getElementById('apiSearch').value.toLowerCase();
+  document.querySelectorAll('.api-card').forEach(card => {
+    let found = false;
+    card.querySelectorAll('.api-endpoint').forEach(ep => {
+      const text = ep.textContent.toLowerCase() + ep.dataset.prefix.toLowerCase();
+      if (text.includes(q)) {
+        ep.style.display = '';
+        found = true;
+      } else {
+        ep.style.display = 'none';
+      }
+    });
+    card.style.display = found ? '' : 'none';
+  });
+}
+</script>
+{% endblock %}

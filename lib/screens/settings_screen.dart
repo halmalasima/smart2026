@@ -1,3 +1,5 @@
+import '../../../../theme/app_theme.dart';
+import '../../../../theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -138,7 +140,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               accountName: Text(user.fullName),
               accountEmail: Text(user.email),
               currentAccountPicture: CircleAvatar(
-                backgroundColor: Colors.white,
+                backgroundColor: context.isDark ? AppColors.darkSurface : AppColors.lightSurface,
                 child: Text(
                   user.fullName[0].toUpperCase(),
                   style: const TextStyle(fontSize: 24, color: Colors.blue),
@@ -389,6 +391,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               leading: const Icon(Icons.logout, color: Colors.red),
               title: const Text(
                 'تسجيل الخروج',
+              
                 style: TextStyle(color: Colors.red),
               ),
               onTap: () {

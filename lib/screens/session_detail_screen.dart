@@ -1,3 +1,4 @@
+import '../../../../theme/app_theme.dart';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -59,6 +60,21 @@ class _SessionDetailScreenState extends State<SessionDetailScreen>
   Future<void> _load() async {
     setState(() => _isLoading = true);
     final api = Provider.of<ApiService>(context, listen: false);
+    
+    // If we only have an ID (dummy model from route), load the full hearing first
+    if (_session.id != null && _session.lawsuitId == 0) {
+      try {
+        final fullSession = await api.getHearing(_session.id!);
+        if (mounted) {
+          setState(() {
+            _session = fullSession;
+          });
+        }
+      } catch (e) {
+        debugPrint('Error loading full hearing: $e');
+      }
+    }
+
     // Load case info
     if (_session.caseId != null) {
       try {
@@ -344,9 +360,9 @@ class _SessionDetailScreenState extends State<SessionDetailScreen>
                     children: [
                       const Row(
                         children: [
-                          Icon(Icons.tips_and_updates, color: AppColors.gold, size: 18),
+                          Icon(Icons.tips_and_updates, color: AppColors.brand, size: 18),
                           SizedBox(width: 6),
-                          Text('نصائح ذكية', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.goldDark)),
+                          Text('نصائح ذكية', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.brandDark)),
                         ],
                       ),
                       const SizedBox(height: 8),
@@ -375,7 +391,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen>
                     icon: const Icon(Icons.check_circle_outline),
                     label: const Text('تسجيل القرار والجلسة القادمة'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.gold,
+                      backgroundColor: AppColors.brand,
                       foregroundColor: Colors.white,
                       minimumSize: const Size.fromHeight(46),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -444,7 +460,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen>
               const Spacer(),
               InkWell(
                 onTap: _editRequirements,
-                child: const Icon(Icons.edit, size: 16, color: AppColors.gold),
+                child: const Icon(Icons.edit, size: 16, color: AppColors.brand),
               ),
             ],
           ),
@@ -457,7 +473,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen>
             const Divider(height: 20),
             Row(
               children: [
-                const Icon(Icons.balance, size: 16, color: AppColors.goldDark),
+                const Icon(Icons.balance, size: 16, color: AppColors.brandDark),
                 const SizedBox(width: 6),
                 const Text('قرار المحكمة', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
               ],

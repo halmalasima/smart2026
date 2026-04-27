@@ -1,0 +1,48 @@
+{% extends "control_panel/base.html" %}
+
+{% block page_actions %}
+  <div class="col-auto">
+    <a href="{% url 'control_panel:group_create' %}" class="btn btn-primary">
+      <i class="ti ti-plus me-1"></i> إضافة دور
+    </a>
+  </div>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-vcenter card-table">
+      <thead>
+        <tr>
+          <th>الدور</th>
+          <th class="text-center">عدد الأعضاء</th>
+          <th class="text-center">عدد الصلاحيات</th>
+          <th class="w-1"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for g in groups %}
+          <tr>
+            <td><i class="ti ti-shield me-2 text-secondary"></i> <strong>{{ g.name }}</strong></td>
+            <td class="text-center"><span class="badge bg-blue-lt">{{ g.member_count }}</span></td>
+            <td class="text-center"><span class="badge bg-purple-lt">{{ g.perm_count }}</span></td>
+            <td>
+              <div class="btn-list flex-nowrap">
+                <a href="{% url 'control_panel:group_update' g.pk %}" class="btn btn-sm btn-icon btn-ghost-secondary" title="تعديل">
+                  <i class="ti ti-edit"></i>
+                </a>
+                <form method="post" action="{% url 'control_panel:group_delete' g.pk %}" class="d-inline" onsubmit="return confirm('حذف هذا الدور؟');">
+                  {% csrf_token %}
+                  <button class="btn btn-sm btn-icon btn-ghost-danger" title="حذف"><i class="ti ti-trash"></i></button>
+                </form>
+              </div>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="4" class="text-center text-secondary py-5">لا يوجد أدوار بعد</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة القيادة المتقدمة | SmartJudi</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        background: '#0f172a',
+                        foreground: '#f8fafc',
+                        card: '#1e293b',
+                        'card-foreground': '#f8fafc',
+                        border: '#334155',
+                        primary: '#ca8a04', // Gold 
+                        'primary-foreground': '#ffffff',
+                        sidebar: '#020617', // Very Dark Navy
+                        'sidebar-foreground': '#cbd5e1',
+                        'sidebar-border': '#1e293b',
+                        'sidebar-accent': '#1e293b',
+                        muted: '#334155',
+                        'muted-foreground': '#94a3b8',
+                        danger: '#ef4444',
+                        success: '#22c55e',
+                        info: '#3b82f6',
+                        warning: '#f59e0b',
+                    },
+                    fontFamily: {
+                        sans: ['Cairo', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Cairo', sans-serif; background-color: theme('colors.background'); color: theme('colors.foreground'); }
+        .gold-glow { box-shadow: 0 0 20px rgba(202, 138, 4, 0.4), 0 0 40px rgba(202, 138, 4, 0.1); }
+        .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(51, 65, 85, 0.5); }
+        .sidebar { transition: width 0.3s ease; }
+        .scrollbar-none::-webkit-scrollbar { display: none; }
+        .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-background text-foreground min-h-screen flex text-sm sm:text-base">
+
+    <!-- Sidebar -->
+    <aside class="fixed right-0 top-0 h-full z-40 w-64 bg-sidebar border-l border-sidebar-border hidden md:flex flex-col shadow-2xl">
+        <!-- Logo -->
+        <div class="h-16 flex items-center px-6 border-b border-sidebar-border gap-3 shrink-0 bg-black/20">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-yellow-600 flex items-center justify-center shrink-0 shadow-lg glow">
+                <i class="fas fa-balance-scale text-primary-foreground text-xl"></i>
+            </div>
+            <div class="overflow-hidden">
+                <p class="text-white font-black text-lg leading-tight truncate tracking-wider">SmartJudi</p>
+                <p class="text-primary text-xs truncate">لوحة الإدارة المتقدمة</p>
+            </div>
+        </div>
+
+        <!-- Navigation -->
+        <nav class="flex-1 overflow-y-auto py-6 px-4 space-y-2">
+            <p class="text-xs font-bold text-muted-foreground uppercase mb-2 px-2">الرئيسية</p>
+            <a href="#" class="flex items-center gap-3 px-3 py-3 rounded-xl bg-primary text-primary-foreground font-bold shadow-lg shadow-primary/20 transition-all transform hover:scale-[1.02]">
+                <i class="fas fa-chart-pie w-5 text-center text-lg"></i>
+                <span class="text-sm truncate">لوحة القيادة</span>
+            </a>
+            
+            <p class="text-xs font-bold text-muted-foreground uppercase mb-2 mt-6 px-2">إدارة النظام</p>
+            <a href="/admin/auth/user/" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sidebar-foreground hover:bg-sidebar-accent hover:text-white transition-all">
+                <i class="fas fa-users-cog w-5 text-center"></i>
+                <span class="text-sm truncate">المستخدمين ({{ total_users }})</span>
+            </a>
+            <a href="/admin/lawsuits/lawsuit/" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sidebar-foreground hover:bg-sidebar-accent hover:text-white transition-all">
+                <i class="fas fa-gavel w-5 text-center"></i>
+                <span class="text-sm truncate">إدارة القضايا</span>
+            </a>
+            <a href="/admin/courts/court/" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sidebar-foreground hover:bg-sidebar-accent hover:text-white transition-all">
+                <i class="fas fa-landmark w-5 text-center"></i>
+                <span class="text-sm truncate">المحاكم المتاحة</span>
+            </a>
+            
+            <p class="text-xs font-bold text-muted-foreground uppercase mb-2 mt-6 px-2">إعدادات</p>
+            <a href="/admin/" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sidebar-foreground hover:bg-sidebar-accent hover:text-white transition-all">
+                <i class="fas fa-sliders-h w-5 text-center"></i>
+                <span class="text-sm truncate">إعدادات متقدمة</span>
+            </a>
+        </nav>
+
+        <!-- User Info -->
+        <div class="p-4 border-t border-sidebar-border bg-black/10">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-sidebar-accent flex items-center justify-center text-primary text-sm font-bold shrink-0 border border-border">
+                    <img src="https://ui-avatars.com/api/?name={{ request.user.username }}&background=1e293b&color=ca8a04" alt="user" class="rounded-full w-full h-full">
+                </div>
+                <div class="overflow-hidden flex-1">
+                    <p class="text-white text-sm font-bold truncate">{{ request.user.username|default:"Admin" }}</p>
+                    <p class="text-primary text-xs truncate flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-green-500"></span> متصل الان</p>
+                </div>
+                <a href="/admin/logout/" class="text-muted-foreground hover:text-danger p-2 transition-colors">
+                    <i class="fas fa-sign-out-alt"></i>
+                </a>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <div class="flex-1 w-full md:pr-64 flex flex-col min-h-screen transition-all relative">
+        
+        <!-- Header -->
+        <header class="h-20 glass border-b border-border flex items-center px-4 sm:px-8 gap-4 sticky top-0 z-30">
+            <button class="md:hidden p-2 rounded-lg bg-card border border-border hover:bg-muted text-foreground transition-colors">
+                <i class="fas fa-bars text-lg"></i>
+            </button>
+            
+            <div class="flex-1 max-w-md hidden sm:block relative">
+                <i class="fas fa-search absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground text-sm"></i>
+                <input type="text" placeholder="ابحث في السجلات، المستخدمين، والقضايا..." class="w-full h-10 bg-black/20 border border-border rounded-xl text-sm outline-none focus:ring-2 focus:ring-primary/50 placeholder:text-muted-foreground pr-11 pl-4 transition-all text-white">
+            </div>
+
+            <div class="flex items-center gap-3 mr-auto">
+                <button class="w-10 h-10 rounded-xl bg-black/20 border border-border flex items-center justify-center text-muted-foreground hover:text-white transition-colors relative">
+                    <i class="far fa-bell"></i>
+                    <span class="absolute top-2 right-2 w-2 h-2 bg-primary rounded-full animate-ping"></span>
+                    <span class="absolute top-2 right-2 w-2 h-2 bg-primary rounded-full"></span>
+                </button>
+                <a href="/admin/" class="px-4 py-2 flex items-center gap-2 bg-white text-black rounded-xl text-sm font-bold hover:bg-gray-200 transition-all shadow-lg transform hover:scale-105">
+                    <i class="fas fa-shield-alt text-primary"></i>
+                    <span class="hidden sm:inline">Django Admin</span>
+                </a>
+            </div>
+        </header>
+
+        <!-- Content Area -->
+        <main class="flex-1 p-4 sm:p-6 lg:p-8 overflow-x-hidden pt-8">
+            
+            <!-- Quick Actions -->
+            <div class="mb-8 flex flex-wrap items-center gap-3">
+                <a href="/admin/auth/user/add/" class="px-4 py-2 rounded-lg bg-primary/10 border border-primary/20 text-primary hover:bg-primary hover:text-black font-semibold text-sm transition-all flex items-center gap-2">
+                    <i class="fas fa-user-plus"></i> إضافة مستخدم
+                </a>
+                <a href="/admin/lawsuits/lawsuit/add/" class="px-4 py-2 rounded-lg bg-info/10 border border-info/20 text-info hover:bg-info hover:text-white font-semibold text-sm transition-all flex items-center gap-2">
+                    <i class="fas fa-folder-plus"></i> دعوى جديدة
+                </a>
+                <a href="/admin/courts/court/add/" class="px-4 py-2 rounded-lg bg-success/10 border border-success/20 text-success hover:bg-success hover:text-white font-semibold text-sm transition-all flex items-center gap-2">
+                    <i class="fas fa-plus-circle"></i> محكمة جديدة
+                </a>
+                
+                <div class="mr-auto text-sm bg-black/20 border border-border px-4 py-2 rounded-lg text-muted-foreground shadow-inner hidden sm:block">
+                    <i class="fas fa-calendar-day ml-2 text-primary"></i> {% now "j F Y - H:i" %}
+                </div>
+            </div>
+
+            <!-- Stats Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <!-- Card 1 -->
+                <div class="glass rounded-2xl p-6 relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 w-full h-1 bg-gradient-to-r from-blue-500 to-info"></div>
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-1">الزوار الآن</p>
+                            <h3 class="text-4xl font-black text-white">{{ active_visitors }}</h3>
+                        </div>
+                        <div class="w-12 h-12 rounded-xl bg-info/20 flex items-center justify-center text-info text-2xl group-hover:scale-110 transition-transform">
+                            <i class="fas fa-users"></i>
+                        </div>
+                    </div>
+                    <div class="mt-4 flex items-center gap-2 text-xs text-info bg-info/10 w-fit px-2 py-1 rounded-md border border-info/20">
+                        جلسات نشطة
+                    </div>
+                </div>
+
+                <!-- Card 2 -->
+                <div class="glass rounded-2xl p-6 relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 w-full h-1 bg-gradient-to-r from-primary to-yellow-600 shadow-[0_0_10px_#ca8a04]"></div>
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-1">عمليات البحث</p>
+                            <h3 class="text-4xl font-black text-white">{{ search_count }}</h3>
+                            <p class="text-xs text-muted-foreground mt-1">في المكتبة القانونية</p>
+                        </div>
+                        <div class="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center text-primary text-2xl group-hover:scale-110 transition-transform">
+                            <i class="fas fa-search"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card 3 -->
+                <div class="glass rounded-2xl p-6 relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 w-full h-1 bg-gradient-to-r from-success to-green-400"></div>
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-1">استشارات AI</p>
+                            <h3 class="text-4xl font-black text-white">{{ ai_chat_count }}</h3>
+                        </div>
+                        <div class="w-12 h-12 rounded-xl bg-success/20 flex items-center justify-center text-success text-2xl group-hover:scale-110 transition-transform">
+                            <i class="fas fa-robot"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card 4 -->
+                <div class="glass rounded-2xl p-6 relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 w-full h-1 bg-gradient-to-r from-danger to-red-400"></div>
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-1">الاشتراكات</p>
+                            <h3 class="text-4xl font-black text-white">{{ total_subs }}</h3>
+                            <p class="text-xs text-muted-foreground mt-1">باقة مدفوعة نشطة</p>
+                        </div>
+                        <div class="w-12 h-12 rounded-xl bg-danger/20 flex items-center justify-center text-danger text-2xl group-hover:scale-110 transition-transform">
+                            <i class="fas fa-credit-card"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+            <!-- Dashboard Details Row -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                
+                <!-- Chart Area -->
+                <div class="lg:col-span-2 glass rounded-2xl p-6 border border-border shadow-xl">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-lg font-bold text-white"><i class="fas fa-chart-line text-primary ml-2"></i> إحصائيات النظام الأسبوعية</h3>
+                        <span class="text-xs font-semibold bg-primary/20 px-3 py-1 rounded-full text-primary border border-primary/30">تحليلات حية</span>
+                    </div>
+                    <div class="w-full h-64">
+                         <canvas id="mainChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Recent Registrations -->
+                <div class="glass rounded-2xl p-6 border border-border flex flex-col shadow-xl">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-lg font-bold text-white"><i class="fas fa-user-clock text-info ml-2"></i> انضموا مؤخراً</h3>
+                    </div>
+                    <div class="flex-1 flex flex-col gap-4">
+                        {% for new_user in recent_users %}
+                        <div class="flex items-center gap-3 p-3 rounded-xl bg-black/20 hover:bg-black/40 transition-colors border border-border cursor-pointer transform hover:-translate-x-1 duration-200">
+                            <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-info to-blue-600 flex items-center justify-center text-white font-bold text-shadow">
+                                {{ new_user.username|make_list|first|upper }}
+                            </div>
+                            <div class="flex-1 overflow-hidden">
+                                <p class="text-sm font-bold text-white truncate">{{ new_user.username }}</p>
+                                <p class="text-xs text-muted-foreground truncate">{{ new_user.email|default:"لا يوجد بريد" }}</p>
+                            </div>
+                            <div class="text-xs text-success font-medium flex flex-col items-end">
+                                <span><i class="far fa-check-circle"></i> جديد</span>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="flex-1 flex flex-col items-center justify-center text-muted-foreground opacity-50">
+                            <i class="fas fa-user-slash text-4xl mb-3"></i>
+                            <p>لا توجد تسجيلات حديثة</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Lawsuits List -->
+            <div class="glass border border-border rounded-2xl overflow-hidden mb-8 shadow-2xl">
+                <div class="px-6 py-5 border-b border-border bg-black/40 flex flex-col sm:flex-row justify-between items-center gap-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center border border-primary/30">
+                            <i class="fas fa-layer-group text-primary text-lg"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-bold text-white">أحدث القضايا المضافة</h3>
+                            <p class="text-xs text-muted-foreground">ملخص سريع لآخر 7 دعاوى تم تسجيلها مؤخراً</p>
+                        </div>
+                    </div>
+                    <a href="/admin/lawsuits/lawsuit/" class="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-sm font-semibold transition-colors border border-border backdrop-blur">
+                        إدارة كل القضايا <i class="fas fa-chevron-left text-[10px] ml-1"></i>
+                    </a>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-right">
+                        <thead class="bg-black/30 text-muted-foreground border-b border-border">
+                            <tr>
+                                <th class="px-6 py-4 font-semibold w-32">رقم القضية</th>
+                                <th class="px-6 py-4 font-semibold">الموضوع وتفاصيل الدعوى</th>
+                                <th class="px-6 py-4 font-semibold">التاريخ</th>
+                                <th class="px-6 py-4 font-semibold w-32 text-center">حالة النظام</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-border">
+                            {% for lawsuit in recent_lawsuits %}
+                            <tr class="hover:bg-white/5 transition-colors group">
+                                <td class="px-6 py-4 font-bold text-white group-hover:text-primary transition-colors cursor-pointer">
+                                    <a href="/admin/lawsuits/lawsuit/{{ lawsuit.id }}/change/">{{ lawsuit.case_number }}</a>
+                                </td>
+                                <td class="px-6 py-4 text-gray-300 max-w-sm truncate" title="{{ lawsuit.subject }}">
+                                    <div class="font-medium text-white">{{ lawsuit.subject }}</div>
+                                    <div class="text-[11px] text-muted-foreground mt-1"><i class="fas fa-map-marker-alt"></i> مسجلة بنظام التقاضي</div>
+                                </td>
+                                <td class="px-6 py-4 text-muted-foreground">{{ lawsuit.created_at|date:"Y-m-d" }}</td>
+                                <td class="px-6 py-4 text-center">
+                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-primary/10 text-primary border border-primary/30 shadow-[0_0_10px_rgba(202,138,4,0.1)]">
+                                        {{ lawsuit.case_status }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="px-6 py-16 text-center text-muted-foreground">
+                                    <div class="flex flex-col items-center gap-3">
+                                        <div class="w-20 h-20 rounded-full bg-black/30 flex items-center justify-center border border-border shadow-inner">
+                                            <i class="fas fa-folder-open text-3xl text-muted-foreground/50"></i>
+                                        </div>
+                                        <p class="font-medium text-base">لا توجد قضايا مضافة حديثاً في النظام</p>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <footer class="text-center text-sm text-muted-foreground pt-4 pb-8 border-t border-border mt-auto flex flex-col items-center gap-2">
+                <i class="fas fa-shield-alt text-primary/50 text-2xl"></i>
+                <p>جميع الحقوق محفوظة &copy; {% now "Y" %} <span class="text-white font-bold tracking-wider">SmartJudi Admin Pro</span></p>
+            </footer>
+        </main>
+    </div>
+
+    <!-- Initialization Scripts -->
+    <script>
+        // Sidebar toggle for mobile
+        document.querySelector('.fa-bars').parentElement.addEventListener('click', function() {
+            const sidebar = document.querySelector('aside');
+            sidebar.classList.toggle('hidden');
+            if(!sidebar.classList.contains('hidden')) {
+                sidebar.classList.add('fixed', 'inset-y-0', 'right-0', 'z-50', 'bg-sidebar');
+                sidebar.style.width = '16rem';
+            }
+        });
+
+        // Setup Chart.js
+        const ctx = document.getElementById('mainChart').getContext('2d');
+        
+        // Dynamic gradients
+        const gradientPrimary = ctx.createLinearGradient(0, 0, 0, 400);
+        gradientPrimary.addColorStop(0, 'rgba(202, 138, 4, 0.5)'); // Gold Primary
+        gradientPrimary.addColorStop(1, 'rgba(202, 138, 4, 0.0)');
+        
+        const gradientInfo = ctx.createLinearGradient(0, 0, 0, 400);
+        gradientInfo.addColorStop(0, 'rgba(56, 189, 248, 0.5)');
+        gradientInfo.addColorStop(1, 'rgba(56, 189, 248, 0.0)');
+
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: ['السبت', 'الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة'],
+                datasets: [
+                    {
+                        label: 'القضايا المنجزة',
+                        data: [12, 19, 15, 25, 22, 30, 28],
+                        borderColor: '#ca8a04',
+                        backgroundColor: gradientPrimary,
+                        borderWidth: 3,
+                        tension: 0.4,
+                        fill: true,
+                        pointBackgroundColor: '#ca8a04',
+                        pointBorderColor: '#fff',
+                        pointRadius: 4,
+                        pointHoverRadius: 6
+                    },
+                    {
+                        label: 'المستخدمين النشطين',
+                        data: [5, 10, 8, 15, 12, 20, 18],
+                        borderColor: '#38bdf8',
+                        backgroundColor: gradientInfo,
+                        borderWidth: 3,
+                        tension: 0.4,
+                        fill: true,
+                        pointBackgroundColor: '#38bdf8',
+                        pointBorderColor: '#fff',
+                        pointRadius: 4,
+                        pointHoverRadius: 6
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: { color: '#cbd5e1', font: { family: 'Cairo', size: 13 } }
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                        titleColor: '#fff',
+                        bodyColor: '#cbd5e1',
+                        borderColor: '#334155',
+                        borderWidth: 1,
+                        padding: 12,
+                        titleFont: { family: 'Cairo', size: 14 },
+                        bodyFont: { family: 'Cairo', size: 13 },
+                        cornerRadius: 8
+                    }
+                },
+                scales: {
+                    x: { 
+                        grid: { color: 'rgba(51, 65, 85, 0.4)', drawBorder: false },
+                        ticks: { color: '#94a3b8', font: { family: 'Cairo' } }
+                    },
+                    y: { 
+                        grid: { color: 'rgba(51, 65, 85, 0.4)', drawBorder: false, tickBorderDash: [5, 5] },
+                        ticks: { color: '#94a3b8', font: { family: 'Cairo' }, padding: 10 }
+                    }
+                },
+                interaction: {
+                    mode: 'nearest',
+                    axis: 'x',
+                    intersect: false
+                }
+            }
+        });
+    </script>
+</body>
+</html>

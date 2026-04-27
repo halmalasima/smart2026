@@ -1,149 +1,179 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="ar" dir="rtl" class="dark">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>إنشاء حساب جديد | SmartJudi</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>إنشاء حساب | منصة القضاء الذكية</title>
+
+  <link rel="icon" type="image/png" href="/static/img/logo.png">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: { extend: {
+        fontFamily: { sans: ['Cairo','system-ui','sans-serif'] },
+        colors: {
+          brand: { DEFAULT:'#1B5E3B', light:'#2D8B57', lighter:'#3FA770', dark:'#0D3B23', darker:'#06291A' },
+          gold:  { DEFAULT:'#D4A940', light:'#E8C667', dark:'#B08C2A' },
+          ink:   { 950:'#0A0E14', 900:'#10151E', 850:'#141A26', 800:'#1A2030', 700:'#252B3D', 600:'#2D3245', 400:'#6B7280', 300:'#9CA3B0', 200:'#B0B6C5', 100:'#F0F1F5' },
+        }
+      }}
+    }
+  </script>
+  <style>
+    body { font-family:'Cairo',sans-serif; background:#0A0E14; color:#F0F1F5; }
+    .auth-bg {
+      background:
+        radial-gradient(60% 80% at 80% 0%, rgba(212,169,64,.10), transparent 60%),
+        radial-gradient(60% 70% at 0% 100%, rgba(45,139,87,.12), transparent 60%),
+        #0A0E14;
+    }
+    .field { background:#141A26; border:1px solid #252B3D; border-radius:14px; transition: border-color .2s, background .2s; }
+    .field:focus-within { border-color:#2D8B57; background:#1A2030; }
+    .field input { background:transparent; outline:none; }
+    .field input::placeholder { color:#6B7280; }
+    .section-title { color:#3FA770; font-weight:800; font-size:14px; letter-spacing:.02em; margin-bottom:10px; }
+    .role-tile {
+      background:#141A26; border:1px solid #252B3D; border-radius:16px;
+      padding:18px 12px; text-align:center; cursor:pointer; transition: all .2s;
+    }
+    .role-tile i { font-size:22px; color:#9CA3B0; margin-bottom:8px; display:block; }
+    .role-tile span { display:block; font-weight:700; color:#B0B6C5; font-size:14px; }
+    input[type=radio]:checked + .role-tile {
+      background:linear-gradient(180deg,#2D8B57,#1B5E3B); border-color:#3FA770;
+      box-shadow: 0 8px 24px -10px rgba(45,139,87,.6);
+    }
+    input[type=radio]:checked + .role-tile i,
+    input[type=radio]:checked + .role-tile span { color:#fff; }
+    .btn-primary {
+      background: linear-gradient(180deg, #2D8B57 0%, #1B5E3B 100%);
+      box-shadow: 0 10px 25px -10px rgba(27,94,59,.7);
+    }
+    .btn-primary:hover { background: linear-gradient(180deg, #3FA770 0%, #2D8B57 100%); }
+  </style>
 </head>
-<body class="bg-slate-900 flex items-center justify-center min-h-screen p-6 font-['Cairo']">
-    <div class="w-full max-w-lg bg-white rounded-[40px] p-10 shadow-2xl overflow-hidden relative">
-        <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-amber-500 to-yellow-600"></div>
-        
-        <div class="text-center mb-8">
-            <div class="w-16 h-16 bg-amber-600 rounded-2xl flex items-center justify-center text-white mx-auto shadow-lg mb-4">
-                <i class="fas fa-user-plus text-3xl"></i>
-            </div>
-            <h1 class="text-3xl font-black text-slate-800 mb-2">إنشاء حساب جديد</h1>
-            <p class="text-slate-500 font-bold">انضم إلى مجتمع القضاء الذكي اليمني</p>
+<body>
+  <main class="auth-bg min-h-screen px-4 py-8">
+    <div class="max-w-lg mx-auto">
+
+      <!-- Header -->
+      <div class="flex items-center justify-between mb-6">
+        <a href="/login/" class="w-10 h-10 grid place-items-center rounded-xl bg-ink-900 border border-ink-700 text-ink-200 hover:text-gold transition" aria-label="رجوع">
+          <i class="fas fa-arrow-right"></i>
+        </a>
+        <h1 class="font-black text-xl text-center">انضم إلى <span class="bg-gradient-to-l from-brand-lighter to-brand-light bg-clip-text text-transparent">منصة القضاء الذكية</span></h1>
+        <div class="w-10 h-10 rounded-xl bg-ink-900 border border-ink-700 grid place-items-center overflow-hidden">
+          <img src="/static/img/logo.png" alt="" class="w-7 h-7 object-contain">
         </div>
+      </div>
 
-        <form id="registerForm" class="space-y-5">
-            {% csrf_token %}
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-slate-700 font-black text-sm mb-2 mr-1">اسم المستخدم</label>
-                    <input type="text" name="username" required class="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 focus:ring-4 focus:ring-amber-500/10 focus:border-amber-600 outline-none transition-all font-bold">
-                </div>
-                <div>
-                    <label class="block text-slate-700 font-black text-sm mb-2 mr-1">البريد الإلكتروني</label>
-                    <input type="email" name="email" required class="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 focus:ring-4 focus:ring-amber-500/10 focus:border-amber-600 outline-none transition-all font-bold">
-                </div>
+      <!-- Messages -->
+      {% if messages %}
+        <div class="mb-5 space-y-2">
+          {% for m in messages %}
+            <div class="px-4 py-3 rounded-xl text-sm font-bold flex items-center gap-2
+                        {% if m.tags == 'error' %}bg-red-500/10 border border-red-500/30 text-red-400{% else %}bg-brand/10 border border-brand-light/30 text-brand-lighter{% endif %}">
+              <i class="fas {% if m.tags == 'error' %}fa-circle-exclamation{% else %}fa-circle-check{% endif %}"></i> {{ m }}
             </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-slate-700 font-black text-sm mb-2 mr-1">كلمة المرور</label>
-                    <input type="password" name="password" required class="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 focus:ring-4 focus:ring-amber-500/10 focus:border-amber-600 outline-none transition-all font-bold">
-                </div>
-                <div>
-                    <label class="block text-slate-700 font-black text-sm mb-2 mr-1">تأكيد كلمة المرور</label>
-                    <input type="password" name="password_confirm" required class="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 focus:ring-4 focus:ring-amber-500/10 focus:border-amber-600 outline-none transition-all font-bold">
-                </div>
-            </div>
-
-            <hr class="border-slate-100 my-2">
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-slate-700 font-black text-sm mb-2 mr-1">الاسم الأول</label>
-                    <input type="text" name="first_name" required class="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 focus:ring-4 focus:ring-amber-500/10 focus:border-amber-600 outline-none transition-all font-bold">
-                </div>
-                <div>
-                    <label class="block text-slate-700 font-black text-sm mb-2 mr-1">الاسم الأخير</label>
-                    <input type="text" name="last_name" required class="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 focus:ring-4 focus:ring-amber-500/10 focus:border-amber-600 outline-none transition-all font-bold">
-                </div>
-            </div>
-
-            <div>
-                <label class="block text-slate-700 font-black text-sm mb-2 mr-1">الصفة / الدور</label>
-                <select name="role" class="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 focus:ring-4 focus:ring-amber-500/10 focus:border-amber-600 outline-none transition-all font-bold">
-                    <option value="citizen">مواطن</option>
-                    <option value="lawyer">محامي</option>
-                    <option value="judge">قاضي</option>
-                </select>
-            </div>
-
-            <button type="submit" id="submitBtn" class="w-full h-14 bg-amber-600 hover:bg-amber-700 text-white rounded-2xl font-black text-lg shadow-xl shadow-amber-600/20 transition-all transform hover:scale-[1.02] flex items-center justify-center gap-3">
-                <span>إنشاء الحساب</span>
-                <i id="spinner" class="fas fa-spinner fa-spin hidden"></i>
-            </button>
-        </form>
-
-        <div id="successMsg" class="hidden absolute inset-0 bg-white/95 backdrop-blur-sm flex flex-col items-center justify-center p-10 text-center z-20">
-            <div class="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-4xl mb-6 scale-0 transition-transform duration-500" id="successIcon">
-                <i class="fas fa-check"></i>
-            </div>
-            <h2 class="text-2xl font-black text-slate-800 mb-2">تم إنشاء الحساب بنجاح!</h2>
-            <p class="text-slate-500 font-bold mb-8">أهلاً بك في SmartJudi. سيتم توجيهك لصفحة الدخول الآن...</p>
+          {% endfor %}
         </div>
+      {% endif %}
 
-        <div class="mt-8 pt-6 border-t border-slate-100 text-center">
-            <p class="text-slate-500 font-bold">لديك حساب بالفعل؟ <a href="/login/" class="text-amber-600 hover:underline">سجل دخولك الآن</a></p>
-        </div>
+      <form method="POST" class="space-y-7" autocomplete="on">
+        {% csrf_token %}
+
+        <!-- Personal info -->
+        <section>
+          <div class="section-title">المعلومات الشخصية</div>
+          <div class="space-y-3">
+            <div class="field flex items-center gap-3 px-4 h-14">
+              <input name="full_name" required value="{{ form.full_name|default:'' }}" placeholder="الاسم الكامل (رباعي)" class="flex-1 text-right text-base font-bold text-ink-100">
+              <i class="fas fa-user text-ink-300"></i>
+            </div>
+            <div class="field flex items-center gap-3 px-4 h-14">
+              <input name="phone" type="tel" inputmode="tel" required value="{{ form.phone|default:'' }}" placeholder="رقم الهاتف (مطلوب للتحقق)" dir="ltr" class="flex-1 text-right text-base font-bold text-ink-100">
+              <i class="fas fa-mobile-screen text-ink-300"></i>
+            </div>
+            <div class="field flex items-center gap-3 px-4 h-14">
+              <input name="national_id" value="{{ form.national_id|default:'' }}" placeholder="الرقم الوطني / الهوية" class="flex-1 text-right text-base font-bold text-ink-100">
+              <i class="fas fa-id-card text-ink-300"></i>
+            </div>
+          </div>
+        </section>
+
+        <!-- Account info -->
+        <section>
+          <div class="section-title">معلومات الحساب</div>
+          <div class="space-y-3">
+            <div class="field flex items-center gap-3 px-4 h-14">
+              <input name="username" value="{{ form.username|default:'' }}" placeholder="اسم المستخدم (بالإنجليزي)" dir="ltr" class="flex-1 text-right text-base font-bold text-ink-100">
+              <i class="fas fa-at text-ink-300"></i>
+            </div>
+            <div class="field flex items-center gap-3 px-4 h-14">
+              <input name="email" type="email" value="{{ form.email|default:'' }}" placeholder="البريد الإلكتروني" dir="ltr" class="flex-1 text-right text-base font-bold text-ink-100">
+              <i class="fas fa-envelope text-ink-300"></i>
+            </div>
+          </div>
+        </section>
+
+        <!-- Account type -->
+        <section>
+          <div class="section-title">نوع الحساب</div>
+          <div class="grid grid-cols-3 gap-3">
+            <label>
+              <input type="radio" name="role" value="notary" class="hidden peer" {% if form.role == 'notary' %}checked{% endif %}>
+              <div class="role-tile"><i class="fas fa-stamp"></i><span>موثّق</span></div>
+            </label>
+            <label>
+              <input type="radio" name="role" value="lawyer" class="hidden peer" {% if form.role == 'lawyer' %}checked{% endif %}>
+              <div class="role-tile"><i class="fas fa-gavel"></i><span>محامي</span></div>
+            </label>
+            <label>
+              <input type="radio" name="role" value="citizen" class="hidden peer" {% if not form.role or form.role == 'citizen' %}checked{% endif %}>
+              <div class="role-tile"><i class="fas fa-user"></i><span>مواطن</span></div>
+            </label>
+          </div>
+        </section>
+
+        <!-- Security -->
+        <section>
+          <div class="section-title">الأمان</div>
+          <div class="space-y-3">
+            <div class="field flex items-center gap-3 px-4 h-14">
+              <button type="button" onclick="togglePw(this,'password')" class="text-ink-300" aria-label="إظهار/إخفاء"><i class="fas fa-eye-slash"></i></button>
+              <input name="password" type="password" required placeholder="كلمة المرور" class="flex-1 text-right text-base font-bold text-ink-100">
+              <i class="fas fa-lock text-ink-300"></i>
+            </div>
+            <div class="field flex items-center gap-3 px-4 h-14">
+              <button type="button" onclick="togglePw(this,'password2')" class="text-ink-300" aria-label="إظهار/إخفاء"><i class="fas fa-eye-slash"></i></button>
+              <input name="password2" type="password" required placeholder="تأكيد كلمة المرور" class="flex-1 text-right text-base font-bold text-ink-100">
+              <i class="fas fa-lock text-ink-300"></i>
+            </div>
+          </div>
+        </section>
+
+        <button type="submit" class="btn-primary w-full h-14 rounded-2xl text-white font-black text-lg transition">
+          إنشاء الحساب
+        </button>
+
+        <p class="text-center text-sm text-ink-300">
+          لديك حساب بالفعل؟
+          <a href="/login/" class="text-brand-lighter font-black hover:text-gold mr-1 transition">سجّل الدخول</a>
+        </p>
+      </form>
     </div>
+  </main>
 
-    <script>
-        document.getElementById('registerForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            
-            const btn = document.getElementById('submitBtn');
-            const spinner = document.getElementById('spinner');
-            const successDiv = document.getElementById('successMsg');
-            const successIcon = document.getElementById('successIcon');
-            
-            // Collect data
-            const formData = new FormData(this);
-            const data = Object.fromEntries(formData.entries());
-            
-            // Basic validation
-            if (data.password !== data.password_confirm) {
-                alert('كلمات المرور غير متطابقة');
-                return;
-            }
-
-            btn.disabled = true;
-            spinner.classList.remove('hidden');
-
-            try {
-                const response = await fetch('/api/register/', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': '{{ csrf_token }}'
-                    },
-                    body: JSON.stringify(data)
-                });
-
-                const result = await response.json();
-
-                if (response.ok) {
-                    // Show success
-                    successDiv.classList.remove('hidden');
-                    setTimeout(() => successIcon.classList.add('scale-100'), 50);
-                    
-                    // Redirect after 2 seconds
-                    setTimeout(() => {
-                        window.location.href = '/login/';
-                    }, 2500);
-                } else {
-                    // Show error
-                    let errorMsg = '';
-                    for (const key in result) {
-                        errorMsg += `${result[key]}\n`;
-                    }
-                    alert(errorMsg || 'حدث خطأ أثناء التسجيل');
-                    btn.disabled = false;
-                    spinner.classList.add('hidden');
-                }
-            } catch (error) {
-                alert('خطأ في الاتصال بالسيرفر');
-                btn.disabled = false;
-                spinner.classList.add('hidden');
-            }
-        });
-    </script>
+  <script>
+    function togglePw(btn, name){
+      var input = btn.parentElement.querySelector('input[name='+name+']');
+      var icon = btn.querySelector('i');
+      if (input.type === 'password') { input.type='text'; icon.classList.replace('fa-eye-slash','fa-eye'); }
+      else { input.type='password'; icon.classList.replace('fa-eye','fa-eye-slash'); }
+    }
+  </script>
 </body>
 </html>

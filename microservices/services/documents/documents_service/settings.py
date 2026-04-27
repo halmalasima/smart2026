@@ -14,8 +14,13 @@ DEBUG = os.environ.get('DEBUG', '0') == '1'
 ALLOWED_HOSTS = ['*']
 
 INSTALLED_APPS = [
+    'jazzmin',
+    'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
     'corsheaders',
     'rest_framework',
     'rest_framework_simplejwt',
@@ -27,7 +32,12 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'corsheaders.middleware.CorsMiddleware',
+    'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
+    'django.middleware.csrf.CsrfViewMiddleware',
+    'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django.contrib.messages.middleware.MessageMiddleware',
+    'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
 ROOT_URLCONF = 'documents_service.urls'
@@ -62,3 +72,73 @@ DATA_UPLOAD_MAX_MEMORY_SIZE = 25 * 1024 * 1024
 FILE_UPLOAD_MAX_MEMORY_SIZE = 25 * 1024 * 1024
 
 CASES_SERVICE_URL = os.environ.get('CASES_SERVICE_URL', 'http://cases:8000')
+
+# ─── Jazzmin Configuration ──────────────────────────────────────────
+JAZZMIN_SETTINGS = {
+    "site_title": "SmartJudi Admin Hub",
+    "site_header": "SmartJudi",
+    "site_brand": "المستندات - SmartJudi",
+    "site_logo": None,
+    "welcome_sign": "إدارة المستندات والمرفقات",
+    "copyright": "SmartJudi 2026",
+    "search_model": ["attachments.Attachment"],
+    "topmenu_links": [
+        {"name": "الرئيسية", "url": "admin:index", "permissions": ["auth.view_user"]},
+        {"name": "المستخدمين", "url": "/admin/auth/", "new_window": False},
+        {"name": "القضايا", "url": "/admin/cases/", "new_window": False},
+        {"name": "الجلسات", "url": "/admin/hearings/", "new_window": False},
+        {"name": "المستندات", "url": "/admin/documents/", "new_window": False},
+        {"name": "القوانين", "url": "/admin/legal/", "new_window": False},
+        {"name": "الإشعارات", "url": "/admin/notifications/", "new_window": False},
+        {"name": "البحث & AI", "url": "/admin/search/", "new_window": False},
+        {"name": "الميراث", "url": "/admin/inheritance/", "new_window": False},
+    ],
+    "show_sidebar": True,
+    "navigation_expanded": True,
+    "icons": {
+        "attachments.Attachment": "fas fa-file-pdf",
+    },
+    "default_icon_parents": "fas fa-chevron-circle-right",
+    "default_icon_children": "fas fa-circle",
+    "changeform_format": "horizontal_tabs",
+}
+
+JAZZMIN_UI_TWEAKS = {
+    "navbar_small_text": False,
+    "footer_small_text": False,
+    "body_small_text": False,
+    "brand_small_text": False,
+    "brand_colour": "navbar-primary",
+    "accent": "accent-primary",
+    "navbar": "navbar-dark navbar-primary",
+    "no_navbar_border": False,
+    "navbar_fixed": True,
+    "layout_boxed": False,
+    "footer_fixed": False,
+    "sidebar_fixed": True,
+    "sidebar": "sidebar-dark-primary",
+    "sidebar_nav_small_text": False,
+    "sidebar_disable_expand": False,
+    "sidebar_nav_child_indent": False,
+    "sidebar_nav_compact_style": False,
+    "sidebar_nav_legacy_style": False,
+    "sidebar_nav_flat_style": False,
+    "theme": "flatly",
+    "dark_mode_theme": None,
+}
+
+TEMPLATES = [
+    {
+        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        'DIRS': [],
+        'APP_DIRS': True,
+        'OPTIONS': {
+            'context_processors': [
+                'django.template.context_processors.debug',
+                'django.template.context_processors.request',
+                'django.contrib.auth.context_processors.auth',
+                'django.contrib.messages.context_processors.messages',
+            ],
+        },
+    },
+]

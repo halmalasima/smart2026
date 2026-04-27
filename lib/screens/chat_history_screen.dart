@@ -113,7 +113,7 @@ class _ChatHistoryScreenState extends State<ChatHistoryScreen> {
                             ),
                             child: ExpansionTile(
                               leading: const CircleAvatar(
-                                backgroundColor: AppColors.gold,
+                                backgroundColor: AppColors.brand,
                                 child: Icon(Icons.psychology, color: Colors.white, size: 20),
                               ),
                               title: Text(
@@ -146,7 +146,7 @@ class _ChatHistoryScreenState extends State<ChatHistoryScreen> {
                                         padding: EdgeInsets.symmetric(vertical: AppSpacing.sm),
                                         child: Divider(),
                                       ),
-                                      const _Label(text: 'إجابة المساعد الذكي:', color: AppColors.gold),
+                                      const _Label(text: 'إجابة المساعد الذكي:', color: AppColors.brand),
                                       Text(log['answer'] ?? '', style: const TextStyle(height: 1.5)),
                                       const SizedBox(height: AppSpacing.sm),
                                     ],

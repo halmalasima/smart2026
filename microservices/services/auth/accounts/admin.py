@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import User
 from .models import UserProfile
+from smartjudi_common.admin_utils import UserIsolationAdminMixin
 
 
 class UserProfileInline(admin.StackedInline):
@@ -42,10 +43,11 @@ admin.site.register(User, UserAdmin)
 
 
 @admin.register(UserProfile)
-class UserProfileAdmin(admin.ModelAdmin):
+class UserProfileAdmin(UserIsolationAdminMixin, admin.ModelAdmin):
     """
     Admin interface for UserProfile
     """
+    user_field = 'user'
     list_display = ('user', 'role', 'phone_number', 'national_id', 'is_active', 'created_at')
     list_filter = ('role', 'is_active', 'created_at')
     search_fields = ('user__username', 'user__email', 'user__first_name', 'user__last_name', 'phone_number', 'national_id')

@@ -1,17 +1,16 @@
 import 'package:flutter/material.dart';
-import 'chat_history_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import '../providers/chat_provider.dart';
+import '../providers/ai_chat_provider.dart';
 import '../providers/auth_provider.dart';
-import '../services/api_service.dart';
+import '../models/ai_conversation_model.dart';
 import '../services/voice_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_theme.dart';
-import 'dart:developer' as developer;
+import 'package:intl/intl.dart';
+import 'dart:ui' as ui;
 
-/// شاشة المساعد الذكي - بتصميم 2025+ مع اقتراحات ذكية وحفظ السجلات
 class SmartAssistantScreen extends StatefulWidget {
   const SmartAssistantScreen({super.key});
 
@@ -22,26 +21,26 @@ class SmartAssistantScreen extends StatefulWidget {
 class _SmartAssistantScreenState extends State<SmartAssistantScreen> {
   final TextEditingController _questionController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  late ApiService _apiService;
   final VoiceService _voiceService = VoiceService();
   bool _isRecording = false;
   final FocusNode _focusNode = FocusNode();
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   final List<String> _suggestions = [
-    'هل يعتبر العقد المكتوب بخط اليد قانونياً؟',
-    'ما هي إجراءات رفع دعوى عمالية؟',
-    'ما هي شروط الطلاق للضرر؟',
-    'كيف يتم تنفيذ الشيك المرتجع؟',
+    'ما هي شروط رفع دعوى قضائية في اليمن؟',
+    'كيف يتم احتساب الميراث في القانون اليمني؟',
+    'ما هي إجراءات الطلاق للضرر؟',
+    'ما هي عقوبة التزوير في القانون اليمني؟',
   ];
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      _apiService = authProvider.apiService;
-    });
     _voiceService.init();
+    // تأكد من تحميل المحادثات عند فتح الشاشة
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<AIChatProvider>(context, listen: false).loadConversations();
+    });
   }
 
   @override
@@ -72,39 +71,16 @@ class _SmartAssistantScreenState extends State<SmartAssistantScreen> {
     _questionController.clear();
     _focusNode.unfocus();
     
-    final chatProvider = Provider.of<ChatProvider>(context, listen: false);
-    
-    // إرسال الرسالة إلى الـ Provider
-    await chatProvider.sendMessage(question);
-
-    // حفظ السجل في قاعدة البيانات
-    try {
-      final messages = chatProvider.messages;
-      if (messages.length >= 2) {
-        final lastMessage = messages.last;
-        if (lastMessage['role'] == 'assistant') {
-          final content = lastMessage['content'];
-          if (content != null) {
-            await _apiService.createAIChatLog(
-              question,
-              content.toString(),
-              modelVersion: 'groq-openrouter',
-            );
-            // تم حفظ السجل بنجاح
-          }
-        }
-      }
-    } catch (e) {
-      developer.log('Error saving chat log: $e');
-    }
+    final provider = Provider.of<AIChatProvider>(context, listen: false);
+    await provider.sendMessage(question);
 
     _scrollToBottom();
     
     // التحدث بالرد تلقائياً
-    if (chatProvider.messages.isNotEmpty) {
-      final lastMsg = chatProvider.messages.last;
+    if (provider.messages.isNotEmpty) {
+      final lastMsg = provider.messages.last;
       if (lastMsg['role'] == 'assistant') {
-        _voiceService.speak(lastMsg['content']);
+        _voiceService.speak(lastMsg['content']!);
       }
     }
   }
@@ -134,203 +110,286 @@ class _SmartAssistantScreenState extends State<SmartAssistantScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = context.isDark;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final provider = Provider.of<AIChatProvider>(context);
 
-    return Scaffold(
-      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
-      appBar: AppBar(
-        title: const Text('المساعد الذكي (AI)'),
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.history_rounded),
-            tooltip: 'السجلات السابقة',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const ChatHistoryScreen()),
-              );
-            },
+    return Directionality(
+      textDirection: ui.TextDirection.rtl,
+      child: Scaffold(
+        key: _scaffoldKey,
+        backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+        drawer: _buildHistoryDrawer(context, provider),
+        appBar: AppBar(
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('المساعد الذكي (AI)', style: TextStyle(fontSize: 16)),
+              if (provider.currentConversation != null)
+                Text(
+                  provider.currentConversation!.title,
+                  style: TextStyle(fontSize: 11, color: isDark ? Colors.white70 : Colors.black54),
+                  overflow: TextOverflow.ellipsis,
+                ),
+            ],
           ),
-          IconButton(
-            icon: const Icon(Icons.delete_sweep_rounded),
-            color: AppColors.error,
-            onPressed: () => Provider.of<ChatProvider>(context, listen: false).clearMessages(),
-            tooltip: 'مسح المحادثة',
+          leading: IconButton(
+            icon: const Icon(Icons.menu_open_rounded),
+            onPressed: () => _scaffoldKey.currentState?.openDrawer(),
           ),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.add_comment_rounded),
+              tooltip: 'محادثة جديدة',
+              onPressed: () => provider.clearChat(),
+            ),
+          ],
+        ),
+        body: Column(
+          children: [
+            // منطقة الرسائل
+            Expanded(
+              child: provider.messages.length <= 1 && provider.isLoading == false && provider.currentConversation == null
+                  ? _buildEmptyState()
+                  : _buildMessagesList(provider),
+            ),
+            
+            // مؤشر التحميل والتفكير
+            if (provider.isLoading)
+              _buildThinkingIndicator(isDark),
+
+            // اقتراحات البحث
+            if (provider.messages.length <= 1 && !provider.isLoading)
+              _buildSuggestionsRow(isDark),
+
+            // منطقة إدخال النص
+            _buildInputArea(context, isDark, provider),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHistoryDrawer(BuildContext context, AIChatProvider provider) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Drawer(
+      backgroundColor: isDark ? AppColors.darkSurface : Colors.white,
+      child: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Row(
+                children: [
+                  const Icon(Icons.history_rounded, color: AppColors.brand),
+                  const SizedBox(width: 8),
+                  const Text('سجل المحادثات', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.add_box_rounded, color: AppColors.brand),
+                    onPressed: () {
+                      provider.newConversation();
+                      Navigator.pop(context);
+                    },
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12.0),
+              child: TextField(
+                onChanged: (val) => provider.searchConversations(val),
+                decoration: InputDecoration(
+                  hintText: 'ابحث في المحادثات...',
+                  prefixIcon: const Icon(Icons.search, size: 20),
+                  filled: true,
+                  fillColor: isDark ? Colors.white.withOpacity(0.05) : Colors.grey[100],
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide.none,
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Expanded(
+              child: provider.isLoadingHistory
+                  ? const Center(child: CircularProgressIndicator())
+                  : provider.conversations.isEmpty
+                      ? _buildEmptyHistory(isDark)
+                      : ListView.builder(
+                          padding: EdgeInsets.zero,
+                          itemCount: provider.conversations.length,
+                          itemBuilder: (context, index) {
+                            final conv = provider.conversations[index];
+                            final isSelected = provider.currentConversation?.id == conv.id;
+                            return ListTile(
+                              dense: true,
+                              title: Text(
+                                conv.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                  color: isSelected ? AppColors.brand : null,
+                                ),
+                              ),
+                              subtitle: Text(
+                                DateFormat('yyyy/MM/dd').format(conv.updatedAt ?? DateTime.now()),
+                                style: const TextStyle(fontSize: 10),
+                              ),
+                              selected: isSelected,
+                              onTap: () {
+                                provider.selectConversation(conv);
+                                Navigator.pop(context);
+                              },
+                              trailing: isSelected ? PopupMenuButton(
+                                icon: const Icon(Icons.more_vert, size: 18),
+                                itemBuilder: (context) => [
+                                  PopupMenuItem(
+                                    child: const Row(children: [Icon(Icons.archive, size: 18), SizedBox(width: 8), Text('أرشفة')]),
+                                    onTap: () => provider.archiveConversation(conv),
+                                  ),
+                                  PopupMenuItem(
+                                    child: const Row(children: [Icon(Icons.delete, size: 18, color: Colors.red), SizedBox(width: 8), Text('حذف', style: TextStyle(color: Colors.red))]),
+                                    onTap: () => provider.deleteConversation(conv),
+                                  ),
+                                ],
+                              ) : null,
+                            );
+                          },
+                        ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyHistory(bool isDark) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.chat_bubble_outline, size: 60, color: Colors.grey.withOpacity(0.3)),
+          const SizedBox(height: 16),
+          Text('لا توجد محادثات سابقة', style: TextStyle(color: Colors.grey[500])),
+          const SizedBox(height: 8),
+          Text('ابدأ محادثة جديدة مع المساعد الذكي', style: TextStyle(color: Colors.grey[400], fontSize: 12)),
         ],
       ),
-      body: Column(
+    );
+  }
+
+
+  Widget _buildMessagesList(AIChatProvider provider) {
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+    return ListView.builder(
+      controller: _scrollController,
+      padding: const EdgeInsets.all(AppSpacing.md),
+      itemCount: provider.messages.length,
+      itemBuilder: (context, index) {
+        final message = provider.messages[index];
+        final isUser = message['role'] == 'user';
+        return _buildMessageBubble(
+          message['content']!,
+          isUser,
+        ).animate().fadeIn(duration: 300.ms).slideY(begin: 0.1, end: 0);
+      },
+    );
+  }
+
+  Widget _buildThinkingIndicator(bool isDark) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl, vertical: AppSpacing.sm),
+      child: Row(
         children: [
-          // منطقة الرسائل
+          const SizedBox(
+            width: 16, height: 16,
+            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.brand),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Text(
+            'جاري التفكير...',
+            style: TextStyle(
+              fontSize: 12,
+              color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+            ),
+          ).animate(onPlay: (controller) => controller.repeat(reverse: true)).fade(begin: 0.5, end: 1),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSuggestionsRow(bool isDark) {
+    return Container(
+      height: 40,
+      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+        itemCount: _suggestions.length,
+        itemBuilder: (context, index) {
+          return Padding(
+            padding: const EdgeInsets.only(left: AppSpacing.sm),
+            child: ActionChip(
+              label: Text(_suggestions[index], style: const TextStyle(fontSize: 11)),
+              backgroundColor: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+              side: BorderSide(color: AppColors.brand.withOpacity(0.3)),
+              onPressed: () => _sendQuestion(_suggestions[index]),
+            ).animate().fade(delay: (100 * index).ms).slideX(begin: 0.1),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildInputArea(BuildContext context, bool isDark, AIChatProvider provider) {
+    return Container(
+      padding: EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.sm,
+        AppSpacing.md,
+        MediaQuery.of(context).padding.bottom + AppSpacing.sm,
+      ),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+        border: Border(top: BorderSide(color: isDark ? Colors.white10 : Colors.black.withOpacity(0.05))),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
           Expanded(
-            child: Consumer<ChatProvider>(
-              builder: (context, provider, child) {
-                if (provider.messages.isEmpty) {
-                  return _buildEmptyState();
-                }
-                
-                WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
-                
-                return ListView.builder(
-                  controller: _scrollController,
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  itemCount: provider.messages.length,
-                  itemBuilder: (context, index) {
-                    final message = provider.messages[index];
-                    final isUser = message['role'] == 'user';
-                    return _buildMessageBubble(
-                      message['content'].toString(),
-                      isUser,
-                    ).animate().fadeIn(duration: 300.ms).slideY(begin: 0.1, end: 0);
-                  },
-                );
-              },
+            child: Container(
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.darkBackground : AppColors.lightSurfaceVariant,
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: TextField(
+                controller: _questionController,
+                focusNode: _focusNode,
+                maxLines: 4,
+                minLines: 1,
+                decoration: const InputDecoration(
+                  hintText: 'اسأل عن أي معلومة قانونية...',
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                ),
+              ),
             ),
           ),
-          
-          // مؤشر التحميل والتفكير
-          Consumer<ChatProvider>(
-            builder: (context, provider, child) {
-              if (provider.isLoading) {
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl, vertical: AppSpacing.sm),
-                  child: Row(
-                    children: [
-                      ScaleTransition(
-                        scale: const AlwaysStoppedAnimation(0.8),
-                        child: CircularProgressIndicator(color: context.colorScheme.primary),
-                      ),
-                      const SizedBox(width: AppSpacing.md),
-                      Text(
-                        'جاري تحليل النصوص القانونية...',
-                        style: context.textTheme.bodyMedium?.copyWith(
-                          color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-                        ),
-                      ).animate(onPlay: (controller) => controller.repeat(reverse: true)).fade(begin: 0.5, end: 1),
-                    ],
-                  ),
-                );
-              }
-              return const SizedBox.shrink();
-            },
+          const SizedBox(width: 8),
+          IconButton(
+            icon: Icon(_isRecording ? Icons.mic : Icons.mic_none, color: _isRecording ? Colors.red : AppColors.brand),
+            onPressed: _toggleVoiceRecording,
           ),
-
-          // اقتراحات البحث عند الفراغ أو بعد الجواب
-          Consumer<ChatProvider>(
-            builder: (context, provider, child) {
-              final suggestions = provider.messages.isEmpty ? _suggestions : provider.latestSuggestions;
-              if (suggestions.isEmpty || provider.isLoading) return const SizedBox.shrink();
-
-              return Container(
-                height: 45,
-                margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-                  itemCount: suggestions.length,
-                  itemBuilder: (context, index) {
-                    return Padding(
-                      padding: const EdgeInsets.only(left: AppSpacing.sm),
-                      child: ActionChip(
-                        label: Text(suggestions[index], style: const TextStyle(fontSize: 12)),
-                        backgroundColor: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
-                        side: BorderSide(color: context.colorScheme.primary.withOpacity(0.3)),
-                        onPressed: () => _sendQuestion(suggestions[index]),
-                      ).animate().fade(delay: (100 * index).ms).slideX(begin: 0.1),
-                    );
-                  },
-                ),
-              );
-            },
-          ),
-
-          // منطقة إدخال النص
+          const SizedBox(width: 4),
           Container(
-            padding: EdgeInsets.fromLTRB(
-              AppSpacing.md,
-              AppSpacing.sm,
-              AppSpacing.md,
-              MediaQuery.of(context).padding.bottom + AppSpacing.sm,
-            ),
-            decoration: BoxDecoration(
-              color: isDark ? AppColors.darkSurface : Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, -2),
-                ),
-              ],
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Expanded(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: isDark ? AppColors.darkBackground : AppColors.lightSurfaceVariant,
-                      borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
-                      border: Border.all(color: context.colorScheme.outlineVariant),
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: _questionController,
-                            focusNode: _focusNode,
-                            textDirection: TextDirection.rtl,
-                            maxLines: 5,
-                            minLines: 1,
-                            decoration: const InputDecoration(
-                              hintText: 'اكتب استشارتك القانونية هنا...',
-                              border: InputBorder.none,
-                              contentPadding: EdgeInsets.symmetric(
-                                horizontal: AppSpacing.lg,
-                                vertical: AppSpacing.md,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                // زر الميكروفون
-                Container(
-                  decoration: BoxDecoration(
-                    color: _isRecording ? Colors.red.withOpacity(0.1) : (isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant),
-                    shape: BoxShape.circle,
-                  ),
-                  child: IconButton(
-                    icon: Icon(
-                      _isRecording ? Icons.mic : Icons.mic_none,
-                      color: _isRecording ? Colors.red : (isDark ? Colors.white70 : Colors.black54),
-                    ),
-                    onPressed: _toggleVoiceRecording,
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.xs),
-                // زر الإرسال
-                Consumer<ChatProvider>(
-                  builder: (context, provider, child) {
-                    return Container(
-                      decoration: BoxDecoration(
-                        gradient: AppColors.brandGradient,
-                        shape: BoxShape.circle,
-                        boxShadow: AppShadows.colored(AppColors.brand),
-                      ),
-                      child: IconButton(
-                        icon: const Icon(Icons.send_rounded, color: Colors.white),
-                        onPressed: provider.isLoading
-                            ? null
-                            : () => _sendQuestion(_questionController.text),
-                      ),
-                    );
-                  },
-                ),
-              ],
+            decoration: const BoxDecoration(shape: BoxShape.circle, gradient: AppColors.brandGradient),
+            child: IconButton(
+              icon: const Icon(Icons.send_rounded, color: Colors.white, size: 20),
+              onPressed: provider.isLoading ? null : () => _sendQuestion(_questionController.text),
             ),
           ),
         ],
@@ -339,7 +398,7 @@ class _SmartAssistantScreenState extends State<SmartAssistantScreen> {
   }
 
   Widget _buildMessageBubble(String text, bool isUser) {
-    final isDark = context.isDark;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
@@ -350,61 +409,44 @@ class _SmartAssistantScreenState extends State<SmartAssistantScreen> {
         ),
         decoration: BoxDecoration(
           color: isUser 
-              ? context.colorScheme.primary 
-              : (isDark ? AppColors.darkSurfaceVariant : Colors.white),
+              ? AppColors.brand 
+              : (isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant),
           borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(AppSpacing.radiusLg),
-            topRight: const Radius.circular(AppSpacing.radiusLg),
-            bottomLeft: Radius.circular(isUser ? AppSpacing.radiusLg : 0),
-            bottomRight: Radius.circular(isUser ? 0 : AppSpacing.radiusLg),
+            topLeft: const Radius.circular(16),
+            topRight: const Radius.circular(16),
+            bottomLeft: Radius.circular(isUser ? 16 : 0),
+            bottomRight: Radius.circular(isUser ? 0 : 16),
           ),
-          boxShadow: isDark ? AppShadows.darkSm : AppShadows.sm,
-          border: isUser ? null : Border.all(color: context.colorScheme.outlineVariant),
         ),
         child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
+          padding: const EdgeInsets.all(12),
           child: Column(
-            crossAxisAlignment: isUser ? CrossAxisAlignment.start : CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Icon(
-                    isUser ? Icons.person_rounded : Icons.smart_toy_rounded,
-                    size: 14,
-                    color: isUser ? Colors.white70 : AppColors.gold,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    isUser ? 'أنت' : 'المساعد الذكي',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: isUser ? Colors.white70 : AppColors.gold,
-                    ),
-                  ),
-                  if (!isUser) ...[
+              if (!isUser)
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.smart_toy_rounded, size: 14, color: AppColors.brand),
+                    const SizedBox(width: 4),
+                    const Text('المساعد الذكي', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.brand)),
                     const Spacer(),
                     IconButton(
-                      icon: const Icon(Icons.volume_up_rounded, size: 16),
-                      color: AppColors.gold,
+                      icon: const Icon(Icons.copy, size: 14, color: Colors.grey),
+                      onPressed: () {}, // TODO: Copy logic
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
-                      onPressed: () => _voiceService.speak(text),
                     ),
                   ],
-                ],
-              ),
-              const SizedBox(height: AppSpacing.xs),
+                ),
+              const SizedBox(height: 4),
               SelectableText(
                 text,
                 style: TextStyle(
-                  color: isUser 
-                      ? Colors.white 
-                      : (isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary),
-                  fontSize: 15,
-                  height: 1.6,
+                  color: isUser ? Colors.white : (isDark ? Colors.white : Colors.black87),
+                  fontSize: 14,
+                  height: 1.5,
                 ),
-                textDirection: TextDirection.rtl,
               ),
             ],
           ),
@@ -415,43 +457,31 @@ class _SmartAssistantScreenState extends State<SmartAssistantScreen> {
 
   Widget _buildEmptyState() {
     return Center(
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(AppSpacing.xl),
-              decoration: BoxDecoration(
-                color: AppColors.gold.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.psychology_rounded,
-                size: 80,
-                color: AppColors.gold,
-              ),
-            ).animate().scale(duration: 500.ms, curve: Curves.easeOutBack),
-            const SizedBox(height: AppSpacing.xl),
-            Text(
-              'كيف يمكنني مساعدتك اليوم؟',
-              style: context.textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ).animate().fade().slideY(begin: 0.2),
-            const SizedBox(height: AppSpacing.sm),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
-              child: Text(
-                'أنا مساعدك القانوني الذكي، معتمد على قاعدة بيانات القوانين اليمنية. اختر من الاقتراحات بالأسفل أو اطرح سؤالك مباشرة.',
-                textAlign: TextAlign.center,
-                style: context.textTheme.bodyMedium?.copyWith(
-                  color: context.isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-                  height: 1.5,
-                ),
-              ).animate().fade(delay: 200.ms).slideY(begin: 0.2),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: AppColors.brand.withOpacity(0.1),
+              shape: BoxShape.circle,
             ),
-          ],
-        ),
+            child: const Icon(Icons.psychology_rounded, size: 64, color: AppColors.brand),
+          ).animate().scale(duration: 500.ms, curve: Curves.easeOutBack),
+          const SizedBox(height: 24),
+          const Text(
+            'مرحباً بك في مستشارك القانوني',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+          ),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 40, vertical: 12),
+            child: Text(
+              'اطرح أي سؤال حول القانون اليمني وسأقوم بالإجابة عليك فوراً وبدقة.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey, fontSize: 13),
+            ),
+          ),
+        ],
       ),
     );
   }

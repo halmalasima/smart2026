@@ -173,55 +173,83 @@ class _LoginScreenState extends State<LoginScreen> {
       final isNetworkError = errorMessage.contains('الاتصال') ||
           errorMessage.contains('الخادم') ||
           errorMessage.contains('مهلة');
+      final isInactiveAccount = errorMessage.contains('غير مُفعّل') ||
+          errorMessage.contains('تفعيل');
+      final isDisabledAccount = errorMessage.contains('تعطيل') ||
+          errorMessage.contains('الدعم الفني');
       final isAuthError = errorMessage.contains('رقم الهاتف') ||
           errorMessage.contains('كلمة المرور') ||
           errorMessage.contains('بيانات الدخول') ||
-          errorMessage.contains('غير صحيحة');
+          errorMessage.contains('غير صحيحة') ||
+          errorMessage.contains('لا يوجد حساب');
 
       // إذا كان الخطأ في المصادقة، اعرض رسالة تحت الحقل المناسب
-      if (isAuthError) {
-        // تحديد أي حيل يحتوي على خطأ بناءً على الرسالة
+      if (isAuthError && !isInactiveAccount && !isDisabledAccount) {
         setState(() {
-          // إذا كانت الرسالة تشير إلى كلمة المرور
           if (errorMessage.contains('كلمة المرور')) {
             _passwordError = 'كلمة المرور غير صحيحة';
-          } else if (errorMessage.contains('رقم الهاتف') || errorMessage.contains('لا يوجد حساب')) {
+          } else if (errorMessage.contains('لا يوجد حساب')) {
             _phoneError = 'رقم الهاتف غير مسجل';
           } else {
-            // رسالة عامة
             _passwordError = 'رقم الهاتف أو كلمة المرور غير صحيحة';
           }
         });
+      }
+
+      // تحديد الأيقونة والرسالة واللون بناءً على نوع الخطأ
+      IconData icon;
+      String snackMessage;
+      Color bgColor;
+
+      if (isInactiveAccount) {
+        icon = Icons.verified_user_outlined;
+        snackMessage = 'الحساب غير مُفعّل - يرجى إدخال رمز التحقق';
+        bgColor = AppColors.warning;
+      } else if (isDisabledAccount) {
+        icon = Icons.block_rounded;
+        snackMessage = errorMessage;
+        bgColor = AppColors.error;
+      } else if (isNetworkError) {
+        icon = Icons.wifi_off_rounded;
+        snackMessage = errorMessage;
+        bgColor = AppColors.warning;
+      } else if (isAuthError) {
+        icon = Icons.error_outline_rounded;
+        snackMessage = 'فشل تسجيل الدخول - تحقق من البيانات';
+        bgColor = AppColors.error;
+      } else {
+        icon = Icons.warning_amber_rounded;
+        snackMessage = errorMessage;
+        bgColor = AppColors.error;
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
             children: [
-              Icon(
-                isNetworkError
-                    ? Icons.wifi_off_rounded
-                    : isAuthError
-                        ? Icons.error_outline_rounded
-                        : Icons.warning_amber_rounded,
-                color: Colors.white,
-                size: 24,
-              ),
+              Icon(icon, color: Colors.white, size: 24),
               const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: Text(
-                  isAuthError ? 'فشل تسجيل الدخول - تحقق من البيانات' : errorMessage,
+                  snackMessage,
                   style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
                 ),
               ),
             ],
           ),
-          backgroundColor: isNetworkError
-              ? AppColors.warning
-              : isAuthError
-                  ? AppColors.error
-                  : AppColors.error,
+          backgroundColor: bgColor,
           behavior: SnackBarBehavior.floating,
+          duration: isInactiveAccount ? const Duration(seconds: 6) : const Duration(seconds: 4),
+          action: isInactiveAccount
+              ? SnackBarAction(
+                  label: 'تفعيل',
+                  textColor: Colors.white,
+                  onPressed: () {
+                    // Navigate to OTP verification screen
+                    Navigator.pushNamed(context, '/verify-otp', arguments: _phoneController.text.trim());
+                  },
+                )
+              : null,
         ),
       );
     }
@@ -274,7 +302,7 @@ class _LoginScreenState extends State<LoginScreen> {
               height: 250,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.gold.withOpacity(isDark ? 0.1 : 0.05),
+                color: AppColors.brand.withOpacity(isDark ? 0.1 : 0.05),
               ),
             ),
           ).animate().fadeIn(duration: 1.seconds, delay: 300.ms).scale(begin: const Offset(0.8, 0.8)),

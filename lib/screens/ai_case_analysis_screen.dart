@@ -63,7 +63,7 @@ class _AICaseAnalysisScreenState extends State<AICaseAnalysisScreen> {
     final isDark = context.isDark;
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
       appBar: AppBar(
         title: const Text('المحلل الاستراتيجي الذكي', style: TextStyle(fontWeight: FontWeight.bold)),
         actions: [
@@ -150,10 +150,10 @@ class _AICaseAnalysisScreenState extends State<AICaseAnalysisScreen> {
             hintText: hint,
             hintStyle: TextStyle(color: Colors.grey[400], fontSize: 13),
             filled: true,
-            fillColor: context.isDark ? const Color(0xFF1E293B) : Colors.white,
+            fillColor: context.isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: context.isDark ? Colors.white10 : Colors.black.withOpacity(0.1)),
+              borderSide: BorderSide.none,
             ),
           ),
         ),
@@ -178,9 +178,9 @@ class _AICaseAnalysisScreenState extends State<AICaseAnalysisScreen> {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: context.isDark ? const Color(0xFF1E293B) : Colors.white,
+              color: context.isDark ? AppColors.darkSurface : AppColors.lightSurface,
               borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: AppColors.primary.withOpacity(0.2)),
+              border: Border.all(color: AppColors.brand.withOpacity(0.2)),
             ),
             child: SelectableText(
               _analysisResult!,
@@ -195,7 +195,7 @@ class _AICaseAnalysisScreenState extends State<AICaseAnalysisScreen> {
                   onPressed: () {},
                   icon: const Icon(Icons.copy, size: 18),
                   label: const Text('نسخ التحليل'),
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.grey[700]),
+                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.brand),
                 ),
               ),
               const SizedBox(width: 12),
@@ -204,7 +204,7 @@ class _AICaseAnalysisScreenState extends State<AICaseAnalysisScreen> {
                   onPressed: () {},
                   icon: const Icon(Icons.picture_as_pdf, size: 18),
                   label: const Text('تصدير للملف'),
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.indigo),
+                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.brand),
                 ),
               ),
             ],

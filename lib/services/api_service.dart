@@ -5,6 +5,7 @@ import '../core/errors/api_exception.dart';
 import '../models/user_model.dart';
 import '../models/lawsuit_model.dart';
 import '../models/case_model.dart';
+import '../models/hearing_model.dart';
 
 /// API Service for communicating with Django backend
 class ApiService {
@@ -80,6 +81,13 @@ class ApiService {
     return CasePartyModel.fromJson(data);
   }
 
+  // ========== Hearings API ==========
+
+  Future<HearingModel> getHearing(int id) async {
+    final data = await _makeRequest('GET', '${ApiConfig.hearingsEndpoint}$id/');
+    return HearingModel.fromJson(data);
+  }
+
   // Clear tokens on logout
   void clearTokens() {
     _accessToken = null;
@@ -88,6 +96,9 @@ class ApiService {
 
   // Get access token (for other services)
   String? get accessToken => _accessToken;
+  
+  // Get refresh token
+  String? get refreshToken => _refreshToken;
 
   // Get authorization header
   Map<String, String> get _headers {
@@ -261,6 +272,32 @@ class ApiService {
           code: ApiErrorCode.unauthorized,
           statusCode: 401,
         );
+      } else if (response.statusCode == 400 && endpoint == ApiConfig.loginEndpoint) {
+        // Auth validation errors (inactive account, wrong password, etc.)
+        String errorDetail = '';
+        if (responseData is Map<String, dynamic>) {
+          // DRF ValidationError wraps 'detail' as a list or string
+          final detailField = responseData['detail'];
+          if (detailField is List && detailField.isNotEmpty) {
+            errorDetail = detailField.first.toString();
+          } else if (detailField is String) {
+            errorDetail = detailField;
+          } else {
+            // Non-field errors may be nested
+            final nonField = responseData['non_field_errors'];
+            if (nonField is List && nonField.isNotEmpty) {
+              errorDetail = nonField.first.toString();
+            } else {
+              errorDetail = responseData.values.expand((v) => v is List ? v.map((e) => e.toString()) : [v.toString()]).join('\n');
+            }
+          }
+        }
+        print('🔐 [API] Auth validation error: $errorDetail');
+        throw ApiException(
+          message: errorDetail.isNotEmpty ? errorDetail : 'بيانات الدخول غير صحيحة',
+          code: ApiErrorCode.invalidCredentials,
+          statusCode: 400,
+        );
       } else if (response.statusCode == 403) {
         throw ApiException(
           message: responseData['detail']?.toString() ?? 'Forbidden',
@@ -352,6 +389,10 @@ class ApiService {
         try {
           final data = jsonDecode(response.body);
           _accessToken = data['access'];
+          // If refresh token rotation is enabled, the server returns a new refresh token
+          if (data.containsKey('refresh')) {
+            _refreshToken = data['refresh'];
+          }
           return true;
         } catch (e) {
           print('❌ [API] JSON decode error in refreshAccessToken: $e');
@@ -376,7 +417,7 @@ class ApiService {
           'POST',
           ApiConfig.loginEndpoint,
           body: {
-            'phone': phone,
+            'username': phone, // Backend expects 'username' according to DRF requirements
             'password': password,
           },
         );
@@ -1173,6 +1214,25 @@ class ApiService {
   /// Get legal library statistics
   Future<Map<String, dynamic>> getLegalLibraryStats() async {
     return await _makeRequest('GET', '/api/legal-library/stats/');
+  }
+
+  /// Get Law Books (from LawLibrary model)
+  Future<Map<String, dynamic>> getLawBooks({String? searchQuery, String? category, int? page}) async {
+    String endpoint = '/api/law-library-books/';
+    final params = <String, String>{};
+    if (searchQuery != null && searchQuery.isNotEmpty) params['q'] = searchQuery;
+    if (category != null && category.isNotEmpty) params['category'] = category;
+    if (page != null) params['page'] = page.toString();
+    
+    if (params.isNotEmpty) {
+      endpoint += '?' + params.entries.map((e) => '${e.key}=${Uri.encodeComponent(e.value)}').join('&');
+    }
+    return await _makeRequest('GET', endpoint);
+  }
+
+  /// Get Law Book categories
+  Future<Map<String, dynamic>> getLawBookCategories() async {
+    return await _makeRequest('GET', '/api/law-library-books/categories/');
   }
 
   

@@ -154,6 +154,8 @@ class ApiConfig {
   static const String loginEndpoint = '/api/token/';
   static const String refreshTokenEndpoint = '/api/token/refresh/';
   static const String profilesEndpoint = '/api/profiles/';
+  static const String lawLibraryBooksEndpoint = '/api/law-library-books/';
+  static const String lawLibraryCategoriesEndpoint = '/api/law-library-books/categories/';
   static const String casesEndpoint = '/api/cases/';
   static const String casePartiesEndpoint = '/api/case-parties/';
   static const String lawsuitsEndpoint = '/api/lawsuits/';
@@ -186,6 +188,7 @@ class ApiConfig {
   static const String userSessionsEndpoint = '/api/user-sessions/';
   static const String searchLogsEndpoint = '/api/search-logs/';
   static const String aiChatLogsEndpoint = '/api/ai-chat-logs/';
+  static const String aiConversationsEndpoint = '/api/ai-conversations/';
 
   static const String paymentOrdersEndpoint = '/api/payment-orders/';
 

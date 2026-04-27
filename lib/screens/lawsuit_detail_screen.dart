@@ -1,3 +1,4 @@
+import '../../../../theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
@@ -994,649 +995,534 @@ class _LawsuitDetailScreenState extends State<LawsuitDetailScreen> {
   }
 
   Widget _buildForm() {
-    final screenWidth = MediaQuery.of(context).size.width;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return SingleChildScrollView(
-      padding: EdgeInsets.symmetric(
-        horizontal: screenWidth > 600 ? 24.0 : 12.0,
-        vertical: 16.0,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
       child: Form(
         key: _formKey,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Header
-            Row(
+            // Header Info Card
+            _buildIntroInfo(isDark),
+            const SizedBox(height: 25),
+            
+            // 1. Parties Section
+            _buildSectionHeader('أطراف النزاع', Icons.groups_rounded, AppColors.violet),
+            _buildSectionCard(
+              child: _buildPartiesSection(),
+              isDark: isDark,
+            ),
+            const SizedBox(height: 25),
+            
+            // 2. Case Identity Section
+            _buildSectionHeader('هوية الدعوى', Icons.badge_rounded, AppColors.ocean),
+            _buildSectionCard(
+              child: Column(
+                children: [
+                  _buildCaseIdentityFields(isDark),
+                  const SizedBox(height: 16),
+                  _buildFilingDateFields(isDark),
+                ],
+              ),
+              isDark: isDark,
+            ),
+            const SizedBox(height: 25),
+            
+            // 3. Jurisdiction Section
+            _buildSectionHeader('الاختصاص القضائي', Icons.account_balance_rounded, AppColors.brand),
+            _buildSectionCard(
+              child: _buildJurisdictionFields(isDark),
+              isDark: isDark,
+            ),
+            const SizedBox(height: 25),
+            
+            // 4. Legal Construction Section
+            _buildSectionHeader('البناء القانوني والوقائع', Icons.gavel_rounded, AppColors.gold),
+            _buildSectionCard(
+              child: _buildLegalConstructionFields(isDark),
+              isDark: isDark,
+            ),
+            const SizedBox(height: 25),
+            
+            // 5. Attachments Section
+            _buildSectionHeader('المرفقات والأدلة', Icons.file_present_rounded, AppColors.emerald),
+            _buildSectionCard(
+              child: _buildAttachmentsSection(),
+              isDark: isDark,
+            ),
+            
+            const SizedBox(height: 40),
+            _buildSaveButton(isDark),
+            const SizedBox(height: 60),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildIntroInfo(bool isDark) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: isDark ? AppColors.darkHeroGradient : AppColors.heroGradient,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(color: AppColors.brand.withOpacity(0.2), blurRadius: 10, offset: const Offset(0, 4)),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.description, color: Colors.blue, size: 24),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    _isEditMode ? 'تعديل الدعوى' : 'إنشاء دعوى جديدة',
-                    style: TextStyle(
-                      fontSize: MediaQuery.of(context).size.width > 600 ? 24 : 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.blue,
-                    ),
-                  ),
+                Text(
+                  _isEditMode ? 'تعديل بيانات الدعوى' : 'نموذج الدعوى الإلكترونية',
+                  style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  'يرجى تعبئة الحقول بدقة لضمان قبول الدعوى شكلاً وموضوعاً',
+                  style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 12),
                 ),
               ],
             ),
-            const SizedBox(height: 20),
-            
-            // Parties Section (Plaintiffs and Defendants) - Now available in create mode
-            _buildPartiesSection(),
-            const SizedBox(height: 24),
-            
-            // Case Details Section
-            const Divider(),
-            const SizedBox(height: 16),
+          ),
+          const Icon(Icons.description_rounded, size: 50, color: Colors.white24),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title, IconData icon, Color color) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8, bottom: 12),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, size: 20, color: color),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            title,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionCard({required Widget child, required bool isDark}) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkCard : Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4)),
+        ],
+        border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.lightBorder.withOpacity(0.5)),
+      ),
+      child: child,
+    );
+  }
+
+  Widget _buildCaseIdentityFields(bool isDark) {
+    return Column(
+      children: [
+        _buildInputField(
+          controller: _caseNumberController,
+          label: 'رقم الدعوى (اختياري)',
+          hint: 'مثال: 123/2024',
+          icon: Icons.numbers_rounded,
+          isDark: isDark,
+        ),
+        const SizedBox(height: 16),
+        _buildDropdownField(
+          value: _selectedCaseType,
+          label: 'نوع الإجراء القضائي',
+          items: [
+            {'value': 'دعوى', 'label': 'دعوى قضائية'},
+            {'value': 'امر_اداء', 'label': 'أمر أداء'},
+            {'value': 'استئناف', 'label': 'عريضة استئناف'},
+            {'value': 'طعن', 'label': 'عريضة طعن بالنقض'},
+            {'value': 'رد_على_دعوى', 'label': 'مذكرة رد'},
+          ],
+          onChanged: (val) => _onCaseTypeChanged(val as String?),
+          icon: Icons.category_rounded,
+          isDark: isDark,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFilingDateFields(bool isDark) {
+    return Row(
+      children: [
+        Expanded(
+          child: _buildInputField(
+            controller: TextEditingController(
+              text: _filingDateGregorian != null ? DateFormat('yyyy-MM-dd').format(_filingDateGregorian!) : '',
+            ),
+            label: 'تاريخ الميلاد',
+            hint: 'اختر التاريخ',
+            icon: Icons.calendar_today_rounded,
+            isDark: isDark,
+            readOnly: true,
+            onTap: () async {
+              final picked = await showDatePicker(
+                context: context,
+                initialDate: _filingDateGregorian ?? DateTime.now(),
+                firstDate: DateTime(2000),
+                lastDate: DateTime.now(),
+              );
+              if (picked != null) {
+                setState(() {
+                  _filingDateGregorian = picked;
+                  _filingDateHijri = _convertToHijri(picked);
+                  _hijriDateController.text = _filingDateHijri ?? '';
+                });
+              }
+            },
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _buildInputField(
+            controller: _hijriDateController,
+            label: 'تاريخ الهجري',
+            hint: '1447/01/01',
+            icon: Icons.history_edu_rounded,
+            isDark: isDark,
+            onChanged: (v) => _filingDateHijri = v,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildJurisdictionFields(bool isDark) {
+    return Column(
+      children: [
+        _buildDropdownField(
+          value: _selectedGovernorateId,
+          label: 'المحافظة المختصة',
+          items: _governorates.map((g) => {'value': g['id'], 'label': g['name']}).toList(),
+          onChanged: (val) {
+            setState(() {
+              _selectedGovernorateId = val as int?;
+              _selectedGovernorate = _governorates.firstWhere((g) => g['id'] == val)['name'];
+              _selectedCourtId = null;
+            });
+            _loadCourts(governorateId: val as int?);
+          },
+          icon: Icons.location_on_rounded,
+          isDark: isDark,
+          isLoading: _isLoadingGovernorates,
+        ),
+        const SizedBox(height: 16),
+        _buildDropdownField(
+          value: _selectedCourtId,
+          label: 'المحكمة المختصة',
+          items: _courts.map((c) => {'value': c['id'], 'label': c['name']}).toList(),
+          onChanged: (val) => setState(() => _selectedCourtId = val as int?),
+          icon: Icons.account_balance_rounded,
+          isDark: isDark,
+          isLoading: _isLoadingCourts,
+          enabled: _selectedGovernorateId != null,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLegalConstructionFields(bool isDark) {
+    return Column(
+      children: [
+        _buildInputField(
+          controller: _subjectController,
+          label: 'موضوع الدعوى',
+          hint: 'أدخل عنواناً ملخصاً للدعوى',
+          icon: Icons.title_rounded,
+          isDark: isDark,
+          validator: (v) => v!.isEmpty ? 'يرجى إدخال الموضوع' : null,
+        ),
+        const SizedBox(height: 16),
+        _buildInputField(
+          controller: _factsController,
+          label: 'وقائع الدعوى',
+          hint: 'اشرح تسلسل الأحداث والوقائع...',
+          icon: Icons.subject_rounded,
+          isDark: isDark,
+          maxLines: 5,
+        ),
+        const SizedBox(height: 16),
+        _buildInputField(
+          controller: _requestsController,
+          label: 'الطلبات الختامية',
+          hint: 'حدد طلباتك من المحكمة بوضوح...',
+          icon: Icons.checklist_rtl_rounded,
+          isDark: isDark,
+          maxLines: 4,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInputField({
+    required TextEditingController controller,
+    required String label,
+    required String hint,
+    required IconData icon,
+    required bool isDark,
+    int maxLines = 1,
+    bool readOnly = false,
+    VoidCallback? onTap,
+    Function(String)? onChanged,
+    String? Function(String?)? validator,
+  }) {
+    return TextFormField(
+      controller: controller,
+      maxLines: maxLines,
+      readOnly: readOnly,
+      onTap: onTap,
+      onChanged: onChanged,
+      validator: validator,
+      textAlign: TextAlign.right,
+      textDirection: TextDirection.rtl,
+      style: TextStyle(fontSize: 14, color: isDark ? Colors.white : Colors.black87),
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        hintStyle: TextStyle(color: isDark ? Colors.grey[600] : Colors.grey[400], fontSize: 12),
+        prefixIcon: Icon(icon, size: 20, color: AppColors.brand.withOpacity(0.7)),
+        filled: true,
+        fillColor: isDark ? AppColors.darkSurface : AppColors.lightBackground.withOpacity(0.5),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.brand, width: 1.5),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      ),
+    );
+  }
+
+  Widget _buildDropdownField({
+    required dynamic value,
+    required String label,
+    required List<Map<String, dynamic>> items,
+    required Function(dynamic) onChanged,
+    required IconData icon,
+    required bool isDark,
+    bool isLoading = false,
+    bool enabled = true,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface : AppColors.lightBackground.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButtonFormField<dynamic>(
+          value: items.any((i) => i['value'] == value) ? value : null,
+          isExpanded: true,
+          icon: isLoading 
+            ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+            : const Icon(Icons.arrow_drop_down_rounded, color: AppColors.brand),
+          decoration: InputDecoration(
+            labelText: label,
+            prefixIcon: Icon(icon, size: 20, color: AppColors.brand.withOpacity(0.7)),
+            border: InputBorder.none,
+          ),
+          hint: Text(isLoading ? 'جاري التحميل...' : 'اختر من القائمة', style: const TextStyle(fontSize: 12)),
+          items: items.map((item) {
+            return DropdownMenuItem<dynamic>(
+              value: item['value'],
+              child: Text(item['label'], style: const TextStyle(fontSize: 14)),
+            );
+          }).toList(),
+          onChanged: enabled ? onChanged : null,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSaveButton(bool isDark) {
+    return Container(
+      height: 55,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: [
+          BoxShadow(color: AppColors.brand.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 5)),
+        ],
+      ),
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.brand,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          elevation: 0,
+        ),
+        onPressed: _saveLawsuit,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.save_rounded),
+            const SizedBox(width: 12),
             Text(
-              'بيانات الدعوى',
-              style: TextStyle(
-                fontSize: MediaQuery.of(context).size.width > 600 ? 20 : 18,
-                fontWeight: FontWeight.bold,
-              ),
-              textAlign: TextAlign.right,
-            ),
-            const SizedBox(height: 16),
-            
-            // Filing Dates
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final isWide = constraints.maxWidth > 600;
-                if (isWide) {
-                  return Row(
-                    children: [
-                      Expanded(
-                        child: TextFormField(
-                          readOnly: true,
-                          controller: TextEditingController(
-                            text: _filingDateGregorian != null
-                                ? DateFormat('yyyy-MM-dd').format(_filingDateGregorian!)
-                                : '',
-                          ),
-                          decoration: const InputDecoration(
-                            labelText: 'تاريخ تقديم الدعوى بالميلادي',
-                            border: OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.calendar_today),
-                          ),
-                          onTap: () async {
-                            final picked = await showDatePicker(
-                              context: context,
-                              initialDate: _filingDateGregorian ?? DateTime.now(),
-                              firstDate: DateTime(2000),
-                              lastDate: DateTime.now(),
-                            );
-                            if (picked != null) {
-                              setState(() {
-                                _filingDateGregorian = picked;
-                                _filingDateHijri = _convertToHijri(picked);
-                                _hijriDateController.text = _filingDateHijri ?? '';
-                              });
-                            }
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: TextFormField(
-                          controller: _hijriDateController,
-                          decoration: const InputDecoration(
-                            labelText: 'تاريخ تقديم الدعوى بالهجري',
-                            border: OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.calendar_today),
-                            hintText: '1447/09/22',
-                          ),
-                          onChanged: (value) {
-                            _filingDateHijri = value;
-                          },
-                        ),
-                      ),
-                    ],
-                  );
-                } else {
-                  return Column(
-                    children: [
-                      TextFormField(
-                        readOnly: true,
-                        controller: TextEditingController(
-                          text: _filingDateGregorian != null
-                              ? DateFormat('yyyy-MM-dd').format(_filingDateGregorian!)
-                              : '',
-                        ),
-                        decoration: const InputDecoration(
-                          labelText: 'تاريخ تقديم الدعوى بالميلادي',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.calendar_today),
-                        ),
-                        onTap: () async {
-                          final picked = await showDatePicker(
-                            context: context,
-                            initialDate: _filingDateGregorian ?? DateTime.now(),
-                            firstDate: DateTime(2000),
-                            lastDate: DateTime.now(),
-                            builder: (context, child) {
-                              return Theme(
-                                data: Theme.of(context).copyWith(
-                                  colorScheme: ColorScheme.light(
-                                    primary: AppColors.brand, // Navy header
-                                    onPrimary: Colors.white, // Text inside header
-                                    onSurface: AppColors.brandDark, // Text on layout
-                                    secondary: AppColors.gold,
-                                  ),
-                                  textButtonTheme: TextButtonThemeData(
-                                    style: TextButton.styleFrom(
-                                      foregroundColor: AppColors.brand, // button text color
-                                    ),
-                                  ),
-                                ),
-                                child: child!,
-                              );
-                            },
-                          );
-                          if (picked != null) {
-                            setState(() {
-                              _filingDateGregorian = picked;
-                              _filingDateHijri = _convertToHijri(picked);
-                              _hijriDateController.text = _filingDateHijri ?? '';
-                            });
-                          }
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      TextFormField(
-                        controller: _hijriDateController,
-                        decoration: const InputDecoration(
-                          labelText: 'تاريخ تقديم الدعوى بالهجري',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.calendar_today),
-                          hintText: '1447/09/22',
-                        ),
-                        onChanged: (value) {
-                          _filingDateHijri = value;
-                        },
-                      ),
-                    ],
-                  );
-                }
-              },
-            ),
-            const SizedBox(height: 16),
-            
-            // Case Type
-            DropdownButtonFormField<String>(
-              value: _selectedCaseType,
-              decoration: const InputDecoration(
-                labelText: 'نوع الدعوى',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.category),
-              ),
-              items: const [
-                DropdownMenuItem(value: 'امر_اداء', child: Text('أمر أداء')),
-                DropdownMenuItem(value: 'دعوى', child: Text('دعوى')),
-                DropdownMenuItem(value: 'رد_على_دعوى', child: Text('رد على دعوى')),
-                DropdownMenuItem(value: 'استئناف', child: Text('استئناف')),
-                DropdownMenuItem(value: 'طعن', child: Text('طعن')),
-                DropdownMenuItem(value: 'civil', child: Text('مدنية')),
-                DropdownMenuItem(value: 'criminal', child: Text('جنائية')),
-                DropdownMenuItem(value: 'commercial', child: Text('تجارية')),
-                DropdownMenuItem(value: 'administrative', child: Text('إدارية')),
-                DropdownMenuItem(value: 'personal_status', child: Text('أحوال شخصية')),
-              ],
-              onChanged: _onCaseTypeChanged,
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'يرجى اختيار نوع الدعوى';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-            
-            // Governorate and Court
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final isWide = constraints.maxWidth > 600;
-                if (isWide) {
-                  return Row(
-                    crossAxisAlignment: CrossAxisAlignment.start, // محاذاة من الأعلى
-                    children: [
-                      Expanded(
-                        flex: 1, // مساحة متساوية
-                        child: _isLoadingGovernorates
-                            ? const Center(child: CircularProgressIndicator())
-                            : _governorates.isEmpty
-                                ? const Text('لا توجد محافظات متاحة', style: TextStyle(color: Colors.grey))
-                                : DropdownButtonFormField<String>(
-                                value: _governorates.any((g) => g['name'] == _selectedGovernorate) ? _selectedGovernorate : null,
-                                isExpanded: true, // مهم: يضمن استخدام المساحة الكاملة
-                                decoration: InputDecoration(
-                                  labelText: 'المحافظة',
-                                  border: const OutlineInputBorder(),
-                                  prefixIcon: const Icon(Icons.location_city, size: 20), // تقليل حجم الأيقونة
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12), // تقليل padding
-                                  isDense: true,
-                                  constraints: const BoxConstraints(), // إزالة constraints الافتراضية
-                                ),
-                                menuMaxHeight: 300, // حد أقصى لارتفاع القائمة - مهم للويب
-                                items: _governorates.map((gov) {
-                                  return DropdownMenuItem(
-                                    value: gov['name'] as String,
-                                    child: Text(
-                                      gov['name'] as String,
-                                      overflow: TextOverflow.ellipsis,
-                                      maxLines: 1,
-                                      style: const TextStyle(fontSize: 14),
-                                    ),
-                                  );
-                                }).toList(),
-                                selectedItemBuilder: (context) {
-                                  // عرض النص المختار مع ellipsis - مهم لمنع overflow
-                                  return _governorates.map((gov) {
-                                    return SizedBox(
-                                      width: double.infinity, // استخدام العرض الكامل
-                                      child: Text(
-                                        gov['name'] as String,
-                                        overflow: TextOverflow.ellipsis,
-                                        maxLines: 1,
-                                        style: const TextStyle(fontSize: 13), // تقليل حجم الخط قليلاً
-                                        softWrap: false,
-                                      ),
-                                    );
-                                  }).toList();
-                                },
-                                onChanged: (value) {
-                                  setState(() {
-                                    _selectedGovernorate = value;
-                                    // البحث عن ID المحافظة المختارة
-                                    final selectedGov = _governorates.firstWhere(
-                                      (gov) => gov['name'] == value,
-                                      orElse: () => {},
-                                    );
-                                    _selectedGovernorateId = selectedGov['id'] as int?;
-                                    // إعادة تعيين المحكمة المختارة
-                                    _selectedCourtId = null;
-                                  });
-                                  // تحميل المحاكم الخاصة بالمحافظة المختارة
-                                  if (_selectedGovernorateId != null) {
-                                    _loadCourts(governorateId: _selectedGovernorateId);
-                                  } else {
-                                    // إذا لم يتم العثور على المحافظة، مسح قائمة المحاكم
-                                    setState(() {
-                                      _courts = [];
-                                    });
-                                  }
-                                },
-                              ),
-                      ),
-                      const SizedBox(width: 12), // تقليل المسافة
-                      Expanded(
-                        flex: 1, // مساحة متساوية
-                        child: _isLoadingCourts
-                            ? const Center(child: CircularProgressIndicator())
-                            : _courts.isEmpty && _selectedGovernorateId == null
-                                ? const Text('اختر المحافظة أولاً', style: TextStyle(color: Colors.grey))
-                                : _courts.isEmpty
-                                    ? const Text('لا توجد محاكم متاحة', style: TextStyle(color: Colors.grey))
-                                    : DropdownButtonFormField<int>(
-                                value: _courts.any((c) => c['id'] == _selectedCourtId) ? _selectedCourtId : null,
-                                isExpanded: true, // مهم: يضمن استخدام المساحة الكاملة
-                                decoration: InputDecoration(
-                                  labelText: 'المحكمة *',
-                                  border: const OutlineInputBorder(),
-                                  prefixIcon: const Icon(Icons.gavel, size: 20), // تقليل حجم الأيقونة
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12), // تقليل padding
-                                  isDense: true, // يقلل من المساحة المستخدمة
-                                  constraints: const BoxConstraints(), // إزالة constraints الافتراضية
-                                ),
-                                menuMaxHeight: 300, // حد أقصى لارتفاع القائمة
-                                items: _courts.map((court) {
-                                  return DropdownMenuItem(
-                                    value: court['id'] as int,
-                                    child: Text(
-                                      court['name'] as String,
-                                      overflow: TextOverflow.ellipsis,
-                                      maxLines: 2, // سطرين للسماح بعرض أسماء طويلة
-                                      style: const TextStyle(fontSize: 14),
-                                    ),
-                                  );
-                                }).toList(),
-                                selectedItemBuilder: (context) {
-                                  // عرض النص المختار مع ellipsis - مهم لمنع overflow
-                                  return _courts.map((court) {
-                                    return SizedBox(
-                                      width: double.infinity, // استخدام العرض الكامل
-                                      child: Text(
-                                        court['name'] as String,
-                                        overflow: TextOverflow.ellipsis,
-                                        maxLines: 1,
-                                        style: const TextStyle(fontSize: 13), // تقليل حجم الخط قليلاً
-                                        softWrap: false,
-                                      ),
-                                    );
-                                  }).toList();
-                                },
-                                onChanged: (value) {
-                                  setState(() {
-                                    _selectedCourtId = value;
-                                  });
-                                },
-                                validator: (value) {
-                                  if (value == null) {
-                                    return 'يرجى ملء هذا الحقل';
-                                  }
-                                  return null;
-                                },
-                              ),
-                      ),
-                    ],
-                  );
-                } else {
-                  return Column(
-                    children: [
-                      _isLoadingGovernorates
-                          ? const Center(child: CircularProgressIndicator())
-                          : _governorates.isEmpty
-                              ? Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Icon(Icons.info_outline, color: Colors.orange, size: 24),
-                                    const SizedBox(height: 8),
-                                    const Text('لا توجد محافظات متاحة', style: TextStyle(color: Colors.grey)),
-                                    const SizedBox(height: 4),
-                                    TextButton.icon(
-                                      onPressed: () => _loadGovernorates(),
-                                      icon: const Icon(Icons.refresh, size: 16),
-                                      label: const Text('إعادة المحاولة'),
-                                    ),
-                                  ],
-                                )
-                              : DropdownButtonFormField<String>(
-                              value: _governorates.any((g) => g['name'] == _selectedGovernorate) ? _selectedGovernorate : null,
-                              isExpanded: true, // مهم: يضمن استخدام المساحة الكاملة
-                              decoration: InputDecoration(
-                                labelText: 'المحافظة',
-                                border: const OutlineInputBorder(),
-                                prefixIcon: const Icon(Icons.location_city, size: 20),
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-                                isDense: true,
-                                constraints: const BoxConstraints(),
-                              ),
-                              menuMaxHeight: 300, // حد أقصى لارتفاع القائمة - مهم للويب
-                              items: _governorates.map((gov) {
-                                return DropdownMenuItem(
-                                  value: gov['name'] as String,
-                                  child: Text(
-                                    gov['name'] as String,
-                                    overflow: TextOverflow.ellipsis,
-                                    maxLines: 1,
-                                    style: const TextStyle(fontSize: 14),
-                                  ),
-                                );
-                              }).toList(),
-                              selectedItemBuilder: (context) {
-                                // عرض النص المختار مع ellipsis - مهم لمنع overflow
-                                return _governorates.map((gov) {
-                                  return SizedBox(
-                                    width: double.infinity,
-                                    child: Text(
-                                      gov['name'] as String,
-                                      overflow: TextOverflow.ellipsis,
-                                      maxLines: 1,
-                                      style: const TextStyle(fontSize: 13),
-                                      softWrap: false,
-                                    ),
-                                  );
-                                }).toList();
-                              },
-                              onChanged: (value) {
-                                setState(() {
-                                  _selectedGovernorate = value;
-                                  // البحث عن ID المحافظة المختارة
-                                  final selectedGov = _governorates.firstWhere(
-                                    (gov) => gov['name'] == value,
-                                    orElse: () => {},
-                                  );
-                                  _selectedGovernorateId = selectedGov['id'] as int?;
-                                  // إعادة تعيين المحكمة المختارة
-                                  _selectedCourtId = null;
-                                });
-                                // تحميل المحاكم الخاصة بالمحافظة المختارة
-                                if (_selectedGovernorateId != null) {
-                                  _loadCourts(governorateId: _selectedGovernorateId);
-                                } else {
-                                  // إذا لم يتم العثور على المحافظة، مسح قائمة المحاكم
-                                  setState(() {
-                                    _courts = [];
-                                  });
-                                }
-                              },
-                            ),
-                      const SizedBox(height: 16),
-                      _isLoadingCourts
-                          ? const Center(child: CircularProgressIndicator())
-                          : _courts.isEmpty && _selectedGovernorateId == null
-                              ? const Text('اختر المحافظة أولاً', style: TextStyle(color: Colors.grey))
-                              : _courts.isEmpty
-                                  ? const Text('لا توجد محاكم متاحة', style: TextStyle(color: Colors.grey))
-                                  : DropdownButtonFormField<int>(
-                              value: _courts.any((c) => c['id'] == _selectedCourtId) ? _selectedCourtId : null,
-                              isExpanded: true,
-                              decoration: InputDecoration(
-                                labelText: 'المحكمة *',
-                                border: const OutlineInputBorder(),
-                                prefixIcon: const Icon(Icons.gavel, size: 20),
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-                                isDense: true,
-                                constraints: const BoxConstraints(),
-                              ),
-                              menuMaxHeight: 300,
-                              items: _courts.map((court) {
-                                return DropdownMenuItem(
-                                  value: court['id'] as int,
-                                  child: Text(
-                                    court['name'] as String,
-                                    overflow: TextOverflow.ellipsis,
-                                    maxLines: 2,
-                                    style: const TextStyle(fontSize: 14),
-                                  ),
-                                );
-                              }).toList(),
-                              selectedItemBuilder: (context) {
-                                return _courts.map((court) {
-                                  return SizedBox(
-                                    width: double.infinity,
-                                    child: Text(
-                                      court['name'] as String,
-                                      overflow: TextOverflow.ellipsis,
-                                      maxLines: 1,
-                                      style: const TextStyle(fontSize: 13),
-                                      softWrap: false,
-                                    ),
-                                  );
-                                }).toList();
-                              },
-                              onChanged: (value) {
-                                setState(() {
-                                  _selectedCourtId = value;
-                                });
-                              },
-                              validator: (value) {
-                                if (value == null) {
-                                  return 'يرجى ملء هذا الحقل';
-                                }
-                                return null;
-                              },
-                            ),
-                    ],
-                  );
-                }
-              },
-            ),
-            const SizedBox(height: 16),
-            
-            const SizedBox(height: 16),
-
-            // Subject
-            TextFormField(
-              controller: _subjectController,
-              textAlign: TextAlign.right,
-              decoration: const InputDecoration(
-                labelText: 'موضوع الدعوى',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.subject),
-                helperText: 'الحد الأقصى 150 حرف',
-              ),
-              maxLength: 150,
-              buildCounter: (context, {required currentLength, required isFocused, maxLength}) {
-                return Text('$maxLength حرف متبقية');
-              },
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'يرجى إدخال موضوع الدعوى';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 24),
-
-            // Facts of the Case (Rich Text Editor)
-            const Divider(),
-            const SizedBox(height: 16),
-            Text(
-              'وقائع الدعوى',
-              style: TextStyle(
-                fontSize: MediaQuery.of(context).size.width > 600 ? 18 : 16,
-                fontWeight: FontWeight.bold,
-              ),
-              textAlign: TextAlign.right,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'الحد الأقصى 150 حرف ${150 - _factsController.text.length} حرف متبقية',
-              style: TextStyle(
-                color: (150 - _factsController.text.length) < 0 ? Colors.red : Colors.green,
-                fontSize: 12,
-              ),
-              textAlign: TextAlign.right,
-            ),
-            const SizedBox(height: 8),
-            TextFormField(
-              controller: _factsController,
-              textAlign: TextAlign.right,
-              decoration: const InputDecoration(
-                labelText: 'وقائع الدعوى',
-                border: OutlineInputBorder(),
-                hintText: 'أدخل وقائع الدعوى...',
-              ),
-              maxLines: 10,
-              maxLength: 150,
-              buildCounter: (context, {required currentLength, required isFocused, maxLength}) {
-                return const SizedBox.shrink();
-              },
-            ),
-            const SizedBox(height: 24),
-
-            // Legal Reasons and Grounds (Rich Text Editor)
-            const Divider(),
-            const SizedBox(height: 16),
-            Text(
-              'الاسباب والاسانيد القانونية',
-              style: TextStyle(
-                fontSize: MediaQuery.of(context).size.width > 600 ? 18 : 16,
-                fontWeight: FontWeight.bold,
-              ),
-              textAlign: TextAlign.right,
-            ),
-            const SizedBox(height: 8),
-            TextFormField(
-              controller: _legalReasonsController,
-              textAlign: TextAlign.right,
-              decoration: const InputDecoration(
-                labelText: 'الاسباب والاسانيد القانونية',
-                border: OutlineInputBorder(),
-                hintText: 'أدخل الأسباب والأسانيد القانونية...',
-              ),
-              maxLines: 10,
-            ),
-            const SizedBox(height: 24),
-
-            // Requests (Rich Text Editor)
-            const Divider(),
-            const SizedBox(height: 16),
-            Text(
-              'طلبات الدعوى',
-              style: TextStyle(
-                fontSize: MediaQuery.of(context).size.width > 600 ? 18 : 16,
-                fontWeight: FontWeight.bold,
-              ),
-              textAlign: TextAlign.right,
-            ),
-            const SizedBox(height: 8),
-            TextFormField(
-              controller: _requestsController,
-              textAlign: TextAlign.right,
-              decoration: const InputDecoration(
-                labelText: 'طلبات الدعوى',
-                border: OutlineInputBorder(),
-                hintText: 'أدخل طلبات الدعوى...',
-              ),
-              maxLines: 10,
-            ),
-            const SizedBox(height: 24),
-
-            // Legal Templates Section (if available)
-            if (_isLoadingTemplates)
-              const Center(child: CircularProgressIndicator())
-            else if (_templates != null && _templateKeys.isNotEmpty) ...[
-              const Divider(),
-              const SizedBox(height: 16),
-              ..._buildLegalTextFields(),
-            ],
-
-            const SizedBox(height: 24),
-
-            // Attachments Section (now available in create mode too)
-            if (!_isEditMode || widget.lawsuitId != null) ...[
-              const Divider(),
-              const SizedBox(height: 16),
-              _buildAttachmentsSection(),
-              const SizedBox(height: 16),
-            ],
-
-            // Save button
-            Consumer<LawsuitProvider>(
-              builder: (context, provider, child) {
-                return ElevatedButton.icon(
-                  onPressed: (provider.isLoading || _isLoadingTemplates) ? null : _saveLawsuit,
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    backgroundColor: Colors.green,
-                  ),
-                  icon: const Icon(Icons.save, color: Colors.white),
-                  label: provider.isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : Text(
-                          _isEditMode ? 'حفظ التغييرات' : 'حفظ جميع البيانات',
-                          style: const TextStyle(fontSize: 16, color: Colors.white),
-                        ),
-                );
-              },
+              _isEditMode ? 'حفظ التعديلات' : 'إرسال الدعوى إلكترونياً',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
           ],
         ),
       ),
     );
   }
+
+  Widget _buildPartiesSection() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    // In edit mode, we use the models loaded from the server
+    // In create mode, we use the raw data maps added locally
+    final plaintiffsToShow = _isEditMode ? _plaintiffs : _plaintiffsData;
+    final defendantsToShow = _isEditMode ? _defendants : _defendantsData;
+    
+    return Column(
+      children: [
+        _buildPartySubSection('المدعون (المطالبون)', plaintiffsToShow, true, AppColors.violet),
+        const SizedBox(height: 16),
+        _buildPartySubSection('المدعى عليهم', defendantsToShow, false, AppColors.coral),
+      ],
+    );
+  }
+
+  Widget _buildPartySubSection(String title, List<dynamic> parties, bool isPlaintiff, Color color) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(title, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: color)),
+            TextButton.icon(
+              onPressed: () {
+                if (_isEditMode) {
+                  _showAddPartyDialog(isPlaintiff: isPlaintiff);
+                } else {
+                  // In creation mode, we add a new empty map to the local data
+                  setState(() {
+                    if (isPlaintiff) {
+                      _plaintiffsData.add({'gender': 'ذكر', 'nationality': 'يمني'});
+                    } else {
+                      _defendantsData.add({'gender': 'ذكر', 'nationality': 'يمني'});
+                    }
+                  });
+                }
+              },
+              icon: Icon(Icons.add_circle_outline_rounded, size: 18, color: color),
+              label: Text('إضافة', style: TextStyle(color: color, fontSize: 13)),
+            ),
+          ],
+        ),
+        if (parties.isEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 20),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.05),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: color.withOpacity(0.1)),
+            ),
+            child: Column(
+              children: [
+                Icon(Icons.person_search_rounded, color: color.withOpacity(0.3), size: 30),
+                const SizedBox(height: 8),
+                Text('لم يتم إضافة أطراف بعد', style: TextStyle(color: isDark ? Colors.grey[500] : Colors.grey[600], fontSize: 12)),
+              ],
+            ),
+          )
+        else
+          ...parties.asMap().entries.map((entry) {
+            final party = entry.value;
+            final index = entry.key;
+            
+            if (_isEditMode && party is PartyModel) {
+              return _buildPremiumPartyItem(party, isPlaintiff, isDark);
+            } else if (!_isEditMode && party is Map<String, dynamic>) {
+              // Creation mode uses PartyInputRow for direct entry
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8.0),
+                child: PartyInputRow(
+                  data: party,
+                  index: index,
+                  isPlaintiff: isPlaintiff,
+                  onDelete: () {
+                    setState(() {
+                      if (isPlaintiff) {
+                        _plaintiffsData.removeAt(index);
+                      } else {
+                        _defendantsData.removeAt(index);
+                      }
+                    });
+                  },
+                  onChanged: () => setState(() {}),
+                ),
+              );
+            }
+            return const SizedBox.shrink();
+          }),
+      ],
+    );
+  }
+
+  Widget _buildPremiumPartyItem(PartyModel party, bool isPlaintiff, bool isDark) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface : AppColors.lightSurfaceVariant.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        leading: CircleAvatar(
+          backgroundColor: AppColors.brand.withOpacity(0.1),
+          child: Icon(Icons.person_rounded, color: AppColors.brand, size: 20),
+        ),
+        title: Text(party.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+        subtitle: Text('${party.nationality} • ${party.address}', style: const TextStyle(fontSize: 11)),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.edit_outlined, size: 18, color: Colors.blue),
+              onPressed: () => _showAddPartyDialog(isPlaintiff: isPlaintiff, party: party),
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete_outline_rounded, size: 18, color: Colors.red),
+              onPressed: () => _deleteParty(party, isPlaintiff: isPlaintiff),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
 
   List<Widget> _buildLegalTextFields() {
     if (_templates == null) return [];
@@ -1693,242 +1579,6 @@ class _LawsuitDetailScreenState extends State<LawsuitDetailScreen> {
     return widgets;
   }
 
-  Widget _buildPartiesSection() {
-    // In create mode, use local data; in edit mode, use loaded parties
-    final plaintiffsToShow = _isEditMode ? _plaintiffs : [];
-    final defendantsToShow = _isEditMode ? _defendants : [];
-    final plaintiffsDataToShow = _isEditMode ? [] : _plaintiffsData;
-    final defendantsDataToShow = _isEditMode ? [] : _defendantsData;
-    
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Plaintiffs Section
-        Text(
-          'المدعون',
-          style: TextStyle(
-            fontSize: MediaQuery.of(context).size.width > 600 ? 18 : 16,
-            fontWeight: FontWeight.bold,
-          ),
-          textAlign: TextAlign.right,
-        ),
-        const SizedBox(height: 12),
-        Card(
-          clipBehavior: Clip.antiAlias,
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minWidth: MediaQuery.of(context).size.width - 32,
-              ),
-              child: Column(
-                children: [
-                  // Table Header
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: Colors.green.shade50,
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        SizedBox(width: 60, child: Text('خيارات', textAlign: TextAlign.center, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
-                        SizedBox(width: 150, child: Text('اسم الوكيل', textAlign: TextAlign.center, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
-                        SizedBox(width: 150, child: Text('العنوان', textAlign: TextAlign.center, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
-                        SizedBox(width: 100, child: Text('رقم الهاتف', textAlign: TextAlign.center, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
-                        SizedBox(width: 80, child: Text('العمل', textAlign: TextAlign.center, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
-                        SizedBox(width: 80, child: Text('الجنس', textAlign: TextAlign.center, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
-                        SizedBox(width: 80, child: Text('الجنسية', textAlign: TextAlign.center, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
-                        SizedBox(width: 150, child: Text('اسم المدعى', textAlign: TextAlign.center, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
-                      ],
-                    ),
-                  ),
-                  // Table Rows
-                  if (_isEditMode)
-                    ...(_isLoadingParties && plaintiffsToShow.isEmpty
-                        ? [const Padding(
-                            padding: EdgeInsets.all(16.0),
-                            child: Center(child: CircularProgressIndicator()),
-                          )]
-                        : plaintiffsToShow.isEmpty
-                            ? [
-                                Padding(
-                                  padding: const EdgeInsets.all(20.0),
-                                  child: Column(
-                                    children: [
-                                      const Text('لم يتم تحديد أي مدعين لهذه الدعوى بعد', style: TextStyle(color: Colors.grey)),
-                                      const SizedBox(height: 8),
-                                      TextButton.icon(
-                                        onPressed: () => _showAddPartyDialog(isPlaintiff: true),
-                                        icon: const Icon(Icons.person_add_outlined),
-                                        label: const Text('أضف المدعي الأول الآن'),
-                                      )
-                                    ],
-                                  ),
-                                )
-                              ]
-                            : plaintiffsToShow.map((p) => PartyDisplayRow(
-                                  party: p,
-                                  isPlaintiff: true,
-                                  onEdit: () => _showAddPartyDialog(isPlaintiff: true, party: p),
-                                  onDelete: () => _deleteParty(p, isPlaintiff: true),
-                                )).toList()),
-                  if (!_isEditMode)
-                    ...plaintiffsDataToShow.asMap().entries.map((entry) {
-                      return PartyInputRow(
-                        data: entry.value,
-                        index: entry.key,
-                        isPlaintiff: true,
-                        onDelete: () {
-                          setState(() {
-                            _plaintiffsData.removeAt(entry.key);
-                          });
-                        },
-                        onChanged: () => setState(() {}),
-                      );
-                    }).toList(),
-                ],
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton.icon(
-            onPressed: () {
-              setState(() {
-                if (_isEditMode) {
-                  _showAddPartyDialog(isPlaintiff: true);
-                } else {
-                  _plaintiffsData.add({});
-                }
-              });
-            },
-            icon: const Icon(Icons.add, color: Colors.white, size: 20),
-            label: const Text('+ إضافة مدعي', style: TextStyle(color: Colors.white, fontSize: 14)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue,
-              padding: const EdgeInsets.symmetric(vertical: 12),
-            ),
-          ),
-        ),
-        const SizedBox(height: 24),
-        
-        // Defendants Section
-        Text(
-          'المدعى عليهم',
-          style: TextStyle(
-            fontSize: MediaQuery.of(context).size.width > 600 ? 18 : 16,
-            fontWeight: FontWeight.bold,
-          ),
-          textAlign: TextAlign.right,
-        ),
-        const SizedBox(height: 12),
-        Card(
-          clipBehavior: Clip.antiAlias,
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minWidth: MediaQuery.of(context).size.width - 32,
-              ),
-              child: Column(
-                children: [
-                  // Table Header
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: Colors.orange.shade50,
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        SizedBox(width: 80, child: Text('خيارات', textAlign: TextAlign.center, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
-                        SizedBox(width: 150, child: Text('اسم الوكيل', textAlign: TextAlign.center, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
-                        SizedBox(width: 150, child: Text('العنوان', textAlign: TextAlign.center, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
-                        SizedBox(width: 100, child: Text('رقم الهاتف', textAlign: TextAlign.center, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
-                        SizedBox(width: 80, child: Text('العمل', textAlign: TextAlign.center, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
-                        SizedBox(width: 80, child: Text('الجنس', textAlign: TextAlign.center, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
-                        SizedBox(width: 80, child: Text('الجنسية', textAlign: TextAlign.center, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
-                        SizedBox(width: 150, child: Text('اسم المدعى عليه', textAlign: TextAlign.center, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
-                      ],
-                    ),
-                  ),
-                  // Table Rows
-                  if (_isEditMode)
-                    ...(_isLoadingParties && defendantsToShow.isEmpty
-                        ? [const Padding(
-                            padding: EdgeInsets.all(16.0),
-                            child: Center(child: CircularProgressIndicator()),
-                          )]
-                        : defendantsToShow.isEmpty
-                            ? [
-                                Padding(
-                                  padding: const EdgeInsets.all(20.0),
-                                  child: Column(
-                                    children: [
-                                      const Text('لم يتم تحديد أي مدعى عليهم لهذه الدعوى بعد', style: TextStyle(color: Colors.grey)),
-                                      const SizedBox(height: 8),
-                                      TextButton.icon(
-                                        onPressed: () => _showAddPartyDialog(isPlaintiff: false),
-                                        icon: const Icon(Icons.person_add_outlined),
-                                        label: const Text('أضف المدعى عليه الأول الآن'),
-                                      )
-                                    ],
-                                  ),
-                                )
-                              ]
-                            : defendantsToShow.map((d) => PartyDisplayRow(
-                                  party: d,
-                                  isPlaintiff: false,
-                                  onEdit: () => _showAddPartyDialog(isPlaintiff: false, party: d),
-                                  onDelete: () => _deleteParty(d, isPlaintiff: false),
-                                )).toList()),
-                  if (!_isEditMode)
-                    ...defendantsDataToShow.asMap().entries.map((entry) {
-                      return PartyInputRow(
-                        data: entry.value,
-                        index: entry.key,
-                        isPlaintiff: false,
-                        onDelete: () {
-                          setState(() {
-                            _defendantsData.removeAt(entry.key);
-                          });
-                        },
-                        onChanged: () => setState(() {}),
-                      );
-                    }).toList(),
-                ],
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton.icon(
-            onPressed: () {
-              setState(() {
-                if (_isEditMode) {
-                  _showAddPartyDialog(isPlaintiff: false);
-                } else {
-                  _defendantsData.add({});
-                }
-              });
-            },
-            icon: const Icon(Icons.add, color: Colors.white, size: 20),
-            label: const Text('+ إضافة مدعى عليه', style: TextStyle(color: Colors.white, fontSize: 14)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue,
-              padding: const EdgeInsets.symmetric(vertical: 12),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-  
 
   Widget _buildPartyCard(PartyModel party, {required bool isPlaintiff}) {
     return ListTile(
@@ -2131,6 +1781,14 @@ class _LawsuitDetailScreenState extends State<LawsuitDetailScreen> {
     
     try {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      
+      // In creation mode, we don't have a lawsuitId yet, so we shouldn't even be here
+      // But adding a check for safety
+      if (widget.lawsuitId == null) {
+        developer.log('Warning: Attempted to save party without lawsuitId', name: 'LawsuitDetailScreen');
+        return;
+      }
+      
       final lawsuitId = widget.lawsuitId!;
       
       final partyData = {

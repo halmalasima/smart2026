@@ -58,7 +58,7 @@ class DocumentDeleteRequest(BaseModel):
     doc_id: str
 
 
-@app.get("/health/")
+@app.get("/api/ai/health/")
 async def health():
     return {"status": "ok", "service": "ai"}
 

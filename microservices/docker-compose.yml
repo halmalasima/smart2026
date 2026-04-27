@@ -43,9 +43,11 @@ services:
   # ─── Databases ───
   db-auth:
     image: postgres:16-alpine
+    ports:
+      - "5439:5432"
     environment:
       POSTGRES_DB: smartjudi_auth
-      POSTGRES_USER: smartjudi
+      POSTGRES_USER: ${DB_USER:-smartjudi}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-smartjudi_secret}
     volumes:
       - pgdata-auth:/var/lib/postgresql/data
@@ -59,9 +61,11 @@ services:
 
   db-cases:
     image: postgres:16-alpine
+    ports:
+      - "5433:5432"
     environment:
       POSTGRES_DB: smartjudi_cases
-      POSTGRES_USER: smartjudi
+      POSTGRES_USER: ${DB_USER:-smartjudi}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-smartjudi_secret}
     volumes:
       - pgdata-cases:/var/lib/postgresql/data
@@ -75,9 +79,11 @@ services:
 
   db-hearings:
     image: postgres:16-alpine
+    ports:
+      - "5434:5432"
     environment:
       POSTGRES_DB: smartjudi_hearings
-      POSTGRES_USER: smartjudi
+      POSTGRES_USER: ${DB_USER:-smartjudi}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-smartjudi_secret}
     volumes:
       - pgdata-hearings:/var/lib/postgresql/data
@@ -91,9 +97,11 @@ services:
 
   db-documents:
     image: postgres:16-alpine
+    ports:
+      - "5436:5432"
     environment:
       POSTGRES_DB: smartjudi_documents
-      POSTGRES_USER: smartjudi
+      POSTGRES_USER: ${DB_USER:-smartjudi}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-smartjudi_secret}
     volumes:
       - pgdata-documents:/var/lib/postgresql/data
@@ -107,9 +115,11 @@ services:
 
   db-legal:
     image: postgres:16-alpine
+    ports:
+      - "5435:5432"
     environment:
       POSTGRES_DB: smartjudi_legal
-      POSTGRES_USER: smartjudi
+      POSTGRES_USER: ${DB_USER:-smartjudi}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-smartjudi_secret}
     volumes:
       - pgdata-legal:/var/lib/postgresql/data
@@ -123,9 +133,11 @@ services:
 
   db-notifications:
     image: postgres:16-alpine
+    ports:
+      - "5437:5432"
     environment:
       POSTGRES_DB: smartjudi_notifications
-      POSTGRES_USER: smartjudi
+      POSTGRES_USER: ${DB_USER:-smartjudi}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-smartjudi_secret}
     volumes:
       - pgdata-notifications:/var/lib/postgresql/data
@@ -139,9 +151,11 @@ services:
 
   db-search:
     image: postgres:16-alpine
+    ports:
+      - "5438:5432"
     environment:
       POSTGRES_DB: smartjudi_search
-      POSTGRES_USER: smartjudi
+      POSTGRES_USER: ${DB_USER:-smartjudi}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-smartjudi_secret}
     volumes:
       - pgdata-search:/var/lib/postgresql/data
@@ -163,6 +177,8 @@ services:
       JWT_SECRET_KEY: ${JWT_SECRET_KEY}
       REDIS_URL: redis://redis:6379/0
       DJANGO_SETTINGS_MODULE: auth_service.settings
+      DEBUG: ${DEBUG:-0}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-*}
       INTERNAL_API_KEY: ${INTERNAL_API_KEY}
     depends_on:
       db-auth:
@@ -188,6 +204,9 @@ services:
       REDIS_URL: redis://redis:6379/0
       AUTH_SERVICE_URL: http://auth:8000
       DJANGO_SETTINGS_MODULE: cases_service.settings
+      DEBUG: ${DEBUG:-0}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-*}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:8000}
       INTERNAL_API_KEY: ${INTERNAL_API_KEY}
     depends_on:
       db-cases:
@@ -364,6 +383,13 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
+
+  portal:
+    image: nginx:alpine
+    volumes:
+      - ./citizen_portal:/usr/share/nginx/html:ro
+    networks: [smartjudi-net]
+    restart: unless-stopped
 
 volumes:
   redis-data:

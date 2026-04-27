@@ -31,7 +31,10 @@ router.register(r'payment-orders', PaymentOrderViewSet, basename='payment-order'
 router.register(r'audit-logs', AuditLogViewSet, basename='audit-log')
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    path('admin/cases/', admin.site.urls),
+    # Legacy API (Backward Compatibility)
     path('api/', include(router.urls)),
+    # Versioned API (v1)
+    path('api/v1/', include(router.urls)),
     path('health/', health_check, name='health_check'),
 ]

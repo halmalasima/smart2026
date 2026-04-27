@@ -10,7 +10,7 @@ import sys
 import argparse
 from typing import List, Dict
 
-SQL_FILE = r"f:\smart2026\yemen_legal_dataset.sql"
+SQL_FILE = r"d:\smart2026\yemen_legal_dataset.sql"
 CONTAINER = "microservices-db-legal-1"
 DB = "smartjudi_legal"
 DB_USER = "smartjudi"

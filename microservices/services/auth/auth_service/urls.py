@@ -11,10 +11,13 @@ from accounts.views import (
 )
 from .internal_views import InternalUserDetailView, InternalUserBulkView, InternalUserValidateView
 
+from django.contrib import admin
+
 router = DefaultRouter()
 router.register(r'profiles', UserProfileViewSet)
 
 urlpatterns = [
+    path('admin/auth/', admin.site.urls),
     path('health/', health_check),
 
     # Public API

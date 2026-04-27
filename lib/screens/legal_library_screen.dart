@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_theme.dart';
-import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
 import 'dart:developer' as developer;
 
-/// Legal Library Screen - المكتبة القانونية مع Full-Text Search
 class LegalLibraryScreen extends StatefulWidget {
   const LegalLibraryScreen({super.key});
 
@@ -16,531 +16,711 @@ class LegalLibraryScreen extends StatefulWidget {
   State<LegalLibraryScreen> createState() => _LegalLibraryScreenState();
 }
 
-class _LegalLibraryScreenState extends State<LegalLibraryScreen> {
+class _LegalLibraryScreenState extends State<LegalLibraryScreen> with SingleTickerProviderStateMixin {
+  late TabController _tabController;
   late ApiService _apiService;
-  bool _isLoading = false;
-  bool _isLoadingSources = false;
+  
+  // State for Law Books (PDFs)
+  List<Map<String, dynamic>> _lawBooks = [];
+  List<String> _bookCategories = [];
+  String? _selectedBookCategory;
   bool _isLoadingBooks = false;
-  bool _isLoadingChapters = false;
+  
+  // State for Articles (Searchable)
   List<Map<String, dynamic>> _articles = [];
   List<Map<String, dynamic>> _sources = [];
-  List<Map<String, dynamic>> _books = [];
-  List<Map<String, dynamic>> _chapters = [];
-  
-  // Search & Filter
-  final TextEditingController _searchController = TextEditingController();
   String? _selectedSource;
-  String? _selectedBook;
-  String? _selectedChapter;
+  bool _isLoadingArticles = false;
   
-  // Pagination
-  int _currentPage = 1;
-  int _totalCount = 0;
-  bool _hasMore = true;
-  
-  // Stats
-  Map<String, dynamic>? _stats;
+  final TextEditingController _searchController = TextEditingController();
+  int _articlePage = 1;
+  bool _hasMoreArticles = true;
+  int _totalArticles = 0;
+  String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(() {
+      if (!_tabController.indexIsChanging) {
+        setState(() {});
+      }
+    });
+    
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _apiService = Provider.of<AuthProvider>(context, listen: false).apiService;
-      _loadSources();
-      _loadBooks();
-      _loadChapters();
-      _loadStats();
-      _searchArticles();
+      _initialLoad();
     });
+  }
+
+  void _initialLoad() {
+    _loadBooks();
+    _loadBookCategories();
+    _loadSources();
+    _searchArticles();
   }
 
   @override
   void dispose() {
+    _tabController.dispose();
     _searchController.dispose();
     super.dispose();
   }
 
+  // --- Law Books Logic ---
+  Future<void> _loadBooks() async {
+    if (!mounted) return;
+    setState(() {
+      _isLoadingBooks = true;
+      _errorMessage = null;
+    });
+    try {
+      final response = await _apiService.getLawBooks(
+        searchQuery: _tabController.index == 0 ? _searchController.text : null,
+        category: _selectedBookCategory,
+      );
+      final results = response['results'] as List? ?? [];
+      if (mounted) {
+        setState(() {
+          _lawBooks = List<Map<String, dynamic>>.from(results);
+          if (_lawBooks.isEmpty) {
+            _errorMessage = 'لا توجد مراجع قانونية متاحة حالياً';
+          }
+        });
+      }
+    } catch (e) {
+      developer.log('Error loading law books: $e');
+      if (mounted) {
+        setState(() => _errorMessage = 'تعذر الاتصال بالخادم. يرجى التحقق من الاتصال.');
+      }
+    } finally {
+      if (mounted) setState(() => _isLoadingBooks = false);
+    }
+  }
+
+  Future<void> _loadBookCategories() async {
+    try {
+      final response = await _apiService.getLawBookCategories();
+      final cats = response['categories'] as List? ?? [];
+      if (mounted) {
+        setState(() {
+          _bookCategories = cats.map((c) => c['category'].toString()).toList();
+        });
+      }
+    } catch (e) {
+      developer.log('Error loading categories: $e');
+    }
+  }
+
+  // --- Articles Logic ---
   Future<void> _loadSources() async {
-    setState(() => _isLoadingSources = true);
     try {
       final response = await _apiService.getLegalLibrarySources();
-      // Handle nested response: {success: true, data: {sources: [...]}}
       final data = response['data'] ?? response;
-      if (data['sources'] != null) {
+      if (data['sources'] != null && mounted) {
         setState(() {
           _sources = List<Map<String, dynamic>>.from(data['sources']);
         });
       }
     } catch (e) {
-      developer.log('Error loading sources: $e', name: 'LegalLibraryScreen');
-    } finally {
-      setState(() => _isLoadingSources = false);
-    }
-  }
-
-  Future<void> _loadBooks() async {
-    setState(() => _isLoadingBooks = true);
-    try {
-      final response = await _apiService.getLegalLibraryBooks(source: _selectedSource);
-      final data = response['data'] ?? response;
-      if (data['books'] != null) {
-        setState(() {
-          _books = List<Map<String, dynamic>>.from(data['books']);
-        });
-      }
-    } catch (e) {
-      developer.log('Error loading books: $e', name: 'LegalLibraryScreen');
-    } finally {
-      setState(() => _isLoadingBooks = false);
-    }
-  }
-
-  Future<void> _loadChapters() async {
-    setState(() => _isLoadingChapters = true);
-    try {
-      final response = await _apiService.getLegalLibraryChapters(
-        source: _selectedSource,
-        book: _selectedBook,
-      );
-      final data = response['data'] ?? response;
-      if (data['chapters'] != null) {
-        setState(() {
-          _chapters = List<Map<String, dynamic>>.from(data['chapters']);
-        });
-      }
-    } catch (e) {
-      developer.log('Error loading chapters: $e', name: 'LegalLibraryScreen');
-    } finally {
-      setState(() => _isLoadingChapters = false);
-    }
-  }
-
-  Future<void> _loadStats() async {
-    try {
-      final response = await _apiService.getLegalLibraryStats();
-      // Handle nested response
-      final data = response['data'] ?? response;
-      setState(() => _stats = data);
-    } catch (e) {
-      developer.log('Error loading stats: $e', name: 'LegalLibraryScreen');
+      developer.log('Error loading sources: $e');
     }
   }
 
   Future<void> _searchArticles({bool loadMore = false}) async {
-    if (_isLoading) return;
-    
-    setState(() => _isLoading = true);
-    
+    if (_isLoadingArticles) return;
+    if (mounted) setState(() => _isLoadingArticles = true);
     try {
       final response = await _apiService.getLegalLibrary(
-        searchQuery: _searchController.text.trim(),
+        searchQuery: _tabController.index == 1 ? _searchController.text : null,
         source: _selectedSource,
-        book: _selectedBook,
-        chapter: _selectedChapter,
-        page: loadMore ? _currentPage + 1 : 1,
+        page: loadMore ? _articlePage + 1 : 1,
       );
-      
-      // Handle nested response structure: {success: true, data: {count, results}}
       final data = response['data'] ?? response;
-      final results = data['results'] as List?;
+      final results = data['results'] as List? ?? [];
       final count = data['count'] as int? ?? 0;
       
-      developer.log('Parsed results count: ${results?.length ?? 0}, total: $count', name: 'LegalLibraryScreen');
-      
-      setState(() {
-        if (loadMore) {
-          _articles.addAll(List<Map<String, dynamic>>.from(results ?? []));
-          _currentPage++;
-        } else {
-          _articles = List<Map<String, dynamic>>.from(results ?? []);
-          _currentPage = 1;
-        }
-        _totalCount = count;
-        _hasMore = _articles.length < _totalCount;
-      });
-    } catch (e) {
-      developer.log('Error searching articles: $e', name: 'LegalLibraryScreen');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('خطأ في البحث: ${e.toString()}')),
-        );
+        setState(() {
+          if (loadMore) {
+            _articles.addAll(List<Map<String, dynamic>>.from(results));
+            _articlePage++;
+          } else {
+            _articles = List<Map<String, dynamic>>.from(results);
+            _articlePage = 1;
+          }
+          _totalArticles = count;
+          _hasMoreArticles = _articles.length < _totalArticles;
+        });
       }
+    } catch (e) {
+      developer.log('Error searching articles: $e');
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoadingArticles = false);
     }
   }
 
-  void _clearFilters() {
-    setState(() {
-      _searchController.clear();
-      _selectedSource = null;
-      _selectedBook = null;
-      _selectedChapter = null;
-    });
-    _searchArticles();
+  void _onSearch() {
+    if (_tabController.index == 0) {
+      _loadBooks();
+    } else {
+      _searchArticles();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.lightBackground,
-      resizeToAvoidBottomInset: true,
-      appBar: AppBar(
-        title: const Text('المكتبة القانونية', style: TextStyle(fontFamily: 'Cairo')),
-        backgroundColor: AppColors.brand,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.filter_list),
-            onPressed: () => _showFilterSheet(context),
-            tooltip: 'فلترة',
-          ),
-          IconButton(
-            icon: const Icon(Icons.bar_chart),
-            onPressed: () => _showStatsDialog(context),
-            tooltip: 'إحصائيات',
-          ),
-        ],
-      ),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          // Detect keyboard by available height (compact when < 400)
-          final isCompact = constraints.maxHeight < 400;
-
-          return Column(
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        backgroundColor: isDark ? AppColors.darkBackground : const Color(0xFFF4F7F6),
+        body: NestedScrollView(
+          headerSliverBuilder: (context, innerBoxIsScrolled) {
+            return [
+              _buildSliverAppBar(isDark),
+              _buildPersistentHeader(isDark),
+            ];
+          },
+          body: TabBarView(
+            controller: _tabController,
             children: [
-              // Search Header
-              Container(
-                padding: EdgeInsets.fromLTRB(16, isCompact ? 8 : 16, 16, isCompact ? 8 : 16),
-                decoration: BoxDecoration(
-                  color: AppColors.brand,
-                  borderRadius: const BorderRadius.only(
-                    bottomLeft: Radius.circular(24),
-                    bottomRight: Radius.circular(24),
-                  ),
-                  boxShadow: isCompact ? null : [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
+              _buildBooksTab(isDark),
+              _buildArticlesTab(isDark),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSliverAppBar(bool isDark) {
+    return SliverAppBar(
+      expandedHeight: 180,
+      pinned: true,
+      stretch: true,
+      backgroundColor: AppColors.brand,
+      elevation: 0,
+      flexibleSpace: FlexibleSpaceBar(
+        centerTitle: true,
+        title: const Text(
+          'المكتبة القانونية الذكية',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+            fontFamily: 'Cairo',
+          ),
+        ),
+        background: Stack(
+          fit: StackFit.expand,
+          children: [
+            Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topRight,
+                  end: Alignment.bottomLeft,
+                  colors: [AppColors.brand, Color(0xFF1E5F3B)],
                 ),
+              ),
+            ),
+            Positioned(
+              right: -30,
+              top: -30,
+              child: Icon(
+                Icons.account_balance_outlined,
+                size: 180,
+                color: Colors.white.withOpacity(0.08),
+              ),
+            ),
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 40),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Search Bar - always visible
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: TextField(
-                        controller: _searchController,
-                        textDirection: TextDirection.rtl,
-                        decoration: InputDecoration(
-                          hintText: 'ابحث في نص المادة أو رقمها...',
-                          hintStyle: const TextStyle(fontFamily: 'Cairo', color: Colors.grey),
-                          prefixIcon: const Icon(Icons.search, color: AppColors.brand),
-                          suffixIcon: _searchController.text.isNotEmpty
-                              ? IconButton(
-                                  icon: const Icon(Icons.clear),
-                                  onPressed: () {
-                                    _searchController.clear();
-                                    _searchArticles();
-                                  },
-                                )
-                              : IconButton(
-                                  icon: const Icon(Icons.search, color: AppColors.brand),
-                                  onPressed: () => _searchArticles(),
-                                ),
-                          border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                        ),
-                        onSubmitted: (_) => _searchArticles(),
-                        onChanged: (value) {
-                          setState(() {});
-                        },
-                      ),
+                    const Icon(Icons.menu_book_rounded, size: 48, color: Colors.white)
+                        .animate()
+                        .fadeIn(duration: 600.ms)
+                        .scale(delay: 200.ms),
+                    const SizedBox(height: 8),
+                    Text(
+                      'أكبر مرجع للتشريعات والقوانين اليمنية',
+                      style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 12),
                     ),
-                    // Hide extra elements when keyboard is visible (compact mode)
-                    if (!isCompact) ...[
-                      const SizedBox(height: 12),
-                      // Search Suggestions
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: [
-                            const Text('كلمات شائعة:', style: TextStyle(color: Colors.white70, fontSize: 13, fontFamily: 'Cairo')),
-                            const SizedBox(width: 8),
-                            ...['أحوال شخصية', 'مرافعات', 'إيجارات', 'غرامة', 'نفقة', 'عقد'].map((suggestion) {
-                              return Padding(
-                                padding: const EdgeInsets.only(right: 8.0),
-                                child: InkWell(
-                                  borderRadius: BorderRadius.circular(16),
-                                  onTap: () {
-                                    _searchController.text = suggestion;
-                                    _searchArticles();
-                                  },
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withOpacity(0.15),
-                                      borderRadius: BorderRadius.circular(16),
-                                      border: Border.all(color: Colors.white30),
-                                    ),
-                                    child: Text(
-                                      suggestion,
-                                      style: const TextStyle(fontSize: 12, fontFamily: 'Cairo', color: Colors.white),
-                                    ),
-                                  ),
-                                ),
-                              );
-                            }),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      const SizedBox(height: 8),
-                      // Search Button
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: () => _searchArticles(),
-                          icon: const Icon(Icons.search),
-                          label: const Text('بحث', style: TextStyle(fontFamily: 'Cairo', fontSize: 16)),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.gold,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      // Browser Options
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              onPressed: () => _showSourcesBrowser(context),
-                              icon: const Icon(Icons.account_balance),
-                              label: const Text('تصفح المصادر القانونية', style: TextStyle(fontFamily: 'Cairo')),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: Colors.white,
-                                side: const BorderSide(color: Colors.white54),
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      // Active Filters
-                      if (_selectedSource != null || _selectedBook != null || _selectedChapter != null)
-                        SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Row(
-                            children: [
-                              if (_selectedSource != null)
-                                _buildFilterChip(_selectedSource!, () {
-                                  setState(() => _selectedSource = null);
-                                  _searchArticles();
-                                }),
-                              if (_selectedBook != null)
-                                _buildFilterChip(_selectedBook!, () {
-                                  setState(() => _selectedBook = null);
-                                  _searchArticles();
-                                }),
-                              if (_selectedChapter != null)
-                                _buildFilterChip(_selectedChapter!, () {
-                                  setState(() => _selectedChapter = null);
-                                  _searchArticles();
-                                }),
-                              const SizedBox(width: 8),
-                              TextButton.icon(
-                                onPressed: _clearFilters,
-                                icon: const Icon(Icons.clear_all, color: Colors.white70, size: 18),
-                                label: const Text('مسح الكل', style: TextStyle(color: Colors.white70, fontFamily: 'Cairo')),
-                              ),
-                            ],
-                          ),
-                        ),
-                      // Results Count
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8),
-                        child: Text(
-                          'عدد النتائج: $_totalCount مادة',
-                          style: const TextStyle(color: Colors.white70, fontFamily: 'Cairo'),
-                        ),
-                      ),
-                    ],
                   ],
                 ),
               ),
-              
-              // Results List
-              Expanded(
-                child: _isLoading && _articles.isEmpty
-                    ? const Center(child: CircularProgressIndicator())
-                    : _articles.isEmpty
-                        ? _buildEmptyState()
-                        : NotificationListener<ScrollNotification>(
-                            onNotification: (notification) {
-                              if (notification is ScrollEndNotification &&
-                                  notification.metrics.extentAfter < 200 &&
-                                  _hasMore &&
-                                  !_isLoading) {
-                                _searchArticles(loadMore: true);
-                              }
-                              return false;
-                            },
-                            child: ListView.builder(
-                              padding: const EdgeInsets.all(16),
-                              itemCount: _articles.length + (_hasMore ? 1 : 0),
-                              itemBuilder: (context, index) {
-                                if (index >= _articles.length) {
-                                  return const Center(
-                                    child: Padding(
-                                      padding: EdgeInsets.all(16),
-                                      child: CircularProgressIndicator(),
-                                    ),
-                                  );
-                                }
-                                return _buildArticleCard(_articles[index]);
-                              },
-                            ),
-                          ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPersistentHeader(bool isDark) {
+    return SliverPersistentHeader(
+      pinned: true,
+      delegate: _SliverHeaderDelegate(
+        child: Container(
+          color: isDark ? AppColors.darkBackground : const Color(0xFFF4F7F6),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Search Bar
+              SizedBox(
+                height: 48,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: isDark ? AppColors.darkSurface : Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.04),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                child: TextField(
+                  controller: _searchController,
+                  textAlign: TextAlign.right,
+                  decoration: InputDecoration(
+                    hintText: _tabController.index == 0 ? 'ابحث في الكتب والتشريعات...' : 'ابحث في نصوص المواد والمواد...',
+                    prefixIcon: const Icon(Icons.search, color: AppColors.brand),
+                    suffixIcon: _searchController.text.isNotEmpty 
+                      ? IconButton(icon: const Icon(Icons.clear, size: 18), onPressed: () {
+                          _searchController.clear();
+                          _onSearch();
+                        })
+                      : null,
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  ),
+                  onSubmitted: (_) => _onSearch(),
+                ),
+              ),
+              ),
+              const SizedBox(height: 12),
+              // Tab Switcher
+              Container(
+                height: 44,
+                decoration: BoxDecoration(
+                  color: isDark ? AppColors.darkSurfaceVariant : Colors.grey[200],
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: TabBar(
+                  controller: _tabController,
+                  indicator: BoxDecoration(
+                    color: AppColors.brand,
+                    borderRadius: BorderRadius.circular(8),
+                    boxShadow: [
+                      BoxShadow(color: AppColors.brand.withOpacity(0.3), blurRadius: 4, offset: const Offset(0, 2)),
+                    ],
+                  ),
+                  labelColor: Colors.white,
+                  unselectedLabelColor: isDark ? Colors.white54 : Colors.black54,
+                  labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, fontFamily: 'Cairo'),
+                  indicatorSize: TabBarIndicatorSize.tab,
+                  tabs: const [
+                    Tab(text: 'التشريعات والكتب'),
+                    Tab(text: 'البحث في المواد'),
+                  ],
+                ),
               ),
             ],
+          ),
+        ),
+        minHeight: 128,
+        maxHeight: 128,
+      ),
+    );
+  }
+
+  Widget _buildBooksTab(bool isDark) {
+    return Column(
+      children: [
+        _buildCategoryChips(isDark),
+        Expanded(
+          child: _isLoadingBooks && _lawBooks.isEmpty
+            ? _buildLoadingState()
+            : _errorMessage != null && _lawBooks.isEmpty
+              ? _buildErrorState()
+              : _lawBooks.isEmpty
+                ? _buildEmptyState('لم يتم العثور على تشريعات', Icons.search_off)
+                : RefreshIndicator(
+                    onRefresh: _loadBooks,
+                    color: AppColors.brand,
+                    child: GridView.builder(
+                      padding: const EdgeInsets.all(16),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        childAspectRatio: 0.72,
+                        crossAxisSpacing: 16,
+                        mainAxisSpacing: 16,
+                      ),
+                      itemCount: _lawBooks.length,
+                      itemBuilder: (context, index) => _buildBookCard(_lawBooks[index], index, isDark),
+                    ),
+                  ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCategoryChips(bool isDark) {
+    return Container(
+      height: 40,
+      margin: const EdgeInsets.only(top: 8),
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        reverse: true,
+        itemCount: _bookCategories.length + 1,
+        itemBuilder: (context, index) {
+          final cat = index == 0 ? null : _bookCategories[index - 1];
+          final isSelected = _selectedBookCategory == cat;
+          return Padding(
+            padding: const EdgeInsets.only(left: 8),
+            child: ChoiceChip(
+              label: Text(cat ?? 'الكل', style: TextStyle(fontSize: 11, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
+              selected: isSelected,
+              onSelected: (val) {
+                setState(() => _selectedBookCategory = val ? cat : null);
+                _loadBooks();
+              },
+              selectedColor: AppColors.brand.withOpacity(0.15),
+              labelStyle: TextStyle(color: isSelected ? AppColors.brand : (isDark ? Colors.white70 : Colors.black54)),
+              backgroundColor: isDark ? AppColors.darkSurface : Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: BorderSide(color: isSelected ? AppColors.brand : Colors.transparent)),
+              showCheckmark: false,
+            ),
           );
         },
       ),
     );
   }
 
-  Widget _buildFilterChip(String label, VoidCallback onRemove) {
+  Widget _buildBookCard(Map<String, dynamic> book, int index, bool isDark) {
+    final category = book['category'] ?? 'عام';
+    final color = _getCategoryColor(category);
+    
     return Container(
-      margin: const EdgeInsets.only(right: 8),
-      child: Chip(
-        label: Text(
-          label.length > 20 ? '${label.substring(0, 20)}...' : label,
-          style: const TextStyle(
-            color: Color(0xFF1B5E3B),
-            fontSize: 12,
-            fontFamily: 'Cairo',
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        backgroundColor: Colors.white,
-        side: BorderSide(color: AppColors.gold.withOpacity(0.3), width: 1.5),
-        deleteIcon: const Icon(Icons.close, size: 18, color: AppColors.gold),
-        onDeleted: onRemove,
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        elevation: 2,
-      ),
-    );
-  }
-
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.search_off, size: 80, color: Colors.grey[400]),
-          const SizedBox(height: 16),
-          Text(
-            'لا توجد نتائج',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey[600],
-              fontFamily: 'Cairo',
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'جرب البحث بكلمات مختلفة أو قم بإزالة بعض الفلاتر',
-            style: TextStyle(color: Colors.grey[500], fontFamily: 'Cairo'),
-            textAlign: TextAlign.center,
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () => _showBookDetails(book),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Cover Area
+            Expanded(
+              flex: 4,
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [color, color.withOpacity(0.7)],
+                  ),
+                ),
+                child: Stack(
+                  children: [
+                    Positioned(
+                      right: -10,
+                      bottom: -10,
+                      child: Icon(Icons.menu_book, size: 80, color: Colors.white.withOpacity(0.15)),
+                    ),
+                    Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.gavel_rounded, color: Colors.white, size: 32),
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              category,
+                              style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            // Details Area
+            Expanded(
+              flex: 3,
+              child: Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      book['title'] ?? 'عنوان غير متوفر',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.right,
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, height: 1.3),
+                    ),
+                    const Spacer(),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Icon(Icons.picture_as_pdf, color: Colors.red, size: 16),
+                        Text(
+                          'تصفح الآن',
+                          style: TextStyle(color: AppColors.brand, fontSize: 10, fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ).animate().fadeIn(delay: (index % 6 * 100).ms).scale(begin: const Offset(0.95, 0.95));
+  }
+
+  Widget _buildArticlesTab(bool isDark) {
+    return Column(
+      children: [
+        _buildArticleFilter(isDark),
+        Expanded(
+          child: _isLoadingArticles && _articles.isEmpty
+            ? _buildLoadingState()
+            : _articles.isEmpty
+              ? _buildEmptyState('لا توجد مواد تطابق بحثك', Icons.manage_search)
+              : RefreshIndicator(
+                  onRefresh: _searchArticles,
+                  color: AppColors.brand,
+                  child: ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: _articles.length + (_hasMoreArticles ? 1 : 0),
+                    itemBuilder: (context, index) {
+                      if (index >= _articles.length) {
+                        return Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: CircularProgressIndicator(color: AppColors.brand, strokeWidth: 2),
+                          ),
+                        );
+                      }
+                      return _buildArticleCard(_articles[index], index, isDark);
+                    },
+                  ),
+                ),
+        ),
+      ],
     );
   }
 
-  Widget _buildArticleCard(Map<String, dynamic> article) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () => _showArticleDetails(article),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: AppColors.brand.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      'مادة ${article['article_number'] ?? ''}',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.brand,
-                        fontFamily: 'Cairo',
-                      ),
-                    ),
-                  ),
-                  const Spacer(),
-                  Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey[400]),
-                ],
-              ),
-              const SizedBox(height: 8),
-              // Source Info
-              Text(
-                article['source_title'] ?? '',
-                style: const TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
-                  color: Color(0xFF424242),
-                  fontFamily: 'Cairo',
-                ),
-              ),
-              if (article['chapter_title'] != null && article['chapter_title'].toString().isNotEmpty)
-                Text(
-                  article['chapter_title'],
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600], fontFamily: 'Cairo'),
-                ),
-              const SizedBox(height: 8),
-              // Article Text Preview
-              Text(
-                article['article_text_preview'] ?? article['article_text'] ?? '',
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: Colors.grey[700], height: 1.5, fontFamily: 'Cairo'),
-              ),
+  Widget _buildArticleFilter(bool isDark) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      child: Container(
+        height: 50,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.darkSurface : Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.grey.withOpacity(0.1)),
+        ),
+        child: DropdownButtonHideUnderline(
+          child: DropdownButton<String>(
+            value: _selectedSource,
+            hint: const Text('تصفية حسب القانون/المرجع', style: TextStyle(fontSize: 13)),
+            isExpanded: true,
+            icon: const Icon(Icons.filter_list_rounded, color: AppColors.brand),
+            items: [
+              const DropdownMenuItem(value: null, child: Text('جميع المراجع القانونية')),
+              ..._sources.map((s) => DropdownMenuItem(
+                value: s['source_title'].toString(),
+                child: Text(s['source_title'].toString(), style: const TextStyle(fontSize: 13)),
+              )),
             ],
+            onChanged: (val) {
+              setState(() => _selectedSource = val);
+              _searchArticles();
+            },
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildArticleCard(Map<String, dynamic> article, int index, bool isDark) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface : Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 4, offset: const Offset(0, 2)),
+        ],
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.brand.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                'مادة ${article['article_number'] ?? '0'}',
+                style: const TextStyle(color: AppColors.brand, fontWeight: FontWeight.bold, fontSize: 11),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                article['source_title'] ?? '',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: Text(
+            article['article_text_preview'] ?? article['article_text'] ?? 'لا يوجد نص متاح',
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(color: Colors.grey[600], fontSize: 12, height: 1.5),
+            textAlign: TextAlign.right,
+          ),
+        ),
+        onTap: () => _showArticleDetails(article),
+      ),
+    ).animate().fadeIn(delay: (index % 10 * 80).ms).slideX(begin: 0.1);
+  }
+
+  void _showBookDetails(Map<String, dynamic> book) {
+    final category = book['category'] ?? 'عام';
+    final color = _getCategoryColor(category);
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => Container(
+        padding: const EdgeInsets.fromLTRB(20, 10, 20, 30),
+        decoration: BoxDecoration(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(10))),
+            const SizedBox(height: 20),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        book['title'] ?? '',
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, height: 1.4),
+                        textAlign: TextAlign.right,
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                        child: Text(category, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 12)),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Container(
+                  width: 80,
+                  height: 110,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(colors: [color, color.withOpacity(0.8)]),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [BoxShadow(color: color.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))],
+                  ),
+                  child: const Icon(Icons.menu_book_rounded, color: Colors.white, size: 40),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            _buildInfoTile(Icons.info_outline, 'معلومات إضافية', book['description'] ?? 'لا يوجد وصف متاح لهذا المرجع.'),
+            _buildInfoTile(Icons.history, 'تاريخ الإصدار', book['issue_year']?.toString() ?? 'غير محدد'),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => _launchURL(book['pdf_url']),
+                    icon: const Icon(Icons.file_download_outlined, color: Colors.white),
+                    label: const Text('تحميل المرجع (PDF)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.brand,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoTile(IconData icon, String title, String content) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 20, color: AppColors.brand),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.grey)),
+                const SizedBox(height: 4),
+                Text(content, style: const TextStyle(fontSize: 14, height: 1.5)),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -550,685 +730,164 @@ class _LegalLibraryScreenState extends State<LegalLibraryScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => _ArticleDetailsSheet(
-        article: article,
-        apiService: _apiService,
-      ),
-    );
-  }
-
-  Widget _buildDetailRow(String label, String? value) {
-    if (value == null || value.isEmpty) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 80,
-            child: Text(
-              '$label:',
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                color: Colors.grey[600],
-                fontFamily: 'Cairo',
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(value, style: const TextStyle(fontFamily: 'Cairo')),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showFilterSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => StatefulBuilder(
-        builder: (context, setSheetState) => Container(
-          padding: const EdgeInsets.all(24),
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(context).size.height * 0.7,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Text(
-                    'فلترة النتائج',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      fontFamily: 'Cairo',
-                    ),
-                  ),
-                  const Spacer(),
-                  TextButton(
-                    onPressed: () {
-                      _clearFilters();
-                      Navigator.pop(context);
-                    },
-                    child: const Text('مسح الكل', style: TextStyle(fontFamily: 'Cairo')),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                'اختر المصدر القانوني',
-                style: TextStyle(fontWeight: FontWeight.w600, fontFamily: 'Cairo'),
-              ),
-              const SizedBox(height: 8),
-              _isLoadingSources
-                  ? const Center(child: CircularProgressIndicator())
-                  : DropdownButtonFormField<String>(
-                      value: _selectedSource,
-                      decoration: InputDecoration(
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      ),
-                      hint: const Text('جميع المصادر', style: TextStyle(fontFamily: 'Cairo')),
-                      isExpanded: true,
-                      items: _sources.map<DropdownMenuItem<String>>((source) {
-                        final title = source['source_title']?.toString() ?? '';
-                        final count = source['articles_count'] ?? 0;
-                        return DropdownMenuItem<String>(
-                          value: title,
-                          child: Text(
-                            '$title ($count)',
-                            style: const TextStyle(fontFamily: 'Cairo'),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        );
-                      }).toList(),
-                      onChanged: (value) async {
-                        // Update Source
-                        setSheetState(() => _selectedSource = value);
-                        setState(() => _selectedSource = value);
-                        
-                        // Reset dependent filters
-                        setSheetState(() {
-                          _selectedBook = null;
-                          _selectedChapter = null;
-                        });
-                        setState(() {
-                          _selectedBook = null;
-                          _selectedChapter = null;
-                        });
-
-                        // Loading Indicators
-                        setSheetState(() {
-                          _isLoadingBooks = true;
-                          _isLoadingChapters = true;
-                        });
-
-                        // Reload Books and Chapters
-                        await Future.wait([_loadBooks(), _loadChapters()]);
-                        
-                        // Refresh sheet
-                        if (context.mounted) {
-                          setSheetState(() {
-                            _isLoadingBooks = false;
-                            _isLoadingChapters = false;
-                          });
-                        }
-                      },
-                    ),
-              const SizedBox(height: 16),
-              
-              // Books Filter
-              const Text(
-                'اختر الكتاب',
-                style: TextStyle(fontWeight: FontWeight.w600, fontFamily: 'Cairo'),
-              ),
-              const SizedBox(height: 8),
-              _isLoadingBooks
-                  ? const Center(child: CircularProgressIndicator())
-                  : DropdownButtonFormField<String>(
-                      value: _selectedBook,
-                      decoration: InputDecoration(
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      ),
-                      hint: const Text('جميع الكتب', style: TextStyle(fontFamily: 'Cairo')),
-                      isExpanded: true,
-                      items: _books.map<DropdownMenuItem<String>>((book) {
-                        final title = book['book_title']?.toString() ?? '';
-                        final count = book['articles_count'] ?? 0;
-                        return DropdownMenuItem<String>(
-                          value: title,
-                          child: Text(
-                            '$title ($count)',
-                            style: const TextStyle(fontFamily: 'Cairo'),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        );
-                      }).toList(),
-                      onChanged: (value) async {
-                        setSheetState(() => _selectedBook = value);
-                        setState(() => _selectedBook = value);
-
-                         // Reset dependent filters
-                        setSheetState(() {
-                          _selectedChapter = null;
-                        });
-                        setState(() {
-                          _selectedChapter = null;
-                        });
-
-                        // Reload Chapters
-                         setSheetState(() {
-                          _isLoadingChapters = true;
-                        });
-                        
-                        await _loadChapters();
-                        
-                         if (context.mounted) {
-                          setSheetState(() {
-                            _isLoadingChapters = false;
-                          });
-                        }
-                      },
-                    ),
-              const SizedBox(height: 16),
-
-              // Chapters Filter
-              const Text(
-                'اختر الفصل/الباب',
-                style: TextStyle(fontWeight: FontWeight.w600, fontFamily: 'Cairo'),
-              ),
-              const SizedBox(height: 8),
-              _isLoadingChapters
-                  ? const Center(child: CircularProgressIndicator())
-                  : DropdownButtonFormField<String>(
-                      value: _selectedChapter,
-                      decoration: InputDecoration(
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      ),
-                      hint: const Text('جميع الفصول', style: TextStyle(fontFamily: 'Cairo')),
-                      isExpanded: true,
-                      items: _chapters.map<DropdownMenuItem<String>>((chapter) {
-                        final title = chapter['chapter_title']?.toString() ?? '';
-                        final count = chapter['articles_count'] ?? 0;
-                        return DropdownMenuItem<String>(
-                          value: title,
-                          child: Text(
-                            '$title ($count)',
-                            style: const TextStyle(fontFamily: 'Cairo'),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        setSheetState(() => _selectedChapter = value);
-                        setState(() => _selectedChapter = value);
-                      },
-                    ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    _searchArticles();
-                    Navigator.pop(context);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.brand,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: const Text(
-                    'تطبيق الفلتر',
-                    style: TextStyle(fontSize: 16, fontFamily: 'Cairo', color: Colors.white),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _showSourcesBrowser(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.8,
-        minChildSize: 0.5,
+        initialChildSize: 0.75,
         maxChildSize: 0.95,
+        minChildSize: 0.5,
         builder: (context, scrollController) => Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          decoration: BoxDecoration(
+            color: Theme.of(context).scaffoldBackgroundColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
           ),
+          padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
           child: Column(
             children: [
-              // Handle
-              Container(
-                margin: const EdgeInsets.only(top: 12),
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              // Header
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    const Icon(Icons.account_balance, color: AppColors.brand),
-                    const SizedBox(width: 12),
-                    const Text(
-                      'المصادر القانونية',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        fontFamily: 'Cairo',
-                      ),
-                    ),
-                    const Spacer(),
-                    IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ],
-                ),
+              Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 20), decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(10))),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close)),
+                  const Text('تفاصيل المادة القانونية', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  const SizedBox(width: 48),
+                ],
               ),
               const Divider(),
-              // Content
               Expanded(
-                child: _isLoadingSources
-                    ? const Center(child: CircularProgressIndicator())
-                    : _sources.isEmpty
-                        ? const Center(
-                            child: Text(
-                              'لا توجد مصادر متاحة',
-                              style: TextStyle(fontFamily: 'Cairo'),
-                            ),
-                          )
-                        : ListView.separated(
-                            controller: scrollController,
-                            padding: const EdgeInsets.all(16),
-                            itemCount: _sources.length,
-                            separatorBuilder: (context, index) => const Divider(),
-                            itemBuilder: (context, index) {
-                              final source = _sources[index];
-                              final title = source['source_title']?.toString() ?? '';
-                              final count = source['articles_count'] ?? 0;
-                              final isSelected = _selectedSource == title;
-                              
-                              return ListTile(
-                                onTap: () {
-                                  setState(() {
-                                    _selectedSource = title;
-                                    _selectedBook = null;
-                                    _selectedChapter = null;
-                                  });
-                                  Navigator.pop(context);
-                                  // Reload books and chapters based on new source
-                                  _loadBooks();
-                                  _loadChapters();
-                                  _searchArticles(); 
-                                },
-                                title: Text(
-                                  title,
-                                  style: TextStyle(
-                                    fontFamily: 'Cairo',
-                                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                                    color: isSelected ? const Color(0xFF1B5E3B) : Colors.black87,
-                                  ),
-                                ),
-                                trailing: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: Colors.grey[100],
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: Text(
-                                        '$count مادة',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.grey[600],
-                                          fontFamily: 'Cairo',
-                                        ),
-                                      ),
-                                    ),
-                                    if (isSelected) ...[
-                                      const SizedBox(width: 8),
-                                      const Icon(Icons.check_circle, color: Color(0xFF1B5E3B)),
-                                    ],
-                                  ],
-                                ),
-                              );
-                            },
-                          ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _showStatsDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            const Icon(Icons.bar_chart, color: Color(0xFF1B5E3B)),
-            const SizedBox(width: 8),
-            const Text('إحصائيات المكتبة', style: TextStyle(fontFamily: 'Cairo')),
-          ],
-        ),
-        content: _stats == null
-            ? const Center(child: CircularProgressIndicator())
-            : Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _buildStatCard(
-                    'إجمالي المواد',
-                    '${_stats!['total_articles'] ?? 0}',
-                    Icons.article,
-                  ),
-                  const SizedBox(height: 12),
-                  _buildStatCard(
-                    'عدد المصادر',
-                    '${_stats!['total_sources'] ?? 0}',
-                    Icons.source,
-                  ),
-                  const SizedBox(height: 16),
-                  const Divider(),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'أكبر المصادر',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Cairo'),
-                  ),
-                  const SizedBox(height: 8),
-                  ...(_stats!['top_sources'] as List? ?? []).take(5).map((source) => Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            source['source_title'] ?? '',
-                            style: const TextStyle(fontSize: 12, fontFamily: 'Cairo'),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        Text(
-                          '${source['count']} مادة',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[600],
-                            fontFamily: 'Cairo',
-                          ),
-                        ),
-                      ],
-                    ),
-                  )),
-                ],
-              ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('إغلاق', style: TextStyle(fontFamily: 'Cairo')),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatCard(String label, String value, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1B5E3B).withOpacity(0.05),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: const Color(0xFF1B5E3B), size: 28),
-          const SizedBox(width: 16),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: TextStyle(color: Colors.grey[600], fontSize: 12, fontFamily: 'Cairo'),
-              ),
-              Text(
-                value,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 20,
-                  color: Color(0xFF1B5E3B),
-                  fontFamily: 'Cairo',
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Widget to show article details with full text fetched from API
-class _ArticleDetailsSheet extends StatefulWidget {
-  final Map<String, dynamic> article;
-  final ApiService apiService;
-
-  const _ArticleDetailsSheet({
-    required this.article,
-    required this.apiService,
-  });
-
-  @override
-  State<_ArticleDetailsSheet> createState() => _ArticleDetailsSheetState();
-}
-
-class _ArticleDetailsSheetState extends State<_ArticleDetailsSheet> {
-  Map<String, dynamic>? _fullArticle;
-  bool _isLoading = true;
-  String? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadFullArticle();
-  }
-
-  Future<void> _loadFullArticle() async {
-    try {
-      final articleId = widget.article['id'];
-      if (articleId != null) {
-        final response = await widget.apiService.getLegalArticle(articleId);
-        final data = response['data'] ?? response;
-        setState(() {
-          _fullArticle = data;
-          _isLoading = false;
-        });
-      } else {
-        setState(() {
-          _fullArticle = widget.article;
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      setState(() {
-        _error = e.toString();
-        _isLoading = false;
-        _fullArticle = widget.article;
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final article = _fullArticle ?? widget.article;
-    
-    return DraggableScrollableSheet(
-      initialChildSize: 0.9,
-      minChildSize: 0.5,
-      maxChildSize: 0.95,
-      builder: (context, scrollController) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Column(
-          children: [
-            // Handle
-            Container(
-              margin: const EdgeInsets.only(top: 12),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            // Header
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF1B5E3B), Color(0xFF2D8B57)],
-                      ),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      'مادة ${article['article_number'] ?? ''}',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontFamily: 'Cairo',
-                      ),
-                    ),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    icon: const Icon(Icons.copy),
-                    onPressed: () {
-                      // Copy to clipboard
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('تم نسخ النص')),
-                      );
-                    },
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
-              ),
-            ),
-            const Divider(),
-            // Content
-            Expanded(
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : SingleChildScrollView(
-                      controller: scrollController,
+                child: ListView(
+                  controller: scrollController,
+                  children: [
+                    const SizedBox(height: 10),
+                    Container(
                       padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(color: AppColors.brand.withOpacity(0.05), borderRadius: BorderRadius.circular(12)),
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildDetailRow('المصدر', article['source_title']),
-                          if (article['book_title'] != null && article['book_title'].toString().isNotEmpty)
-                            _buildDetailRow('الكتاب', article['book_title']),
-                          if (article['section_title'] != null && article['section_title'].toString().isNotEmpty)
-                            _buildDetailRow('القسم', article['section_title']),
-                          if (article['chapter_title'] != null && article['chapter_title'].toString().isNotEmpty)
-                            _buildDetailRow('الفصل', article['chapter_title']),
-                          if (article['branch_title'] != null && article['branch_title'].toString().isNotEmpty)
-                            _buildDetailRow('الفرع', article['branch_title']),
-                          const SizedBox(height: 16),
-                          const Divider(),
-                          const SizedBox(height: 16),
-                          const Text(
-                            'نص المادة',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                              color: Color(0xFF1B5E3B),
-                              fontFamily: 'Cairo',
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: Colors.grey[50],
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.grey[200]!),
-                            ),
-                            child: SelectableText(
-                              article['article_text'] ?? 'لا يتوفر نص المادة',
-                              style: const TextStyle(
-                                fontSize: 16,
-                                height: 2,
-                                fontFamily: 'Cairo',
-                              ),
-                            ),
-                          ),
+                          Text('مادة رقم ${article['article_number']}', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.brand)),
+                          const SizedBox(height: 8),
+                          Text(article['source_title'] ?? '', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600), textAlign: TextAlign.center),
                         ],
                       ),
                     ),
-            ),
-          ],
+                    const SizedBox(height: 24),
+                    const Text('نص المادة:', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+                    const SizedBox(height: 12),
+                    SelectableText(
+                      article['article_text'] ?? 'النص غير متوفر',
+                      style: const TextStyle(fontSize: 16, height: 1.8, fontFamily: 'Cairo'),
+                      textAlign: TextAlign.justify,
+                      textDirection: TextDirection.rtl,
+                    ),
+                    const SizedBox(height: 30),
+                    if (article['book_title'] != null && article['book_title'].isNotEmpty)
+                      _buildDetailRow('الكتاب', article['book_title']),
+                    if (article['chapter_title'] != null && article['chapter_title'].isNotEmpty)
+                      _buildDetailRow('الباب/الفصل', article['chapter_title']),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildDetailRow(String label, String? value) {
-    if (value == null || value.isEmpty) return const SizedBox.shrink();
+  Widget _buildDetailRow(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 80,
-            child: Text(
-              '$label:',
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                color: Colors.grey[600],
-                fontFamily: 'Cairo',
-              ),
-            ),
+          Text('$label: ', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey, fontSize: 12)),
+          Expanded(child: Text(value, style: const TextStyle(fontSize: 13))),
+        ],
+      ),
+    );
+  }
+
+  Color _getCategoryColor(String category) {
+    if (category.contains('مدني')) return Colors.blue[700]!;
+    if (category.contains('جزائي') || category.contains('عقوبات')) return Colors.red[700]!;
+    if (category.contains('تجاري')) return Colors.amber[800]!;
+    if (category.contains('أسرة') || category.contains('شخصي')) return Colors.purple[700]!;
+    if (category.contains('عمل') || category.contains('عمال')) return Colors.orange[700]!;
+    return AppColors.brand;
+  }
+
+  Future<void> _launchURL(String? urlString) async {
+    if (urlString == null || urlString.isEmpty) return;
+    try {
+      final url = Uri.parse(urlString);
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+      }
+    } catch (e) {
+      developer.log('Could not launch URL: $e');
+    }
+  }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.error_outline, size: 64, color: Colors.redAccent),
+          const SizedBox(height: 16),
+          Text(
+            _errorMessage ?? 'حدث خطأ غير متوقع',
+            style: const TextStyle(fontSize: 16, fontFamily: 'Cairo'),
+            textAlign: TextAlign.center,
           ),
-          Expanded(
-            child: Text(value, style: const TextStyle(fontFamily: 'Cairo')),
+          const SizedBox(height: 24),
+          ElevatedButton(
+            onPressed: _initialLoad,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.brand,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('إعادة المحاولة', style: TextStyle(color: Colors.white, fontFamily: 'Cairo')),
           ),
         ],
       ),
     );
   }
+
+  Widget _buildLoadingState() {
+    return const Center(child: CircularProgressIndicator(color: AppColors.brand));
+  }
+
+  Widget _buildEmptyState(String message, IconData icon) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 64, color: Colors.grey[300]),
+          const SizedBox(height: 16),
+          Text(message, style: TextStyle(color: Colors.grey[600], fontSize: 16, fontWeight: FontWeight.w500)),
+          const SizedBox(height: 8),
+          const Text('حاول تغيير كلمات البحث أو الفلاتر'),
+        ],
+      ),
+    );
+  }
+}
+
+class _SliverHeaderDelegate extends SliverPersistentHeaderDelegate {
+  final Widget child;
+  final double minHeight;
+  final double maxHeight;
+
+  _SliverHeaderDelegate({required this.child, required this.minHeight, required this.maxHeight});
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) => child;
+
+  @override
+  double get maxExtent => maxHeight;
+
+  @override
+  double get minExtent => minHeight;
+
+  @override
+  bool shouldRebuild(_SliverHeaderDelegate oldDelegate) => 
+    child != oldDelegate.child || minHeight != oldDelegate.minHeight || maxHeight != oldDelegate.maxHeight;
 }

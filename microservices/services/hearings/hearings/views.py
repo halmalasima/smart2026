@@ -76,7 +76,8 @@ class HearingViewSet(viewsets.ModelViewSet):
         if not self.request.query_params.get('include_deleted'):
             queryset = queryset.filter(is_deleted=False)
 
-        if user.is_superuser:
+        from smartjudi_common.user_utils import get_user_role
+        if get_user_role(user) == 'admin':
             return queryset
 
         # Filter to hearings created by or presided over by this user

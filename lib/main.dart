@@ -10,8 +10,8 @@ import 'providers/auth_provider.dart';
 import 'providers/lawsuit_provider.dart';
 import 'providers/lawyer_provider.dart';
 import 'providers/ai_chat_provider.dart';
-import 'providers/chat_provider.dart';
 import 'providers/inheritance_provider.dart';
+import 'providers/court_provider.dart';
 import 'services/api_service.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
@@ -33,7 +33,6 @@ import 'screens/complaint_screen.dart';
 import 'screens/daily_sessions_screen.dart';
 import 'screens/calendar_screen.dart';
 import 'screens/electronic_lawsuit_screen.dart';
-import 'screens/supreme_court_screen.dart';
 import 'screens/faq_screen.dart';
 import 'screens/subscribe_screen.dart';
 import 'screens/settings_screen.dart';
@@ -54,13 +53,17 @@ import 'screens/notifications_screen.dart';
 import 'screens/electronic_services_screen.dart';
 import 'screens/edit_profile_screen.dart';
 import 'screens/change_password_screen.dart';
-import 'screens/lawyer_dashboard_screen.dart';
 import 'screens/case_detail_screen.dart';
 import 'screens/messages_list_screen.dart';
 import 'screens/chat_screen.dart';
 import 'screens/citizen_dashboard_screen.dart';
 import 'screens/create_sub_account_screen.dart';
 import 'screens/archive_screen.dart';
+import 'screens/otp_verification_screen.dart';
+import 'screens/courts_search_screen.dart';
+import 'screens/lawyers_search_screen.dart';
+import 'screens/session_detail_screen.dart';
+import 'models/hearing_model.dart';
 import 'web_url_strategy.dart';
 import 'theme/app_theme.dart';
 import 'config/api_config.dart';
@@ -101,14 +104,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProxyProvider<AuthProvider, AIChatProvider>(
           create: (_) => AIChatProvider(),
           update: (_, auth, prev) {
-            prev!.setAccessToken(apiService.accessToken);
-            return prev;
-          },
-        ),
-        ChangeNotifierProxyProvider<AuthProvider, ChatProvider>(
-          create: (_) => ChatProvider(),
-          update: (_, auth, prev) {
-            prev!.setAccessToken(apiService.accessToken);
+            prev!.setAccessToken(auth.apiService.accessToken);
             return prev;
           },
         ),
@@ -119,6 +115,7 @@ class MyApp extends StatelessWidget {
           create: (_) => NotificationProvider(apiService),
           update: (_, auth, prev) => NotificationProvider(apiService),
         ),
+        ChangeNotifierProvider(create: (_) => CourtProvider(apiService: apiService)),
       ],
       child: Consumer<SettingsProvider>(
         builder: (context, settings, _) {
@@ -147,6 +144,8 @@ class MyApp extends StatelessWidget {
               '/legal-library': (context) => const LegalLibraryScreen(),
               '/chat': (context) => const SmartAssistantScreen(),
               '/training': (context) => const TrainingScreen(),
+              '/courts': (context) =>  CourtsSearchScreen(),
+              '/lawyers': (context) =>  LawyersSearchScreen(),
               '/inquiries': (context) => const InquiriesScreen(),
               '/contact': (context) => const ContactUsScreen(),
               '/about': (context) => const AboutUsScreen(),
@@ -157,7 +156,6 @@ class MyApp extends StatelessWidget {
               '/sessions': (context) => const DailySessionsScreen(),
               '/calendar': (context) => const CalendarScreen(),
               '/electronic-lawsuit': (context) => const ElectronicLawsuitScreen(),
-              '/supreme-court': (context) => const SupremeCourtScreen(),
               '/faq': (context) => const FAQScreen(),
               '/subscribe': (context) => const SubscribeScreen(),
               '/settings': (context) => const SettingsScreen(),
@@ -178,7 +176,6 @@ class MyApp extends StatelessWidget {
               '/electronic-services': (context) => const ElectronicServicesScreen(),
               '/edit-profile': (context) => const EditProfileScreen(),
               '/change-password': (context) => const ChangePasswordScreen(),
-              '/lawyer-dashboard': (context) => const LawyerDashboardScreen(),
               '/lawsuits': (context) => ArchiveScreen(),
               '/messages': (context) => MessagesListScreen(),
               '/create-sub-account': (context) => CreateSubAccountScreen(),
@@ -190,6 +187,29 @@ class MyApp extends StatelessWidget {
               '/messages': (context) => const MessagesListScreen(),
               '/citizen-dashboard': (context) => const CitizenDashboardScreen(),
               '/create-sub-account': (context) => const CreateSubAccountScreen(),
+              '/verify-otp': (context) {
+                final phone = ModalRoute.of(context)!.settings.arguments as String? ?? '';
+                return OtpVerificationScreen(phoneNumber: phone, purpose: 'verify_email');
+              },
+              '/session-detail': (context) {
+                final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+                if (args['hearing'] is HearingModel) {
+                  return SessionDetailScreen(session: args['hearing'] as HearingModel);
+                }
+                // Fallback for ID-only navigation (like from DailySessionsScreen)
+                // The screen will need a full HearingModel to start, but it will reload data anyway.
+                return SessionDetailScreen(
+                  session: HearingModel(
+                    id: args['id'] as int,
+                    lawsuitId: 0,
+                    hearingDate: DateTime.now(),
+                    hearingType: 'unknown',
+                    sessionType: 'unknown',
+                    requirements: '',
+                    notes: '',
+                  ),
+                );
+              },
             },
           );
         },

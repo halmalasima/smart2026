@@ -2,13 +2,13 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from django.db.models import Q, Count
+from django.db.models import Q, Count, F
 from django.db.models.functions import Length
-from .models import LegalCategory, Law, LawChapter, LawSection, LawArticle, CaseLegalReference, LegalArticleFlat, LegalProcedureNode
+from .models import LegalCategory, Law, LawChapter, LawSection, LawArticle, CaseLegalReference, LegalArticleFlat, LegalProcedureNode, LawLibrary, Tag
 from .serializers import (
     LegalCategorySerializer, LawSerializer, LawChapterSerializer,
     LawSectionSerializer, LawArticleSerializer, CaseLegalReferenceSerializer,
-    LegalArticleFlatSerializer, LegalArticleFlatListSerializer, LegalProcedureNodeSerializer
+    LegalArticleFlatSerializer, LegalArticleFlatListSerializer, LegalProcedureNodeSerializer, LawLibrarySerializer, TagSerializer
 )
 import re
 
@@ -216,19 +216,29 @@ class LegalArticleFlatViewSet(viewsets.ReadOnlyModelViewSet):
 class LegalCategoryViewSet(viewsets.ModelViewSet):
     queryset = LegalCategory.objects.all()
     serializer_class = LegalCategorySerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
     filterset_fields = []
     search_fields = ['name', 'description']
     ordering_fields = ['name', 'created_at']
     ordering = ['name']
 
 
+class TagViewSet(viewsets.ModelViewSet):
+    queryset = Tag.objects.all()
+    serializer_class = TagSerializer
+    permission_classes = [AllowAny]
+    filterset_fields = []
+    search_fields = ['name']
+    ordering_fields = ['name', 'created_at']
+    ordering = ['name']
+
+
 class LawViewSet(viewsets.ModelViewSet):
-    queryset = Law.objects.select_related('category').all()
+    queryset = Law.objects.select_related('category').prefetch_related('tags').all()
     serializer_class = LawSerializer
-    permission_classes = [IsAuthenticated]
-    filterset_fields = ['category', 'issue_year']
-    search_fields = ['name', 'description']
+    permission_classes = [AllowAny]
+    filterset_fields = ['category', 'issue_year', 'tags']
+    search_fields = ['name', 'description', 'tags__name']
     ordering_fields = ['category', 'issue_year', 'name', 'created_at']
     ordering = ['category', 'issue_year', 'name']
 
@@ -369,3 +379,31 @@ class LegalProcedureViewSet(viewsets.ReadOnlyModelViewSet):
             'count': queryset.count(),
             'results': highlighted_results
         })
+
+class LawLibraryViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet لمكتبة الكتب والتشريعات (المقدمة من ملف SQL) - محول للتوافقية
+    """
+    queryset = Law.objects.select_related('category').prefetch_related('tags').all()
+    serializer_class = LawLibrarySerializer
+    permission_classes = [AllowAny]
+    
+    def get_queryset(self):
+        queryset = Law.objects.select_related('category').prefetch_related('tags').all()
+        q = self.request.query_params.get('q', '').strip()
+        category = self.request.query_params.get('category', '')
+        
+        if q:
+            queryset = queryset.filter(Q(name__icontains=q) | Q(category__name__icontains=q))
+        if category:
+            queryset = queryset.filter(category__name=category)
+            
+        return queryset
+
+    @action(detail=False, methods=['get'])
+    def categories(self, request):
+        """الحصول على قائمة التصنيفات"""
+        categories = Law.objects.values(category_name=F('category__name')).annotate(count=Count('id')).order_by('category_name')
+        # Map to old structure {'category': ...}
+        result = [{'category': c['category_name'], 'count': c['count']} for c in categories]
+        return Response({'categories': result})

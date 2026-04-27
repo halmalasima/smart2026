@@ -53,8 +53,14 @@ class CourtViewSet(viewsets.ModelViewSet):
     ).prefetch_related('specializations').all()
     serializer_class = CourtSerializer
     permission_classes = [IsAuthenticated]
-    filterset_fields = ['court_type', 'governorate', 'district', 'is_active']
-    search_fields = ['name', 'address']
+    filterset_fields = {
+        'court_type': ['exact'],
+        'governorate': ['exact'],
+        'governorate__name': ['exact', 'icontains'],
+        'district': ['exact'],
+        'is_active': ['exact'],
+    }
+    search_fields = ['name', 'address', 'governorate__name', 'district__name']
     ordering_fields = ['name', 'governorate', 'created_at']
     ordering = ['governorate', 'name']
 

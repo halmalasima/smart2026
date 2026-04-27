@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import 'dart:developer' as developer;
 import '../services/api_service.dart';
 
 /// Notification Model
@@ -107,33 +108,30 @@ class NotificationProvider extends ChangeNotifier {
   }
 
   Future<void> _fetchNotificationsFromServer() async {
+    // Only fetch if we have a token or are likely authenticated
+    // This avoids 401s during initial app load before AuthProvider is ready
+    if (_apiService.accessToken == null || _apiService.accessToken!.isEmpty) {
+      developer.log('Skipping notification fetch: No access token');
+      return;
+    }
+
     try {
-      final response = await _apiService.getNotifications();
-      if (response is Map && response['success'] == true && response['data'] != null) {
-        final data = response['data'];
-        final List<dynamic> serverNotifications = (data is Map) ? (data['results'] ?? []) : (data is List ? data : []);
-        
-        // Merge server notifications with local ones
-        for (var serverNotif in serverNotifications) {
-          final notification = AppNotification(
-            id: serverNotif['id']?.toString() ?? '',
-            title: serverNotif['title'] ?? '',
-            body: serverNotif['message'] ?? serverNotif['body'] ?? '',
-            createdAt: DateTime.tryParse(serverNotif['created_at'] ?? '') ?? DateTime.now(),
-            isRead: serverNotif['is_read'] ?? false,
-            type: serverNotif['type'] ?? 'admin',
-            data: serverNotif['data'],
+      final response = await _apiService.get('/api/notifications/');
+      if (response['results'] != null) {
+        final List<dynamic> results = response['results'];
+        final serverNotifications = results.map((item) {
+          return AppNotification(
+            id: item['id'].toString(),
+            title: item['title'] ?? '',
+            body: item['content'] ?? '',
+            createdAt: DateTime.tryParse(item['created_at'] ?? '') ?? DateTime.now(),
+            isRead: item['is_read'] ?? false,
+            type: item['notification_type'],
+            data: item['extra_data'],
           );
+        }).toList();
 
-          // Check if notification already exists
-          if (!_notifications.any((n) => n.id == notification.id)) {
-            _notifications.insert(0, notification);
-          }
-        }
-
-        // Sort by date (newest first)
-        _notifications.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-        
+        _notifications = serverNotifications;
         await _saveNotifications();
       }
     } catch (e) {

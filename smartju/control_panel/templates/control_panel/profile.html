@@ -1,0 +1,52 @@
+{% extends "control_panel/base.html" %}
+
+{% block content %}
+<form method="post">
+  {% csrf_token %}
+  <div class="row row-cards">
+    <div class="col-lg-4">
+      <div class="card">
+        <div class="card-body text-center">
+          <span class="avatar avatar-xl cp-avatar mb-3">{{ request.user.username|first|upper }}</span>
+          <h3 class="m-0">{{ request.user.get_full_name|default:request.user.username }}</h3>
+          <div class="text-secondary">@{{ request.user.username }}</div>
+          <div class="mt-2">
+            {% if request.user.is_superuser %}<span class="badge bg-red-lt">مدير عام</span>{% endif %}
+            {% if request.user.is_staff %}<span class="badge bg-orange-lt">موظف</span>{% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-8">
+      <div class="card">
+        <div class="card-header"><h3 class="card-title">المعلومات الشخصية</h3></div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">الاسم الأول</label>
+              <input class="form-control" name="first_name" value="{{ request.user.first_name }}">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">الاسم الأخير</label>
+              <input class="form-control" name="last_name" value="{{ request.user.last_name }}">
+            </div>
+            <div class="col-12">
+              <label class="form-label">البريد الإلكتروني</label>
+              <input type="email" class="form-control" name="email" value="{{ request.user.email }}">
+            </div>
+            <div class="col-12"><hr></div>
+            <div class="col-12">
+              <label class="form-label">كلمة مرور جديدة</label>
+              <input type="password" class="form-control" name="new_password" autocomplete="new-password">
+              <div class="form-hint">اتركها فارغة إذا لم ترغب في التغيير.</div>
+            </div>
+          </div>
+        </div>
+        <div class="card-footer">
+          <button type="submit" class="btn btn-primary"><i class="ti ti-device-floppy me-1"></i> حفظ التغييرات</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</form>
+{% endblock %}

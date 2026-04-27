@@ -1,5 +1,6 @@
 from django.contrib import admin
 from .models import Plaintiff, Defendant
+from smartjudi_common.admin_utils import UserIsolationAdminMixin
 
 
 class PlaintiffInline(admin.TabularInline):
@@ -25,7 +26,8 @@ class DefendantInline(admin.TabularInline):
 
 
 @admin.register(Plaintiff)
-class PlaintiffAdmin(admin.ModelAdmin):
+class PlaintiffAdmin(UserIsolationAdminMixin, admin.ModelAdmin):
+    user_field = 'lawsuit__created_by'
     """
     Admin interface for Plaintiff
     """
@@ -62,7 +64,8 @@ class PlaintiffAdmin(admin.ModelAdmin):
 
 
 @admin.register(Defendant)
-class DefendantAdmin(admin.ModelAdmin):
+class DefendantAdmin(UserIsolationAdminMixin, admin.ModelAdmin):
+    user_field = 'lawsuit__created_by'
     """
     Admin interface for Defendant
     """

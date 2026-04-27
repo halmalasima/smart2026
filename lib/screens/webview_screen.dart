@@ -1,3 +1,5 @@
+import '../../../../theme/app_theme.dart';
+import '../../../../theme/app_colors.dart';
 import 'dart:async';
 import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
@@ -196,7 +198,7 @@ class _WebViewScreenState extends State<WebViewScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: context.isDark ? AppColors.darkSurface : AppColors.lightSurface,
       appBar: AppBar(
         titleSpacing: 0,
         title: Column(

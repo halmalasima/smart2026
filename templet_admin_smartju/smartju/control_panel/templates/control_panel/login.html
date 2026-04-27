@@ -1,0 +1,58 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" data-bs-theme="{{ CP_THEME }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>تسجيل الدخول · {{ CP_BRAND }}</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta20/dist/css/tabler.rtl.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.3.0/tabler-icons.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'control_panel/css/cp.css' %}">
+</head>
+<body class="d-flex flex-column cp-login-bg">
+  <div class="page page-center">
+    <div class="container container-tight py-4">
+      <div class="text-center mb-4">
+        <div class="cp-login-logo">
+          <i class="ti ti-scale-outline"></i>
+        </div>
+        <h1 class="mt-3 text-white">{{ CP_BRAND }}</h1>
+        <div class="text-secondary">منصة القضاء الذكية المتكاملة</div>
+      </div>
+      <div class="card card-md cp-login-card">
+        <div class="card-body">
+          <h2 class="h3 text-center mb-4">تسجيل الدخول إلى لوحة التحكم</h2>
+          {% if messages %}
+            {% for m in messages %}
+              <div class="alert alert-{{ m.tags|default:'danger' }}">{{ m }}</div>
+            {% endfor %}
+          {% endif %}
+          {% if form.non_field_errors %}
+            <div class="alert alert-danger">{{ form.non_field_errors|join:"، " }}</div>
+          {% endif %}
+          <form method="post" novalidate>
+            {% csrf_token %}
+            <div class="mb-3">
+              <label class="form-label">اسم المستخدم</label>
+              {{ form.username }}
+            </div>
+            <div class="mb-3">
+              <label class="form-label">كلمة المرور</label>
+              {{ form.password }}
+            </div>
+            <div class="form-footer">
+              <button type="submit" class="btn btn-primary w-100">
+                <i class="ti ti-login-2 me-1"></i> دخول
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+      <div class="text-center text-secondary mt-3 small">
+        © {% now "Y" %} {{ CP_BRAND }}
+      </div>
+    </div>
+  </div>
+</body>
+</html>

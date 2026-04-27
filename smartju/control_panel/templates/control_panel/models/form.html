@@ -1,0 +1,136 @@
+{% extends "control_panel/base.html" %}
+
+{% block page_header %}
+  <div class="page-header d-print-none mb-3">
+    <div class="row g-2 align-items-center">
+      <div class="col">
+        <div class="page-pretitle text-secondary">
+            {{ app_label }} · {{ verbose_name }}
+        </div>
+        <h2 class="page-title">{{ page_title }}</h2>
+      </div>
+      <div class="col-auto ms-auto">
+        <a href="{% url 'control_panel:model_browse' app_label model_name %}" class="btn btn-outline-secondary">
+          <i class="ti ti-arrow-right me-1"></i> إلغاء والعودة
+        </a>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block content %}
+{% if is_popup %}
+  <div class="card border-0">
+    <div class="card-body">
+      <form method="post" enctype="multipart/form-data" action="?popup=1">
+        {% csrf_token %}
+        <div class="row">
+          {% for field in form %}
+            <div class="col-12 mb-2">
+              <label class="form-label">{{ field.label }}</label>
+              {{ field }}
+            </div>
+          {% endfor %}
+        </div>
+        <button type="submit" class="btn btn-primary w-100 mt-3">حفظ وإضافة</button>
+      </form>
+    </div>
+  </div>
+{% else %}
+<div class="row justify-content-center">
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-body">
+        <form method="post" enctype="multipart/form-data">
+          {% csrf_token %}
+          
+          <div class="row">
+            {% for field in form %}
+              <div class="col-12 mb-3">
+                <label class="form-label">{{ field.label }}</label>
+                <div class="input-group">
+                  {{ field }}
+                  {% for key, val in related_fields.items %}
+                    {% if key == field.name %}
+                      <button type="button" class="btn btn-icon btn-outline-primary" 
+                              onclick="openQuickAdd('{{ val.app }}', '{{ val.model }}', '{{ field.auto_id }}')" 
+                              title="إضافة {{ val.verbose }} جديد">
+                        <i class="ti ti-plus"></i>
+                      </button>
+                    {% endif %}
+                  {% endfor %}
+                </div>
+                {% if field.help_text %}
+                  <small class="form-hint">{{ field.help_text|safe }}</small>
+                {% endif %}
+                {% if field.errors %}
+                  <div class="invalid-feedback d-block">{{ field.errors|first }}</div>
+                {% endif %}
+              </div>
+            {% endfor %}
+          </div>
+
+          <div class="form-footer mt-4">
+            <button type="submit" class="btn btn-primary w-100">
+              <i class="ti ti-check me-1"></i> حفظ البيانات
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal for Quick Add -->
+<div class="modal modal-blur fade" id="modal-quick-add" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">إضافة سجل جديد</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-0">
+        <iframe id="quick-add-iframe" src="about:blank" style="width: 100%; height: 400px; border: 0;"></iframe>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<style>
+  input[type="text"], input[type="email"], input[type="number"], input[type="password"], textarea, select {
+    display: block; width: 100%; padding: 0.4375rem 0.75rem; font-size: 0.875rem; border: 1px solid var(--tblr-border-color); border-radius: 4px;
+  }
+  .invalid-feedback { color: #d63939; font-size: 80%; }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentTargetSelectId = null;
+
+function openQuickAdd(app, model, selectId) {
+    currentTargetSelectId = selectId;
+    const url = `/cp/models/${app}/${model}/add/?popup=1`;
+    document.getElementById('quick-add-iframe').src = url;
+    new bootstrap.Modal(document.getElementById('modal-quick-add')).show();
+}
+
+// This function is called by the iframe when creation is successful
+window.onQuickAddComplete = function(id, name) {
+    if (currentTargetSelectId) {
+        const select = document.getElementById(currentTargetSelectId);
+        if (select) {
+            const option = new Option(name, id, true, true);
+            select.add(option);
+            // Trigger change event if needed
+            select.dispatchEvent(new Event('change'));
+        }
+    }
+    // Close modal
+    const modalEl = document.getElementById('modal-quick-add');
+    const modal = bootstrap.Modal.getInstance(modalEl);
+    if (modal) modal.hide();
+};
+</script>
+{% endblock %}

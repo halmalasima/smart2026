@@ -1,0 +1,59 @@
+{% extends "control_panel/base.html" %}
+
+{% block page_header %}
+  <div class="page-header d-print-none mb-3">
+    <div class="row g-2 align-items-center">
+      <div class="col">
+        <div class="page-pretitle text-secondary">{{ meta.app_label }} · موديل</div>
+        <h2 class="page-title">{{ meta.verbose_name_plural|title }}</h2>
+      </div>
+      <div class="col-auto">
+        <a href="{% url 'control_panel:models_index' %}" class="btn btn-outline-secondary">
+          <i class="ti ti-arrow-right me-1"></i> رجوع للموديلات
+        </a>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-body border-bottom py-2">
+    <form method="get" class="d-flex">
+      <input type="text" name="q" value="{{ q }}" class="form-control me-2" placeholder="بحث في الحقول النصية…">
+      <button type="submit" class="btn btn-primary"><i class="ti ti-search me-1"></i> بحث</button>
+    </form>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-vcenter card-table table-hover">
+      <thead>
+        <tr>
+          <th>#</th>
+          {% for f in fields %}<th>{{ f.verbose_name|default:f.name }}</th>{% endfor %}
+          <th class="w-1"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+          <tr>
+            <td class="text-secondary">{{ r.pk }}</td>
+            {% for v in r.values %}<td class="cp-cell">{{ v }}</td>{% endfor %}
+            <td>
+              <div class="btn-list flex-nowrap">
+                <a href="{% url 'control_panel:model_detail' meta.app_label meta.model_name r.pk %}" class="btn btn-sm btn-icon btn-ghost-primary"><i class="ti ti-eye"></i></a>
+                <form method="post" action="{% url 'control_panel:model_delete' meta.app_label meta.model_name r.pk %}" class="d-inline" onsubmit="return confirm('حذف هذا السجل؟');">
+                  {% csrf_token %}
+                  <button class="btn btn-sm btn-icon btn-ghost-danger"><i class="ti ti-trash"></i></button>
+                </form>
+              </div>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="{{ fields|length|add:'2' }}" class="text-center text-secondary py-5">لا توجد سجلات</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include "control_panel/partials/pagination.html" with page=page %}
+</div>
+{% endblock %}

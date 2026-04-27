@@ -1,0 +1,194 @@
+{% extends "control_panel/base.html" %}
+
+{% block page_header %}
+  <div class="page-header d-print-none mb-3">
+    <div class="row g-2 align-items-center">
+      <div class="col">
+        <div class="page-pretitle text-secondary">البنية التحتية</div>
+        <h2 class="page-title">{{ page_title }}</h2>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block content %}
+
+<!-- General Settings -->
+<div class="card mb-4">
+  <div class="card-header">
+    <h3 class="card-title"><i class="ti ti-settings me-2"></i>الإعدادات العامة</h3>
+  </div>
+  <div class="card-body">
+    <div class="datagrid">
+      {% for key, val in general.items %}
+      <div class="datagrid-item">
+        <div class="datagrid-title">{{ key }}</div>
+        <div class="datagrid-content">
+          {% if val == True %}
+            <span class="status status-green"><span class="status-dot"></span> نعم (True)</span>
+          {% elif val == False %}
+            <span class="status status-red"><span class="status-dot"></span> لا (False)</span>
+          {% else %}
+            <code>{{ val }}</code>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- Databases -->
+<div class="card mb-4">
+  <div class="card-header">
+    <h3 class="card-title"><i class="ti ti-database me-2"></i>قواعد البيانات المتصلة ({{ db_info|length }})</h3>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-vcenter card-table table-hover">
+      <thead>
+        <tr>
+          <th>الاسم المستعار</th>
+          <th>المحرك</th>
+          <th>اسم القاعدة</th>
+          <th>المضيف</th>
+          <th>المنفذ</th>
+          <th>المستخدم</th>
+          <th>الحالة</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for db in db_info %}
+        <tr>
+          <td>
+            <span class="avatar avatar-sm bg-primary-lt me-2">{{ db.alias|truncatechars:2 }}</span>
+            <strong>{{ db.alias }}</strong>
+          </td>
+          <td>
+            {% if "postgresql" in db.engine %}
+              <span class="badge bg-blue-lt"><i class="ti ti-database me-1"></i>PostgreSQL</span>
+            {% elif "sqlite" in db.engine %}
+              <span class="badge bg-yellow-lt"><i class="ti ti-file-database me-1"></i>SQLite</span>
+            {% else %}
+              <span class="badge bg-secondary-lt">{{ db.engine }}</span>
+            {% endif %}
+          </td>
+          <td><code>{{ db.name }}</code></td>
+          <td>{{ db.host|default:"localhost" }}</td>
+          <td><code>{{ db.port|default:"-" }}</code></td>
+          <td>{{ db.user|default:"-" }}</td>
+          <td><span class="status status-green"><span class="status-dot status-dot-animated"></span>متصل</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Database Routers -->
+{% if db_routers %}
+<div class="card mb-4">
+  <div class="card-header">
+    <h3 class="card-title"><i class="ti ti-route me-2"></i>موجهات قاعدة البيانات (Database Routers)</h3>
+  </div>
+  <div class="card-body">
+    {% for r in db_routers %}
+      <div class="d-flex align-items-center mb-2">
+        <span class="avatar avatar-sm bg-cyan-lt me-2"><i class="ti ti-git-branch"></i></span>
+        <code>{{ r }}</code>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- REST Framework -->
+<div class="row mb-4">
+  <div class="col-lg-6">
+    <div class="card h-100">
+      <div class="card-header">
+        <h3 class="card-title"><i class="ti ti-api me-2"></i>إعدادات REST Framework</h3>
+      </div>
+      <div class="card-body p-0">
+        <div class="list-group list-group-flush">
+          {% for key, val in rest_config.items %}
+          <div class="list-group-item">
+            <div class="row">
+              <div class="col-5"><strong class="small">{{ key }}</strong></div>
+              <div class="col-7"><code class="small text-break">{{ val|truncatechars:80 }}</code></div>
+            </div>
+          </div>
+          {% empty %}
+          <div class="list-group-item text-secondary text-center">لا يوجد إعدادات</div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="card h-100">
+      <div class="card-header">
+        <h3 class="card-title"><i class="ti ti-key me-2"></i>إعدادات JWT Token</h3>
+      </div>
+      <div class="card-body p-0">
+        <div class="list-group list-group-flush">
+          {% for key, val in jwt_config.items %}
+          <div class="list-group-item">
+            <div class="row">
+              <div class="col-5"><strong class="small">{{ key }}</strong></div>
+              <div class="col-7"><code class="small text-break">{{ val|truncatechars:80 }}</code></div>
+            </div>
+          </div>
+          {% empty %}
+          <div class="list-group-item text-secondary text-center">لا يوجد إعدادات</div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Installed Apps -->
+<div class="card mb-4">
+  <div class="card-header cursor-pointer" onclick="document.getElementById('apps-body').classList.toggle('d-none')">
+    <h3 class="card-title"><i class="ti ti-apps me-2"></i>التطبيقات المثبتة ({{ installed_apps|length }})</h3>
+  </div>
+  <div class="card-body" id="apps-body">
+    <div class="row g-2">
+      {% for app in installed_apps %}
+      <div class="col-md-4 col-lg-3">
+        <div class="d-flex align-items-center p-2 border rounded">
+          {% if "django" in app %}
+            <span class="avatar avatar-xs bg-green-lt me-2"><i class="ti ti-brand-django"></i></span>
+          {% elif "rest_framework" in app %}
+            <span class="avatar avatar-xs bg-red-lt me-2"><i class="ti ti-api"></i></span>
+          {% elif "cors" in app %}
+            <span class="avatar avatar-xs bg-yellow-lt me-2"><i class="ti ti-shield"></i></span>
+          {% else %}
+            <span class="avatar avatar-xs bg-primary-lt me-2"><i class="ti ti-package"></i></span>
+          {% endif %}
+          <span class="small">{{ app }}</span>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- Middleware -->
+<div class="card mb-4">
+  <div class="card-header cursor-pointer" onclick="document.getElementById('middleware-body').classList.toggle('d-none')">
+    <h3 class="card-title"><i class="ti ti-layers-intersect me-2"></i>Middleware Stack ({{ middleware|length }})</h3>
+  </div>
+  <div class="card-body d-none" id="middleware-body">
+    <ol class="list-group list-group-numbered">
+      {% for mw in middleware %}
+      <li class="list-group-item d-flex align-items-center">
+        <span class="avatar avatar-xs bg-azure-lt me-2"><i class="ti ti-arrow-narrow-left"></i></span>
+        <code class="small">{{ mw }}</code>
+      </li>
+      {% endfor %}
+    </ol>
+  </div>
+</div>
+
+{% endblock %}

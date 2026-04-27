@@ -4,6 +4,7 @@ import '../providers/lawyer_provider.dart';
 import '../models/lawyer_model.dart';
 import 'lawyer_details_screen.dart';
 import 'dart:async';
+import '../theme/app_colors.dart';
 
 class LawyersSearchScreen extends StatefulWidget {
   const LawyersSearchScreen({super.key});
@@ -78,24 +79,22 @@ class _LawyersSearchScreenState extends State<LawyersSearchScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Scaffold(
-      resizeToAvoidBottomInset: true,
+      backgroundColor: isDark ? AppColors.darkBackground : const Color(0xFFF8FAF9),
       appBar: AppBar(
-        title: const Text('البحث عن المحامين'),
+        title: const Text('المحامين المعتمدين'),
         actions: [
-          if (Provider.of<LawyerProvider>(context).hasActiveFilters)
-            IconButton(
-              icon: const Icon(Icons.clear),
-              onPressed: _clearFilters,
-              tooltip: 'مسح الفلاتر',
-            ),
+          IconButton(
+            icon: const Icon(Icons.info_outline),
+            onPressed: () => _showLawyerInfo(context),
+          ),
         ],
       ),
       body: Column(
         children: [
-          _buildSearchBar(),
-          _buildFilters(),
-          _buildPageSizeSelector(),
+          _buildSearchAndFilterHeader(isDark),
           Expanded(
             child: Consumer<LawyerProvider>(
               builder: (context, provider, child) {
@@ -104,69 +103,32 @@ class _LawyersSearchScreenState extends State<LawyersSearchScreen> {
                 }
 
                 if (provider.errorMessage != null && provider.lawyers.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
-                        const SizedBox(height: 16),
-                        Text(
-                          provider.errorMessage ?? 'حدث خطأ',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.red[300]),
-                        ),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: _performSearch,
-                          child: const Text('إعادة المحاولة'),
-                        ),
-                      ],
-                    ),
-                  );
+                  return _buildErrorState(provider);
                 }
 
                 if (provider.lawyers.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.search_off, size: 64, color: Colors.grey[400]),
-                        const SizedBox(height: 16),
-                        Text(
-                          'لا توجد نتائج',
-                          style: TextStyle(color: Colors.grey[600], fontSize: 18),
-                        ),
-                      ],
-                    ),
-                  );
+                  return _buildEmptyState(isDark);
                 }
 
                 return RefreshIndicator(
                   onRefresh: () => provider.loadLawyers(refresh: true),
-                  child: Column(
-                    children: [
-                      Expanded(
-                        child: ListView.builder(
-                          controller: _scrollController,
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          itemCount: provider.lawyers.length + (provider.isLoading ? 1 : 0),
-                          itemBuilder: (context, index) {
-                            if (index == provider.lawyers.length) {
-                              return const Center(
-                                child: Padding(
-                                  padding: EdgeInsets.all(16.0),
-                                  child: CircularProgressIndicator(),
-                                ),
-                              );
-                            }
+                  child: ListView.builder(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    itemCount: provider.lawyers.length + (provider.isLoading ? 1 : 0),
+                    itemBuilder: (context, index) {
+                      if (index == provider.lawyers.length) {
+                        return const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(16.0),
+                            child: CircularProgressIndicator(),
+                          ),
+                        );
+                      }
 
-                            final lawyer = provider.lawyers[index];
-                            return _LawyerCard(lawyer: lawyer);
-                          },
-                        ),
-                      ),
-                      _buildPaginationInfo(provider),
-                    ],
+                      final lawyer = provider.lawyers[index];
+                      return _LawyerCard(lawyer: lawyer, isDark: isDark);
+                    },
                   ),
                 );
               },
@@ -177,47 +139,126 @@ class _LawyersSearchScreenState extends State<LawyersSearchScreen> {
     );
   }
 
-  Widget _buildSearchBar() {
+  Widget _buildSearchAndFilterHeader(bool isDark) {
     return Container(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
+        color: isDark ? AppColors.darkSurface : Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
-      child: TextField(
-        controller: _searchController,
-        decoration: InputDecoration(
-          hintText: 'ابحث بالاسم أو رقم القيد...',
-          prefixIcon: const Icon(Icons.search),
-          suffixIcon: _searchController.text.isNotEmpty
-              ? IconButton(
-                  icon: const Icon(Icons.clear),
-                  onPressed: () {
-                    _searchController.clear();
-                    _performSearch();
-                  },
-                )
-              : null,
-          filled: true,
-          fillColor: Theme.of(context).colorScheme.surface,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
+      child: Column(
+        children: [
+          _buildSearchBar(isDark),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _buildFilterChip(
+                        label: _selectedBranch ?? 'كل الفروع',
+                        isSelected: _selectedBranch != null,
+                        onDeleted: _selectedBranch != null ? () {
+                          setState(() => _selectedBranch = null);
+                          _performSearch();
+                        } : null,
+                        icon: Icons.business,
+                      ),
+                      const SizedBox(width: 8),
+                      _buildFilterChip(
+                        label: _selectedGrade ?? 'كل الدرجات',
+                        isSelected: _selectedGrade != null,
+                        onDeleted: _selectedGrade != null ? () {
+                          setState(() => _selectedGrade = null);
+                          _performSearch();
+                        } : null,
+                        icon: Icons.workspace_premium,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              _buildFilterButton(isDark),
+            ],
           ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(
-              color: Theme.of(context).colorScheme.primary,
-              width: 2,
-            ),
-          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterChip({
+    required String label,
+    required bool isSelected,
+    VoidCallback? onDeleted,
+    required IconData icon,
+  }) {
+    return FilterChip(
+      label: Text(label),
+      selected: isSelected,
+      onSelected: (_) => _openFilterSheet(),
+      onDeleted: onDeleted,
+      avatar: Icon(icon, size: 16, color: isSelected ? Colors.white : AppColors.brand),
+      backgroundColor: Colors.transparent,
+      selectedColor: AppColors.brand,
+      labelStyle: TextStyle(
+        color: isSelected ? Colors.white : Colors.black87,
+        fontSize: 12,
+        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(
+          color: isSelected ? AppColors.brand : Colors.grey.withOpacity(0.3),
         ),
+      ),
+    );
+  }
+
+  Widget _buildFilterButton(bool isDark) {
+    return InkWell(
+      onTap: _openFilterSheet,
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: AppColors.brand.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(Icons.tune_rounded, color: AppColors.brand, size: 24),
+      ),
+    );
+  }
+
+  Widget _buildSearchBar(bool isDark) {
+    return TextField(
+      controller: _searchController,
+      decoration: InputDecoration(
+        hintText: 'ابحث بالاسم أو رقم القيد...',
+        prefixIcon: Icon(Icons.search, color: AppColors.brand),
+        suffixIcon: _searchController.text.isNotEmpty
+            ? IconButton(
+                icon: const Icon(Icons.clear),
+                onPressed: () {
+                  _searchController.clear();
+                  _performSearch();
+                },
+              )
+            : null,
+        filled: true,
+        fillColor: isDark ? Colors.white.withOpacity(0.05) : Colors.grey[100],
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(15),
+          borderSide: BorderSide.none,
+        ),
+        contentPadding: const EdgeInsets.symmetric(vertical: 12),
       ),
     );
   }
@@ -278,164 +319,182 @@ class _LawyersSearchScreenState extends State<LawyersSearchScreen> {
     );
   }
 
-  Widget _buildFilters() {
-    return Consumer<LawyerProvider>(
-      builder: (context, provider, child) {
-        if (provider.isLoadingFilters) {
-          return const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            child: Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))),
+  void _openFilterSheet() {
+    final provider = Provider.of<LawyerProvider>(context, listen: false);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setSheetState) {
+          return Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.darkSurface : Colors.white,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                const Text(
+                  'تصفية النتائج',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 24),
+                _buildFilterLabel('الفرع (المحافظة)'),
+                const SizedBox(height: 8),
+                _buildFilterDropdown(
+                  value: _selectedBranch,
+                  items: provider.availableBranches,
+                  onChanged: (val) => setSheetState(() => _selectedBranch = val),
+                  icon: Icons.business,
+                ),
+                const SizedBox(height: 20),
+                _buildFilterLabel('الدرجة القضائية'),
+                const SizedBox(height: 8),
+                _buildFilterDropdown(
+                  value: _selectedGrade,
+                  items: provider.availableGrades,
+                  onChanged: (val) => setSheetState(() => _selectedGrade = val),
+                  icon: Icons.workspace_premium,
+                ),
+                const SizedBox(height: 32),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () {
+                          setSheetState(() {
+                            _selectedBranch = null;
+                            _selectedGrade = null;
+                          });
+                          Navigator.pop(context);
+                          _performSearch();
+                        },
+                        child: const Text('مسح الكل'),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      flex: 2,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.brand,
+                          padding: const EdgeInsets.symmetric(vertical: 15),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                        ),
+                        onPressed: () {
+                          Navigator.pop(context);
+                          _performSearch();
+                        },
+                        child: const Text('تطبيق الفلاتر', style: TextStyle(color: Colors.white)),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+              ],
+            ),
           );
         }
+      ),
+    );
+  }
 
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surface,
-            border: Border(
-              bottom: BorderSide(color: Colors.grey.withOpacity(0.2)),
-            ),
-          ),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              // Use SingleChildScrollView for small screens
-              if (constraints.maxWidth < 600) {
-                return SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      SizedBox(
-                        width: constraints.maxWidth * 0.45,
-                        child: _buildFilterDropdown(
-                          label: 'الفرع',
-                          value: _selectedBranch,
-                          items: provider.availableBranches,
-                          onChanged: (value) {
-                            setState(() {
-                              _selectedBranch = value;
-                            });
-                            _performSearch();
-                          },
-                          icon: Icons.business,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      SizedBox(
-                        width: constraints.maxWidth * 0.45,
-                        child: _buildFilterDropdown(
-                          label: 'الدرجة',
-                          value: _selectedGrade,
-                          items: provider.availableGrades,
-                          onChanged: (value) {
-                            setState(() {
-                              _selectedGrade = value;
-                            });
-                            _performSearch();
-                          },
-                          icon: Icons.workspace_premium,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      IconButton(
-                        icon: const Icon(Icons.refresh),
-                        onPressed: () {
-                          provider.loadFilterOptions(forceRefresh: true);
-                        },
-                        tooltip: 'تحديث الفلاتر من السيرفر',
-                      ),
-                    ],
-                  ),
-                );
-              }
-              
-              // Use normal Row for larger screens
-              return Row(
-                children: [
-                  Expanded(
-                    child: _buildFilterDropdown(
-                      label: 'الفرع',
-                      value: _selectedBranch,
-                      items: provider.availableBranches,
-                      onChanged: (value) {
-                        setState(() {
-                          _selectedBranch = value;
-                        });
-                        _performSearch();
-                      },
-                      icon: Icons.business,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _buildFilterDropdown(
-                      label: 'الدرجة',
-                      value: _selectedGrade,
-                      items: provider.availableGrades,
-                      onChanged: (value) {
-                        setState(() {
-                          _selectedGrade = value;
-                        });
-                        _performSearch();
-                      },
-                      icon: Icons.workspace_premium,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    icon: const Icon(Icons.refresh),
-                    onPressed: () {
-                      provider.loadFilterOptions(forceRefresh: true);
-                    },
-                    tooltip: 'تحديث الفلاتر من السيرفر',
-                  ),
-                ],
-              );
-            },
-          ),
-        );
-      },
+  Widget _buildFilterLabel(String label) {
+    return Text(
+      label,
+      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey),
     );
   }
 
   Widget _buildFilterDropdown({
-    required String label,
     required String? value,
     required List<String> items,
     required Function(String?) onChanged,
     required IconData icon,
   }) {
-    return DropdownButtonFormField<String>(
-      value: value,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon, size: 20),
-        filled: true,
-        fillColor: Theme.of(context).colorScheme.surface,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: Colors.grey.withOpacity(0.3)),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: Colors.grey.withOpacity(0.3)),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(
-            color: Theme.of(context).colorScheme.primary,
-            width: 2,
-          ),
-        ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(12),
       ),
-      items: items.map((item) {
-        return DropdownMenuItem(
-          value: item,
-          child: Text(item),
-        );
-      }).toList(),
-      onChanged: onChanged,
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: value,
+          isExpanded: true,
+          hint: const Text('اختر خياراً'),
+          items: [
+            const DropdownMenuItem<String>(value: null, child: Text('الكل')),
+            ...items.map((e) => DropdownMenuItem(value: e, child: Text(e))),
+          ],
+          onChanged: onChanged,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorState(LawyerProvider provider) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.error_outline, size: 80, color: Colors.red[300]),
+          const SizedBox(height: 24),
+          Text(provider.errorMessage ?? 'فشل الاتصال بالسيرفر'),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: () => provider.loadLawyers(refresh: true),
+            child: const Text('إعادة المحاولة'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(bool isDark) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.search_off_rounded, size: 100, color: Colors.grey.withOpacity(0.3)),
+          const SizedBox(height: 24),
+          Text(
+            'لم يتم العثور على محامين',
+            style: TextStyle(fontSize: 18, color: Colors.grey[600], fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          const Text('حاول تغيير معايير البحث أو الفلاتر', style: TextStyle(color: Colors.grey)),
+        ],
+      ),
+    );
+  }
+
+  void _showLawyerInfo(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('دليل المحامين'),
+        content: const Text('هذا الدليل يحتوي على قائمة المحامين المعتمدين والمقيدين لدى نقابة المحامين اليمنيين.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('حسناً')),
+        ],
+      ),
     );
   }
 
@@ -478,16 +537,24 @@ class _LawyersSearchScreenState extends State<LawyersSearchScreen> {
 
 class _LawyerCard extends StatelessWidget {
   final LawyerModel lawyer;
+  final bool isDark;
 
-  const _LawyerCard({required this.lawyer});
+  const _LawyerCard({required this.lawyer, required this.isDark});
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: InkWell(
         onTap: () {
@@ -498,53 +565,49 @@ class _LawyerCard extends StatelessWidget {
             ),
           );
         },
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(20),
         child: Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(20.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Expanded(
-                    child: Text(
-                      lawyer.name,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    width: 50,
+                    height: 50,
                     decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: Theme.of(context).colorScheme.primary,
-                        width: 1,
-                      ),
+                      color: AppColors.brand.withOpacity(0.1),
+                      shape: BoxShape.circle,
                     ),
-                    child: Text(
-                      lawyer.gradeDisplay,
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.primary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    child: Icon(Icons.person, color: AppColors.brand, size: 30),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          lawyer.name,
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          lawyer.gradeDisplay,
+                          style: TextStyle(fontSize: 13, color: AppColors.brand, fontWeight: FontWeight.w500),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
-              _buildInfoRow(context, Icons.badge, 'رقم القيد:', lawyer.registrationNumber),
-              if (lawyer.branch != null && lawyer.branch!.isNotEmpty)
-                _buildInfoRow(context, Icons.business, 'الفرع:', lawyer.branch!),
-              if (lawyer.phone != null && lawyer.phone!.isNotEmpty)
-                _buildInfoRow(context, Icons.phone, 'الهاتف:', lawyer.phone!, isPhone: true),
-              if (lawyer.governorate != null)
-                _buildInfoRow(context, Icons.location_on, 'العنوان:', lawyer.fullAddress),
+              const Divider(height: 32),
+              _buildInfoRow(Icons.badge_outlined, 'رقم القيد:', lawyer.registrationNumber),
+              const SizedBox(height: 10),
+              if (lawyer.branch != null)
+                _buildInfoRow(Icons.business_outlined, 'الفرع:', lawyer.branch!),
+              const SizedBox(height: 10),
+              if (lawyer.phone != null)
+                _buildInfoRow(Icons.phone_android_outlined, 'الهاتف:', lawyer.phone!, isAction: true),
             ],
           ),
         ),
@@ -552,37 +615,24 @@ class _LawyerCard extends StatelessWidget {
     );
   }
 
-  Widget _buildInfoRow(BuildContext context, IconData icon, String label, String value, {bool isPhone = false}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: Colors.grey[600], size: 18),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
+  Widget _buildInfoRow(IconData icon, String label, String value, {bool isAction = false}) {
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: Colors.grey),
+        const SizedBox(width: 8),
+        Text(label, style: const TextStyle(fontSize: 13, color: Colors.grey)),
+        const SizedBox(width: 4),
+        Expanded(
+          child: Text(
+            value,
+            style: TextStyle(
               fontSize: 13,
-              color: Colors.grey,
+              fontWeight: isAction ? FontWeight.bold : FontWeight.normal,
+              color: isAction ? AppColors.brand : (isDark ? Colors.white : Colors.black87),
             ),
           ),
-          const SizedBox(width: 4),
-          Expanded(
-            child: Text(
-              value,
-              style: TextStyle(
-                fontSize: 13,
-                color: isPhone ? Theme.of(context).colorScheme.primary : Colors.grey[800],
-                fontWeight: isPhone ? FontWeight.w500 : FontWeight.normal,
-              ),
-              overflow: TextOverflow.ellipsis,
-              maxLines: isPhone ? null : 1,
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

@@ -9,7 +9,7 @@ from domain.models import Heir
 app = FastAPI()
 
 
-@app.get('/health/')
+@app.get('/api/inheritance/health/')
 def health():
     return {'status': 'ok', 'service': 'inheritance-service'}
 

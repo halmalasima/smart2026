@@ -121,10 +121,69 @@ class SearchLog(models.Model):
         return f'{self.search_query[:50]}... - {self.search_date}'
 
 
+class AIConversation(models.Model):
+    """
+    AI Conversation Group - مجموعات محادثات AI
+    """
+    user_id = models.BigIntegerField(
+        null=True,
+        blank=True,
+        verbose_name='معرف المستخدم',
+        db_index=True
+    )
+    
+    title = models.CharField(
+        max_length=255,
+        default='محادثة جديدة',
+        verbose_name='عنوان المحادثة'
+    )
+    
+    is_archived = models.BooleanField(
+        default=False,
+        verbose_name='مؤرشفة'
+    )
+    
+    is_favorite = models.BooleanField(
+        default=False,
+        verbose_name='مفضلة'
+    )
+    
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='تاريخ البدء'
+    )
+    
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name='تاريخ آخر تحديث'
+    )
+    
+    class Meta:
+        verbose_name = 'محادثة AI'
+        verbose_name_plural = 'محادثات AI'
+        ordering = ['-updated_at']
+        indexes = [
+            models.Index(fields=['user_id', 'is_archived']),
+            models.Index(fields=['updated_at']),
+        ]
+    
+    def __str__(self):
+        return f'{self.title} - {self.user_id}'
+
+
 class AIChatLog(models.Model):
     """
-    AI Chat Log Model - سجل محادثات AI
+    AI Chat Log Model - سجل محادثات AI (رسالة منفردة)
     """
+    conversation = models.ForeignKey(
+        AIConversation,
+        on_delete=models.CASCADE,
+        related_name='messages',
+        null=True,
+        blank=True,
+        verbose_name='المحادثة'
+    )
+    
     user_id = models.BigIntegerField(
         null=True,
         blank=True,
@@ -156,7 +215,7 @@ class AIChatLog(models.Model):
     class Meta:
         verbose_name = 'سجل محادثة AI'
         verbose_name_plural = 'سجلات محادثات AI'
-        ordering = ['-created_at']
+        ordering = ['created_at'] # Messages in a conversation should be chronological
         indexes = [
             models.Index(fields=['created_at']),
         ]

@@ -1,0 +1,47 @@
+{% extends "control_panel/base.html" %}
+
+{% block page_header %}
+  <div class="page-header d-print-none mb-3">
+    <div class="row g-2 align-items-center">
+      <div class="col">
+        <div class="page-pretitle text-secondary">
+            {{ app_label }} · {{ verbose_name }}
+        </div>
+        <h2 class="page-title">{{ page_title }}</h2>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-body text-center py-4">
+        <div class="mb-3 text-secondary">
+          <i class="ti ti-file-upload" style="font-size: 3rem;"></i>
+        </div>
+        <h3>رفع ملف البيانات</h3>
+        <p class="text-secondary">يرجى رفع ملف بصيغة CSV. تأكد أن العناوين في الصف الأول تطابق أسماء الحقول أو مسمياتها بالعربية.</p>
+        
+        <form method="post" enctype="multipart/form-data" class="mt-4">
+          {% csrf_token %}
+          <div class="mb-3">
+            <input type="file" name="file" class="form-control" accept=".csv" required>
+          </div>
+          <div class="form-footer">
+            <button type="submit" class="btn btn-success w-100">
+              <i class="ti ti-upload me-1"></i> بدء عملية الاستيراد
+            </button>
+          </div>
+        </form>
+      </div>
+      <div class="card-footer bg-light">
+          <small class="text-secondary">
+              <i class="ti ti-info-circle me-1"></i> نصيحة: يمكنك تصدير الملف أولاً للحصول على التنسيق الصحيح ثم التعديل عليه وإعادة رفعه.
+          </small>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -15,6 +15,7 @@ import '../services/api_service.dart';
 import '../services/local_lookup_service.dart';
 import '../providers/lawsuit_provider.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_theme.dart';
 import '../utils/attachment_utils.dart';
 import 'appeal_screen.dart';
 import 'payment_order_screen.dart';
@@ -207,7 +208,7 @@ class _CaseDetailScreenState extends State<CaseDetailScreen>
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: context.isDark ? AppColors.darkSurface : AppColors.lightSurface,
         elevation: 0,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

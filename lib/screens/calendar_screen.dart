@@ -473,17 +473,17 @@ class _CalendarScreenState extends State<CalendarScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F8FA),
-      appBar: _buildAppBar(),
+      backgroundColor: context.isDark ? AppColors.darkBackground : AppColors.lightBackground,
+      appBar: _buildAppBar(context),
       body: SafeArea(
         child: Column(
           children: [
-            _buildCalendarHeader(),
+            _buildCalendarHeader(context),
             Expanded(
               flex: 2,
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                child: _buildCalendar(),
+                child: _buildCalendar(context),
               ),
             ),
             _buildAddTaskButton(),
@@ -497,33 +497,33 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
-  PreferredSizeWidget _buildAppBar() {
+  PreferredSizeWidget _buildAppBar(BuildContext context) {
     return AppBar(
-      backgroundColor: const Color(0xFFF7F8FA),
+      backgroundColor: context.isDark ? AppColors.darkBackground : AppColors.lightBackground,
       elevation: 0,
       automaticallyImplyLeading: false,
-      title: const Text(
+      title: Text(
         'التقويم',
         style: TextStyle(
-          color: Colors.black87,
+          color: context.isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
           fontSize: 20,
           fontWeight: FontWeight.w600,
         ),
       ),
       actions: [
         IconButton(
-          icon: const Icon(Icons.edit_calendar_outlined, color: Colors.black87),
+          icon: Icon(Icons.edit_calendar_outlined, color: context.isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary),
           onPressed: () => _showSettingsDialog(),
         ),
         IconButton(
-          icon: const Icon(Icons.archive_outlined, color: Colors.black87),
+          icon: Icon(Icons.archive_outlined, color: context.isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary),
           onPressed: () => _showMonthlyArchive(),
         ),
       ],
     );
   }
 
-  Widget _buildCalendarHeader() {
+  Widget _buildCalendarHeader(BuildContext context) {
     String monthYear;
     if (_isHijriCalendar) {
       monthYear = _getHijriMonthYear(_focusedDay);
@@ -538,7 +538,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           IconButton(
-            icon: const Icon(Icons.chevron_left, color: Colors.black54),
+            icon: Icon(Icons.chevron_left, color: context.isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
             onPressed: () {
               setState(() {
                 if (_isHijriCalendar) {
@@ -562,10 +562,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
           ),
           Text(
             monthYear,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: Colors.black87,
+              color: context.isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
             ),
           ),
           Row(
@@ -579,21 +579,21 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: _isHijriCalendar ? const Color(0xFFD4A940) : Colors.grey[200],
+                    color: _isHijriCalendar ? const Color(0xFFD4A940) : (context.isDark ? AppColors.darkSurfaceVariant : Colors.grey[200]),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
                     _isHijriCalendar ? 'هجري' : 'ميلادي',
                     style: TextStyle(
                       fontSize: 12,
-                      color: _isHijriCalendar ? Colors.white : Colors.black87,
+                      color: _isHijriCalendar ? Colors.white : (context.isDark ? AppColors.darkTextPrimary : Colors.black87),
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.chevron_right, color: Colors.black54),
+                icon: Icon(Icons.chevron_right, color: context.isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
                 onPressed: () {
                   setState(() {
                     if (_isHijriCalendar) {
@@ -622,15 +622,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
-  Widget _buildCalendar() {
+  Widget _buildCalendar(BuildContext context) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.isDark ? AppColors.darkSurface : AppColors.lightSurface,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: context.isDark ? AppColors.darkShadow : AppColors.lightShadow,
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -639,14 +639,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.max,
         children: [
-          _buildWeekDaysHeader(),
-          _buildCalendarGrid(),
+          _buildWeekDaysHeader(context),
+          _buildCalendarGrid(context),
         ],
       ),
     );
   }
 
-  Widget _buildWeekDaysHeader() {
+  Widget _buildWeekDaysHeader(BuildContext context) {
     final weekDays = ['السبت', 'الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة'];
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
@@ -658,7 +658,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             day,
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: Colors.grey[500],
+              color: context.isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
               fontSize: 10,
               fontWeight: FontWeight.bold,
             ),
@@ -668,15 +668,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
-  Widget _buildCalendarGrid() {
+  Widget _buildCalendarGrid(BuildContext context) {
     if (_isHijriCalendar) {
-      return _buildHijriCalendarGrid();
+      return _buildHijriCalendarGrid(context);
     } else {
-      return _buildGregorianCalendarGrid();
+      return _buildGregorianCalendarGrid(context);
     }
   }
 
-  Widget _buildGregorianCalendarGrid() {
+  Widget _buildGregorianCalendarGrid(BuildContext context) {
     final firstDayOfMonth = DateTime(_focusedDay.year, _focusedDay.month, 1);
     final lastDayOfMonth = DateTime(_focusedDay.year, _focusedDay.month + 1, 0);
     
@@ -710,7 +710,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             ? DateTime(_focusedDay.year, _focusedDay.month, dayNumber)
             : null;
         
-        currentRow.add(_buildDayCell(dayNumber, isCurrentMonth, date));
+        currentRow.add(_buildDayCell(dayNumber, isCurrentMonth, date, context));
       }
       
       rows.add(Row(
@@ -728,7 +728,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
-  Widget _buildHijriCalendarGrid() {
+  Widget _buildHijriCalendarGrid(BuildContext context) {
     final hijri = HijriCalendar.fromDate(_focusedDay);
     final daysInMonth = hijri.lengthOfMonth;
     
@@ -759,7 +759,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
           date = _hijriToGregorian(hijri.hYear, hijri.hMonth, dayNumber);
         }
         
-        currentRow.add(_buildDayCell(dayNumber, isCurrentMonth, date));
+        currentRow.add(_buildDayCell(dayNumber, isCurrentMonth, date, context));
       }
       
       rows.add(Row(
@@ -777,7 +777,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
-  Widget _buildDayCell(int dayNumber, bool isCurrentMonth, DateTime? date) {
+  Widget _buildDayCell(int dayNumber, bool isCurrentMonth, DateTime? date, BuildContext context) {
     // Only show content if this is a valid day in the current month
     final shouldShow = isCurrentMonth && dayNumber > 0 && date != null;
     
@@ -806,9 +806,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
         margin: const EdgeInsets.symmetric(vertical: 1),
         decoration: BoxDecoration(
           color: isSelected 
-              ? const Color(0xFFD4A940)
+              ? AppColors.brand
               : isToday 
-                  ? const Color(0xFFD4A940).withOpacity(0.2)
+                  ? AppColors.brand.withOpacity(0.2)
                   : Colors.transparent,
           shape: BoxShape.circle,
         ),
@@ -823,7 +823,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     style: TextStyle(
                       color: isSelected 
                           ? Colors.white
-                          : Colors.black87,
+                          : (context.isDark ? AppColors.darkTextPrimary : Colors.black87),
                       fontWeight: isToday || isSelected ? FontWeight.bold : FontWeight.normal,
                       fontSize: 14,
                     ),
@@ -902,7 +902,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             ),
           ),
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFFD4A940),
+            backgroundColor: AppColors.brand,
             padding: const EdgeInsets.symmetric(vertical: 12),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(30),
@@ -916,7 +916,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   Widget _buildTasksList() {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator(color: Color(0xFFD4A940)));
+      return const Center(child: CircularProgressIndicator(color: AppColors.brand));
     }
     
     if (_selectedDayTasks.isEmpty) {
@@ -944,7 +944,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
               Text(
                 _getFormattedDate(_selectedDay),
                 style: TextStyle(
-                  color: Colors.grey[400],
+                  color: context.isDark ? AppColors.darkTextTertiary : Colors.grey[400],
                   fontSize: 14,
                 ),
               ),
@@ -968,11 +968,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Theme.of(context).colorScheme.shadow,
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),

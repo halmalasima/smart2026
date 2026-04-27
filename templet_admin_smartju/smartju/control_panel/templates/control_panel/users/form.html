@@ -1,0 +1,85 @@
+{% extends "control_panel/base.html" %}
+
+{% block content %}
+<form method="post" novalidate>
+  {% csrf_token %}
+  <div class="row row-cards">
+    <div class="col-lg-8">
+      <div class="card">
+        <div class="card-header"><h3 class="card-title">المعلومات الأساسية</h3></div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label required">اسم المستخدم</label>
+              {{ form.username }}
+              {% if form.username.errors %}<div class="invalid-feedback d-block">{{ form.username.errors|join:"، " }}</div>{% endif %}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">البريد الإلكتروني</label>
+              {{ form.email }}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">الاسم الأول</label>
+              {{ form.first_name }}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">الاسم الأخير</label>
+              {{ form.last_name }}
+            </div>
+
+            {% if mode == 'create' %}
+              <div class="col-md-6">
+                <label class="form-label required">كلمة المرور</label>
+                {{ form.password1 }}
+              </div>
+              <div class="col-md-6">
+                <label class="form-label required">تأكيد كلمة المرور</label>
+                {{ form.password2 }}
+              </div>
+            {% else %}
+              <div class="col-12">
+                <label class="form-label">كلمة مرور جديدة (اختياري)</label>
+                {{ form.new_password }}
+                <div class="form-hint">اتركها فارغة إذا لم ترغب في التغيير.</div>
+              </div>
+            {% endif %}
+
+            {% if form.non_field_errors %}
+              <div class="col-12"><div class="alert alert-danger">{{ form.non_field_errors|join:"، " }}</div></div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-4">
+      <div class="card mb-3">
+        <div class="card-header"><h3 class="card-title">الصلاحيات</h3></div>
+        <div class="card-body">
+          <label class="form-check">
+            {{ form.is_active }}
+            <span class="form-check-label">حساب نشط</span>
+          </label>
+          <label class="form-check">
+            {{ form.is_staff }}
+            <span class="form-check-label">موظف إداري (يمكنه الدخول للوحة)</span>
+          </label>
+          <label class="form-check">
+            {{ form.is_superuser }}
+            <span class="form-check-label">مدير عام (كل الصلاحيات)</span>
+          </label>
+        </div>
+      </div>
+      <div class="card mb-3">
+        <div class="card-header"><h3 class="card-title">الأدوار</h3></div>
+        <div class="card-body">{{ form.groups }}</div>
+      </div>
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary flex-fill">
+          <i class="ti ti-device-floppy me-1"></i> حفظ
+        </button>
+        <a href="{% url 'control_panel:user_list' %}" class="btn btn-outline-secondary">إلغاء</a>
+      </div>
+    </div>
+  </div>
+</form>
+{% endblock %}

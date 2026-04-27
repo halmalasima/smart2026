@@ -66,7 +66,13 @@ INSTALLED_APPS = [
     'messaging',
     'lawyers',
     'notifications',
+    'control_panel',
 ]
+
+# ─── Control Panel Settings ───
+CP_BRAND = 'SmartJudi Console'
+CP_VERSION = '2.0.0'
+CP_GATEWAY_URL = 'http://localhost:8000'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -80,6 +86,9 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
+X_FRAME_OPTIONS = 'SAMEORIGIN'
+
+
 ROOT_URLCONF = 'smartju.urls'
 
 TEMPLATES = [
@@ -92,6 +101,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'control_panel.context_processors.cp_globals',
             ],
         },
     },
@@ -102,37 +112,70 @@ WSGI_APPLICATION = 'smartju.wsgi.application'
 # Database — local development without cloud hosting
 # Default: SQLite file next to manage.py (no PostgreSQL required).
 # Optional PostgreSQL: set DATABASE_URL, or USE_LOCAL_POSTGRES=1 with DB_* env vars.
-_database_url = os.environ.get('DATABASE_URL', '').strip()
-_use_local_postgres = os.environ.get('USE_LOCAL_POSTGRES', '').lower() in ('1', 'true', 'yes')
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
+    },
+    'auth_db': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'smartjudi_auth',
+        'USER': 'smartjudi',
+        'PASSWORD': 'smartjudi_secret',
+        'HOST': 'localhost',
+        'PORT': '5439',
+    },
+    'cases_db': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'smartjudi_cases',
+        'USER': 'smartjudi',
+        'PASSWORD': 'smartjudi_secret',
+        'HOST': 'localhost',
+        'PORT': '5433',
+    },
+    'hearings_db': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'smartjudi_hearings',
+        'USER': 'smartjudi',
+        'PASSWORD': 'smartjudi_secret',
+        'HOST': 'localhost',
+        'PORT': '5434',
+    },
+    'legal_db': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'smartjudi_legal',
+        'USER': 'smartjudi',
+        'PASSWORD': 'smartjudi_secret',
+        'HOST': 'localhost',
+        'PORT': '5435',
+    },
+    'documents_db': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'smartjudi_documents',
+        'USER': 'smartjudi',
+        'PASSWORD': 'smartjudi_secret',
+        'HOST': 'localhost',
+        'PORT': '5436',
+    },
+    'notifications_db': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'smartjudi_notifications',
+        'USER': 'smartjudi',
+        'PASSWORD': 'smartjudi_secret',
+        'HOST': 'localhost',
+        'PORT': '5437',
+    },
+    'search_db': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'smartjudi_search',
+        'USER': 'smartjudi',
+        'PASSWORD': 'smartjudi_secret',
+        'HOST': 'localhost',
+        'PORT': '5438',
+    },
+}
 
-if _database_url:
-    import dj_database_url
-
-    DATABASES = {
-        'default': dj_database_url.config(
-            default=_database_url,
-            conn_max_age=600,
-            conn_health_checks=True,
-        )
-    }
-elif _use_local_postgres:
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': os.environ.get('DB_NAME', 'smartjudi'),
-            'USER': os.environ.get('DB_USER', 'jood'),
-            'PASSWORD': os.environ.get('DB_PASSWORD', '123456'),
-            'HOST': os.environ.get('DB_HOST', 'localhost'),
-            'PORT': os.environ.get('DB_PORT', '5432'),
-        }
-    }
-else:
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
-        }
-    }
+DATABASE_ROUTERS = ['smartju.router.MicroserviceRouter']
 
 # Internationalization
 LANGUAGE_CODE = 'ar'

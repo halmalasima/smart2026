@@ -10,11 +10,8 @@ import '../theme/app_theme.dart';
 
 // Screens
 import 'archive_screen.dart';
-import 'inquiries_screen.dart';
 import 'settings_screen.dart';
-import 'payment_order_screen.dart';
-import 'appeal_screen.dart';
-import 'daily_sessions_screen.dart';
+// Removed unused imports
 import 'calendar_screen.dart';
 import 'ai_case_analysis_screen.dart';
 import 'citizen_dashboard_screen.dart';
@@ -155,11 +152,11 @@ class _HomeScreenState extends State<HomeScreen> {
         height: 40,
         decoration: BoxDecoration(
           color: isAi 
-              ? (isDark ? AppColors.gold.withOpacity(0.2) : AppColors.gold.withOpacity(0.15))
+              ? (isDark ? AppColors.brand.withOpacity(0.2) : AppColors.brand.withOpacity(0.15))
               : (isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant),
           shape: BoxShape.circle,
           border: Border.all(
-            color: isAi ? AppColors.gold.withOpacity(0.5) : Colors.transparent,
+            color: isAi ? AppColors.brand.withOpacity(0.5) : Colors.transparent,
           ),
         ),
         child: Stack(
@@ -169,7 +166,7 @@ class _HomeScreenState extends State<HomeScreen> {
               icon,
               size: 20,
               color: isAi 
-                  ? AppColors.gold 
+                  ? AppColors.brand 
                   : (isDark ? AppColors.darkIcon : AppColors.lightIcon),
             ),
             if (badge != null)
@@ -214,24 +211,14 @@ class _HomeScreenState extends State<HomeScreen> {
             subtitle: 'جميع الخدمات القضائية في متناول يدك',
             trailing: CircleAvatar(
               radius: 30,
-              backgroundColor: Colors.white.withOpacity(0.2),
+              backgroundColor: context.isDark ? AppColors.darkSurface : AppColors.lightSurface.withOpacity(0.2),
               child: const Icon(Icons.person, color: Colors.white, size: 30),
             ),
           ).animate().fade(duration: 400.ms).slideY(begin: 0.1, end: 0),
           
           const SizedBox(height: AppSpacing.xl),
           
-          // Lawyer Dashboard Shortcut (Only for Pro Roles)
-          if (user.role == 'lawyer' || user.role == 'admin' || user.role == 'assistant')
-            SJServiceCard(
-              icon: Icons.dashboard_customize_rounded,
-              label: 'لوحة تحكم المكتب الاحترافية',
-              subtitle: 'إدارة القضايا، الموكلين، والإحصائيات المتقدمة',
-              iconColor: AppColors.gold,
-              onTap: () => Navigator.pushNamed(context, '/lawyer-dashboard'),
-            ).animate().fade(delay: 100.ms).slideX(begin: 0.1),
-          
-          const SizedBox(height: AppSpacing.xl),
+          // Removed Lawyer Dashboard Shortcut from here as per user request.
           const SJSectionHeader(title: 'الخدمات السريعة')
               .animate().fade(delay: 200.ms).slideX(begin: 0.05),
           
@@ -243,57 +230,16 @@ class _HomeScreenState extends State<HomeScreen> {
             crossAxisSpacing: AppSpacing.md,
             children: [
               SJQuickActionCard(
-                icon: Icons.gavel_rounded,
-                label: 'رفع دعوى',
-                color: AppColors.coral,
-                onTap: () => Navigator.pushNamed(context, '/electronic-lawsuit'),
-              ),
-              SJQuickActionCard(
-                icon: Icons.search_rounded,
-                label: 'بحث الخدمات',
-                color: AppColors.ocean,
-                onTap: () => Navigator.pushNamed(context, '/services'),
-              ),
-              SJQuickActionCard(
                 icon: Icons.calendar_month_rounded,
                 label: 'الجلسات',
                 color: AppColors.emerald,
-                onTap: () => Navigator.pushNamed(context, '/daily-sessions'),
+                onTap: () => Navigator.pushNamed(context, '/sessions'),
               ),
               SJQuickActionCard(
-                icon: Icons.receipt_long_rounded,
-                label: 'أمر الأداء',
+                icon: Icons.event_note_rounded,
+                label: 'التقويم',
                 color: AppColors.amber,
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const PaymentOrderScreen()),
-                ),
-              ),
-              SJQuickActionCard(
-                icon: Icons.compare_arrows_rounded,
-                label: 'الطعون',
-                color: AppColors.violet,
-                onTap: () async {
-                  final result = await Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const AppealScreen()),
-                  );
-                  if (result != null && mounted) {
-                    showDialog(
-                      context: context,
-                      builder: (ctx) => AlertDialog(
-                        title: const Text('تم إنشاء الطعن بنجاح'),
-                        content: Text('رقم الطعن: ${result['appeal_number']}\nنوع الطعن: ${result['appeal_type_display']}'),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(ctx),
-                            child: const Text('حسناً'),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-                },
+                onTap: () => Navigator.pushNamed(context, '/calendar'),
               ),
               SJQuickActionCard(
                 icon: Icons.smart_toy_rounded,
@@ -301,6 +247,48 @@ class _HomeScreenState extends State<HomeScreen> {
                 color: AppColors.teal,
                 onTap: () => Navigator.pushNamed(context, '/chat'),
                 badge: 'AI',
+              ),
+              SJQuickActionCard(
+                icon: Icons.account_balance_rounded,
+                label: 'المحاكم',
+                color: AppColors.indigo,
+                onTap: () => Navigator.pushNamed(context, '/courts'),
+              ),
+              SJQuickActionCard(
+                icon: Icons.gavel_rounded,
+                label: 'المحاميين',
+                color: AppColors.amber,
+                onTap: () => Navigator.pushNamed(context, '/lawyers'),
+              ),
+              SJQuickActionCard(
+                icon: Icons.menu_book_rounded,
+                label: 'المكتبة القانونية',
+                color: AppColors.violet,
+                onTap: () => Navigator.pushNamed(context, '/legal-library'),
+              ),
+              SJQuickActionCard(
+                icon: Icons.edit_note_rounded,
+                label: 'صياغة المذكرات',
+                color: AppColors.ocean,
+                onTap: () => Navigator.pushNamed(context, '/electronic-lawsuit'),
+              ),
+              SJQuickActionCard(
+                icon: Icons.language_rounded,
+                label: 'خدمات إلكترونية',
+                color: AppColors.primary,
+                onTap: () => Navigator.pushNamed(context, '/electronic-services'),
+              ),
+              SJQuickActionCard(
+                icon: Icons.file_copy_rounded,
+                label: 'نماذج قانونية',
+                color: Colors.brown,
+                onTap: () => Navigator.pushNamed(context, '/forms'),
+              ),
+              SJQuickActionCard(
+                icon: Icons.support_agent_rounded,
+                label: 'استشارات',
+                color: Colors.pink,
+                onTap: () => Navigator.pushNamed(context, '/consultations'),
               ),
             ]
             .animate(interval: 50.ms)
@@ -316,22 +304,7 @@ class _HomeScreenState extends State<HomeScreen> {
           
           Column(
             children: [
-              SJServiceCard(
-                icon: Icons.menu_book_rounded,
-                label: 'المكتبة القانونية',
-                subtitle: 'تصفح القوانين والمراجع',
-                iconColor: AppColors.indigo,
-                onTap: () => Navigator.pushNamed(context, '/legal-library'),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              SJServiceCard(
-                icon: Icons.balance_rounded,
-                label: 'المحكمة العليا',
-                subtitle: 'قرارات ومبادئ المحكمة العليا',
-                iconColor: AppColors.brand,
-                onTap: () => Navigator.pushNamed(context, '/supreme-court'),
-              ),
-              const SizedBox(height: AppSpacing.sm),
+              // Removed duplicated Legal Library card as it is now in the Quick Services grid.
               SJServiceCard(
                 icon: Icons.analytics_rounded,
                 label: 'تحليل ذكي للقضايا',
@@ -368,7 +341,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             accountEmail: Text(user.email),
             currentAccountPicture: CircleAvatar(
-              backgroundColor: Colors.white,
+              backgroundColor: context.isDark ? AppColors.darkSurface : AppColors.lightSurface,
               child: Text(
                 user.fullName[0].toUpperCase(),
                 style: TextStyle(
@@ -394,11 +367,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     MaterialPageRoute(builder: (_) => const LawyersSearchScreen()),
                   );
                 }),
-                if (user.role == 'lawyer' || user.role == 'admin' || user.role == 'assistant')
-                  _drawerItem(Icons.dashboard_customize_rounded, 'لوحة تحكم المكتب', () {
-                    Navigator.pop(context);
-                    Navigator.pushNamed(context, '/lawyer-dashboard');
-                  }, color: AppColors.gold),
+                // Removed 'Lawyer Dashboard' as requested by the user.
                 _drawerItem(Icons.person_rounded, 'الملف الشخصي', () {
                   Navigator.pop(context);
                   Navigator.pushNamed(context, '/profile');

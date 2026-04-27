@@ -11,6 +11,14 @@ class LegalCategory(models.Model):
         verbose_name='اسم الفئة'
     )
     
+    slug = models.SlugField(
+        max_length=150,
+        unique=True,
+        blank=True,
+        null=True,
+        verbose_name='الرابط النصي'
+    )
+    
     description = models.TextField(
         blank=True,
         null=True,
@@ -39,6 +47,41 @@ class LegalCategory(models.Model):
         return self.name
 
 
+class Tag(models.Model):
+    """
+    Tag Model - الكلمات المفتاحية
+    """
+    name = models.CharField(
+        max_length=100,
+        unique=True,
+        verbose_name='الكلمة المفتاحية'
+    )
+    
+    slug = models.SlugField(
+        max_length=100,
+        unique=True,
+        blank=True,
+        null=True,
+        verbose_name='الرابط النصي'
+    )
+    
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='تاريخ الإنشاء'
+    )
+    
+    class Meta:
+        verbose_name = 'كلمة مفتاحية'
+        verbose_name_plural = 'كلمات مفتاحية'
+        ordering = ['name']
+        indexes = [
+            models.Index(fields=['name']),
+        ]
+    
+    def __str__(self):
+        return self.name
+
+
 class Law(models.Model):
     """
     Law Model - القوانين
@@ -57,10 +100,40 @@ class Law(models.Model):
         verbose_name='اسم القانون'
     )
     
+    slug = models.SlugField(
+        max_length=350,
+        unique=True,
+        blank=True,
+        null=True,
+        verbose_name='الرابط النصي'
+    )
+    
     issue_year = models.IntegerField(
         blank=True,
         null=True,
         verbose_name='سنة الإصدار'
+    )
+    
+    source_url = models.URLField(
+        max_length=1000,
+        blank=True,
+        null=True,
+        verbose_name='رابط المصدر'
+    )
+    
+    pdf_link = models.URLField(
+        max_length=1000,
+        blank=True,
+        null=True,
+        verbose_name='رابط PDF'
+    )
+    
+    tags = models.ManyToManyField(
+        Tag,
+        related_name='laws',
+        db_table='law_tags',
+        blank=True,
+        verbose_name='الكلمات المفتاحية'
     )
     
     description = models.TextField(
@@ -357,3 +430,27 @@ class LegalProcedureNode(models.Model):
 
     def __str__(self):
         return self.title[:50]
+
+class LawLibrary(models.Model):
+    """
+    Law Library Model - المكتبة القانونية (كتب وتشريعات)
+    """
+    title = models.CharField(max_length=500, verbose_name='العنوان')
+    category = models.CharField(max_length=200, verbose_name='الفئة')
+    source_url = models.URLField(max_length=1000, blank=True, null=True, verbose_name='رابط المصدر')
+    pdf_url = models.URLField(max_length=1000, blank=True, null=True, verbose_name='رابط PDF')
+    image_url = models.URLField(max_length=1000, blank=True, null=True, verbose_name='رابط الصورة')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='تاريخ الإضافة')
+
+    class Meta:
+        db_table = 'lawsuits_lawlibrary'
+        managed = False
+        verbose_name = 'مكتبة القوانين'
+        verbose_name_plural = 'مكتبة القوانين'
+        indexes = [
+            models.Index(fields=['title']),
+            models.Index(fields=['category']),
+        ]
+
+    def __str__(self):
+        return self.title

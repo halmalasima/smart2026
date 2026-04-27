@@ -225,6 +225,9 @@ urlpatterns = [
     # Custom Web Dashboard
     path('dashboard/', include('dashboard.urls')),
     
+    # ─── Modern Control Panel (Tabler) ───
+    path('cp/', include('control_panel.urls', namespace='control_panel')),
+
     # Admin
     path('admin/', admin.site.urls),
 

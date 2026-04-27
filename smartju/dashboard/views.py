@@ -52,36 +52,89 @@ def web_portal(request):
 
 from django.contrib.auth import authenticate, login
 from django.contrib import messages
+from accounts.models import UserProfile
+
 
 def custom_login(request):
     """
-    Custom login page view handles both showing the page and processing login
+    Custom login page — accepts phone number (or username/email) + password.
     """
     if request.user.is_authenticated:
         return RedirectView.as_view(url='/portal/')(request)
-        
+
     if request.method == 'POST':
-        u = request.POST.get('username')
+        identifier = (request.POST.get('phone') or request.POST.get('username') or '').strip()
         p = request.POST.get('password')
-        user = authenticate(request, username=u, password=p)
-        
+        user = authenticate(request, username=identifier, password=p)
+
         if user is not None:
             login(request, user)
-            # Redirect to portal or dashboard based on role
             if user.is_superuser or (hasattr(user, 'profile') and user.profile.role == 'admin'):
-                return RedirectView.as_view(url='/dashboard/')(request)
+                return RedirectView.as_view(url='/cp/')(request)
             return RedirectView.as_view(url='/portal/')(request)
         else:
-            messages.error(request, 'اسم المستخدم أو كلمة المرور غير صحيحة')
-            
+            messages.error(request, 'رقم الهاتف أو كلمة المرور غير صحيحة')
+
     return render(request, 'dashboard/login_custom.html')
+
 
 def custom_register(request):
     """
-    Custom registration page view
+    Custom registration page — phone is the primary identifier.
     """
     if request.user.is_authenticated:
         return RedirectView.as_view(url='/portal/')(request)
+
+    if request.method == 'POST':
+        full_name   = (request.POST.get('full_name') or '').strip()
+        phone       = (request.POST.get('phone') or '').strip()
+        national_id = (request.POST.get('national_id') or '').strip() or None
+        username    = (request.POST.get('username') or '').strip()
+        email       = (request.POST.get('email') or '').strip()
+        role        = (request.POST.get('role') or 'citizen').strip()
+        password    = request.POST.get('password') or ''
+        password2   = request.POST.get('password2') or ''
+
+        errors = []
+        if not full_name:                  errors.append('الاسم الكامل مطلوب')
+        if not phone or len(''.join(c for c in phone if c.isdigit())) < 7:
+            errors.append('رقم الهاتف غير صالح')
+        if not username:                   username = ''.join(c for c in phone if c.isdigit()) or f'user{User.objects.count()+1}'
+        if len(password) < 6:              errors.append('كلمة المرور يجب أن تكون 6 أحرف على الأقل')
+        if password != password2:          errors.append('كلمتا المرور غير متطابقتين')
+        if role not in [c[0] for c in UserProfile.ROLE_CHOICES]: role = 'citizen'
+
+        # Uniqueness checks
+        if not errors and User.objects.filter(username__iexact=username).exists():
+            errors.append('اسم المستخدم مستخدم بالفعل')
+        if not errors and email and User.objects.filter(email__iexact=email).exists():
+            errors.append('البريد الإلكتروني مستخدم بالفعل')
+
+        if errors:
+            for e in errors:
+                messages.error(request, e)
+            return render(request, 'dashboard/register_custom.html', {'form': request.POST})
+
+        # Create user + profile
+        first, _, last = full_name.partition(' ')
+        user = User.objects.create_user(
+            username=username,
+            email=email or '',
+            password=password,
+            first_name=first,
+            last_name=last,
+        )
+        # ensure profile exists (signal may have created it)
+        profile, _ = UserProfile.objects.get_or_create(user=user)
+        profile.phone_number = phone
+        profile.national_id = national_id
+        profile.role = role
+        profile.save()
+
+        login(request, user, backend='accounts.auth_backends.PhoneOrUsernameBackend')
+        messages.success(request, 'تم إنشاء حسابك بنجاح، أهلاً بك في منصة القضاء الذكية')
+        return RedirectView.as_view(url='/portal/')(request)
+
     return render(request, 'dashboard/register_custom.html')
 
 @login_required(login_url='/login/')
@@ -118,4 +171,3 @@ def dashboard_home(request):
         'recent_users': recent_users,
     }
     return render(request, 'dashboard/index.html', context)
-

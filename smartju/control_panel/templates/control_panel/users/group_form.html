@@ -1,0 +1,25 @@
+{% extends "control_panel/base.html" %}
+
+{% block content %}
+<form method="post">
+  {% csrf_token %}
+  <div class="card">
+    <div class="card-body">
+      <div class="mb-3">
+        <label class="form-label required">اسم الدور</label>
+        {{ form.name }}
+        {% if form.name.errors %}<div class="invalid-feedback d-block">{{ form.name.errors|join:"، " }}</div>{% endif %}
+      </div>
+      <div class="mb-3">
+        <label class="form-label">الصلاحيات</label>
+        {{ form.permissions }}
+        <div class="form-hint">يمكن اختيار صلاحيات متعددة (Ctrl + click).</div>
+      </div>
+    </div>
+    <div class="card-footer d-flex gap-2">
+      <button type="submit" class="btn btn-primary"><i class="ti ti-device-floppy me-1"></i> حفظ</button>
+      <a href="{% url 'control_panel:group_list' %}" class="btn btn-outline-secondary">إلغاء</a>
+    </div>
+  </div>
+</form>
+{% endblock %}

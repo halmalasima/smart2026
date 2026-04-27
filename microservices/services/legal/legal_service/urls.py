@@ -10,7 +10,7 @@ from courts.views import (
 from laws.views import (
     LegalCategoryViewSet, LawViewSet, LawChapterViewSet, LawSectionViewSet,
     LawArticleViewSet, CaseLegalReferenceViewSet, LegalArticleFlatViewSet,
-    LegalProcedureViewSet,
+    LegalProcedureViewSet, LawLibraryViewSet, TagViewSet,
 )
 from lawyers.views import LawyerViewSet, LawyerFilterOptionsViewSet
 
@@ -25,6 +25,7 @@ router.register(r'courts', CourtViewSet)
 
 # Laws
 router.register(r'legal-categories', LegalCategoryViewSet)
+router.register(r'tags', TagViewSet)
 router.register(r'laws', LawViewSet)
 router.register(r'law-chapters', LawChapterViewSet)
 router.register(r'law-sections', LawSectionViewSet)
@@ -32,12 +33,16 @@ router.register(r'law-articles', LawArticleViewSet)
 router.register(r'case-legal-references', CaseLegalReferenceViewSet)
 router.register(r'legal-library', LegalArticleFlatViewSet, basename='legal-library')
 router.register(r'legal-procedures', LegalProcedureViewSet)
+router.register(r'law-library-books', LawLibraryViewSet, basename='law-library-books')
 
 # Lawyers
 router.register(r'lawyers', LawyerViewSet)
 router.register(r'lawyer-filter-options', LawyerFilterOptionsViewSet, basename='lawyer-filter-options')
 
+from django.contrib import admin
+
 urlpatterns = [
+    path('admin/legal/', admin.site.urls),
     path('health/', health_check),
     path('api/', include(router.urls)),
 ]
