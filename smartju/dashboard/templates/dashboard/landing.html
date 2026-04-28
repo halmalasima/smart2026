@@ -47,7 +47,7 @@
 
     <!-- Mobile Menu Button -->
     <button onclick="toggleSidebar()" class="lg:hidden absolute top-6 left-6 z-50 w-10 h-10 rounded-xl glass text-primary flex items-center justify-center border border-gray-200 hover:bg-gray-50 shadow-soft">
-        <i class="fas fa-bars"></i>
+        <i class="ti ti-menu-2"></i>
     </button>
 
     <!-- Side Navigation -->
@@ -56,7 +56,7 @@
         <!-- Logo Section -->
         <div class="h-28 flex flex-col items-center justify-center border-b border-gray-100 shrink-0 gap-2 bg-gradient-to-b from-amber-50/50 to-white">
             <div class="relative w-14 h-14 flex items-center justify-center bg-white rounded-2xl shadow-sm border border-gray-100">
-                <i class="fas fa-balance-scale text-primary text-2xl"></i>
+                <i class="ti ti-scale text-primary text-2xl"></i>
             </div>
             <h1 class="font-black text-gray-800 tracking-wider">SmartJudi المنصة</h1>
         </div>
@@ -65,34 +65,34 @@
         <nav class="flex-1 overflow-y-auto py-4 px-3 space-y-1">
             
             <button onclick="switchTab('home')" class="tab-btn active w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-amber-50 text-primary font-bold text-right border border-amber-100 text-sm">
-                <i class="fas fa-home w-5 text-lg"></i> الرئيسية
+                <i class="ti ti-home w-5 text-lg"></i> الرئيسية
             </button>
             
             <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mx-2 mt-4 mb-2">الخدمات العامة المشتركة</p>
             <button onclick="switchTab('ai_chat')" class="tab-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-600 hover:bg-gray-50 transition-all text-right text-sm">
-                <i class="fas fa-robot w-5 text-blue-600"></i> المستشار المتطور (AI)
+                <i class="ti ti-robot w-5 text-blue-600"></i> المستشار المتطور (AI)
             </button>
             <button onclick="switchTab('library')" class="tab-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-600 hover:bg-gray-50 transition-all text-right text-sm">
-                <i class="fas fa-book w-5 text-purple-600"></i> المكتبة التشريعية
+                <i class="ti ti-book w-5 text-purple-600"></i> المكتبة التشريعية
             </button>
             <button onclick="switchTab('client_cases')" class="tab-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-600 hover:bg-gray-50 transition-all text-right text-sm">
-                <i class="fas fa-search w-5 text-teal-600"></i> الاستعلام والتتبع
+                <i class="ti ti-search w-5 text-teal-600"></i> الاستعلام والتتبع
             </button>
             
             {% if user_role == 'lawyer' or user_role == 'admin' %}
             <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mx-2 mt-4 mb-2">بوابة المحامين</p>
             <button onclick="switchTab('lawyer_ai')" class="tab-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-600 hover:bg-gray-50 transition-all text-right text-sm">
-                <i class="fas fa-brain w-5 text-primary"></i> صياغة وتحليل بالـ AI
+                <i class="ti ti-brain w-5 text-primary"></i> صياغة وتحليل بالـ AI
             </button>
             <button onclick="switchTab('lawyer_clients')" class="tab-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-600 hover:bg-gray-50 transition-all text-right text-sm">
-                <i class="fas fa-users w-5 text-primary"></i> إدارة الموكلين والمحاسبة
+                <i class="ti ti-users w-5 text-primary"></i> إدارة الموكلين والمحاسبة
             </button>
             {% endif %}
 
             {% if user_role == 'notary' or user_role == 'admin' %}
             <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mx-2 mt-4 mb-2">بوابة الأمناء والموثقين</p>
             <button onclick="switchTab('notary_tools')" class="tab-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-600 hover:bg-gray-50 transition-all text-right text-sm">
-                <i class="fas fa-calculator w-5 text-emerald-600"></i> حساب المواريث والتركات
+                <i class="ti ti-calculator w-5 text-emerald-600"></i> حساب المواريث والتركات
             </button>
             {% endif %}
 
@@ -109,15 +109,15 @@
                 </div>
                 {% if request.user.is_superuser or user_role == 'admin' %}
                 <a href="/dashboard/home/" class="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-amber-600 hover:bg-amber-50 text-right text-sm mb-2 font-bold">
-                    <i class="fas fa-chart-line w-5"></i> لوحة تحكم الإدارة
+                    <i class="ti ti-chart-line w-5"></i> لوحة تحكم الإدارة
                 </a>
                 {% endif %}
                 <a href="/admin/logout/?next=/" class="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-red-500 hover:bg-red-50 text-right text-sm">
-                    <i class="fas fa-sign-out-alt w-5"></i> تسجيل خروج
+                    <i class="ti ti-logout w-5"></i> تسجيل خروج
                 </a>
                 {% else %}
                 <a href="/login/" class="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-gray-900 text-white font-bold hover:bg-primary transition-colors text-right shadow-md text-sm">
-                    <i class="fas fa-shield-alt w-5"></i> الدخول والمصادقة
+                    <i class="ti ti-shield-check w-5"></i> الدخول والمصادقة
                 </a>
                 {% endif %}
             </div>
@@ -147,22 +147,22 @@
                 <!-- Database Metrics -->
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                     <div class="bg-gradient-to-br from-gray-50 to-white border border-gray-100 p-4 rounded-2xl shadow-sm">
-                        <i class="fas fa-users text-primary mb-2 text-lg"></i>
+                        <i class="ti ti-users text-primary mb-2 text-lg"></i>
                         <h4 class="text-2xl font-black text-gray-800">{{ total_users }}</h4>
                         <p class="text-gray-500 text-xs font-semibold">مستفيد مسجل</p>
                     </div>
                     <div class="bg-gradient-to-br from-gray-50 to-white border border-gray-100 p-4 rounded-2xl shadow-sm">
-                        <i class="fas fa-gavel text-primary mb-2 text-lg"></i>
+                        <i class="ti ti-gavel text-primary mb-2 text-lg"></i>
                         <h4 class="text-2xl font-black text-gray-800">{{ total_lawsuits }}</h4>
                         <p class="text-gray-500 text-xs font-semibold">دعوى إلكترونية</p>
                     </div>
                     <div class="bg-gradient-to-br from-gray-50 to-white border border-gray-100 p-4 rounded-2xl shadow-sm">
-                        <i class="fas fa-balance-scale text-primary mb-2 text-lg"></i>
+                        <i class="ti ti-scale text-primary mb-2 text-lg"></i>
                         <h4 class="text-2xl font-black text-gray-800">{{ total_laws }}</h4>
                         <p class="text-gray-500 text-xs font-semibold">مادة تشريعية بقاعدة AI</p>
                     </div>
                     <div class="bg-gradient-to-br from-gray-50 to-white border border-gray-100 p-4 rounded-2xl shadow-sm">
-                        <i class="fas fa-clipboard-list text-primary mb-2 text-lg"></i>
+                        <i class="ti ti-clipboard-list text-primary mb-2 text-lg"></i>
                         <h4 class="text-2xl font-black text-gray-800">100+</h4>
                         <p class="text-gray-500 text-xs font-semibold">خدمة و نموذج مؤتمت</p>
                     </div>
@@ -174,22 +174,22 @@
                 <div class="space-y-6">
                     <!-- Public Section -->
                     <div class="p-5 rounded-2xl border border-gray-100 bg-white shadow-sm">
-                        <h4 class="text-gray-800 font-bold mb-4 flex items-center gap-2"><i class="fas fa-globe text-blue-500"></i> خدمات المستفيد العام</h4>
+                        <h4 class="text-gray-800 font-bold mb-4 flex items-center gap-2"><i class="ti ti-globe text-blue-500"></i> خدمات المستفيد العام</h4>
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
                             <button onclick="switchTab('client_cases')" class="p-3 text-right bg-gray-50 hover:bg-gray-100 rounded-xl transition-colors border border-gray-100 group">
-                                <i class="fas fa-search text-teal-600 mb-2 text-lg group-hover:scale-110 transition-transform"></i>
+                                <i class="ti ti-search text-teal-600 mb-2 text-lg group-hover:scale-110 transition-transform"></i>
                                 <h5 class="text-xs font-bold text-gray-800">تتبع القضايا</h5>
                             </button>
                             <button onclick="switchTab('daily_hearings')" class="p-3 text-right bg-gray-50 hover:bg-gray-100 rounded-xl transition-colors border border-gray-100 group">
-                                <i class="fas fa-calendar-day text-rose-500 mb-2 text-lg group-hover:scale-110 transition-transform"></i>
+                                <i class="ti ti-calendar-event text-rose-500 mb-2 text-lg group-hover:scale-110 transition-transform"></i>
                                 <h5 class="text-xs font-bold text-gray-800">الجلسات اليومية</h5>
                             </button>
                             <button onclick="switchTab('efiling')" class="p-3 text-right bg-gray-50 hover:bg-gray-100 rounded-xl transition-colors border border-gray-100 group">
-                                <i class="fas fa-file-signature text-indigo-500 mb-2 text-lg group-hover:scale-110 transition-transform"></i>
+                                <i class="ti ti-file-signature text-indigo-500 mb-2 text-lg group-hover:scale-110 transition-transform"></i>
                                 <h5 class="text-xs font-bold text-gray-800">رفع دعوى ومذكرة</h5>
                             </button>
                             <button onclick="switchTab('ai_chat')" class="p-3 text-right bg-gray-50 hover:bg-gray-100 rounded-xl transition-colors border border-gray-100 group">
-                                <i class="fas fa-robot text-blue-500 mb-2 text-lg group-hover:scale-110 transition-transform"></i>
+                                <i class="ti ti-robot text-blue-500 mb-2 text-lg group-hover:scale-110 transition-transform"></i>
                                 <h5 class="text-xs font-bold text-gray-800">ذكاء اصطناعي</h5>
                             </button>
                         </div>
@@ -198,19 +198,19 @@
                     <!-- Lawyers Section -->
                     <div class="p-5 rounded-2xl border border-amber-100 bg-amber-50/20 shadow-sm relative overflow-hidden">
                         <div class="absolute left-0 top-0 w-1 h-full bg-primary"></div>
-                        <h4 class="text-gray-800 font-bold mb-4 flex items-center gap-2"><i class="fas fa-user-tie text-primary"></i> بـوابـة المحـامـيـن الاحتـرافيـة</h4>
+                        <h4 class="text-gray-800 font-bold mb-4 flex items-center gap-2"><i class="ti ti-user-tie text-primary"></i> بـوابـة المحـامـيـن الاحتـرافيـة</h4>
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
                             <button onclick="switchTab('lawyer_ai')" class="p-3 text-right bg-white hover:bg-gray-50 rounded-xl border border-gray-100 transition-shadow hover:shadow-md">
-                                <h5 class="text-xs font-bold text-gray-800"><i class="fas fa-brain text-primary ml-1"></i> تحليل وبناء الدفوع</h5>
+                                <h5 class="text-xs font-bold text-gray-800"><i class="ti ti-brain text-primary ml-1"></i> تحليل وبناء الدفوع</h5>
                             </button>
                             <button onclick="switchTab('lawyer_clients')" class="p-3 text-right bg-white hover:bg-gray-50 rounded-xl border border-gray-100 transition-shadow hover:shadow-md">
-                                <h5 class="text-xs font-bold text-gray-800"><i class="fas fa-users text-primary ml-1"></i> إدارة الموكلين</h5>
+                                <h5 class="text-xs font-bold text-gray-800"><i class="ti ti-users text-primary ml-1"></i> إدارة الموكلين</h5>
                             </button>
                             <button onclick="switchTab('lawyer_clients')" class="p-3 text-right bg-white hover:bg-gray-50 rounded-xl border border-gray-100 transition-shadow hover:shadow-md">
-                                <h5 class="text-xs font-bold text-gray-800"><i class="fas fa-file-invoice-dollar text-primary ml-1"></i> المحاسبة وأتعاب المحاماة</h5>
+                                <h5 class="text-xs font-bold text-gray-800"><i class="ti ti-file-invoice-dollar text-primary ml-1"></i> المحاسبة وأتعاب المحاماة</h5>
                             </button>
                             <button onclick="switchTab('templates')" class="p-3 text-right bg-white hover:bg-gray-50 rounded-xl border border-gray-100 transition-shadow hover:shadow-md">
-                                <h5 class="text-xs font-bold text-gray-800"><i class="fas fa-file-contract text-primary ml-1"></i> صياغة العقود والنماذج</h5>
+                                <h5 class="text-xs font-bold text-gray-800"><i class="ti ti-file-certificate text-primary ml-1"></i> صياغة العقود والنماذج</h5>
                             </button>
                         </div>
                     </div>
@@ -218,16 +218,16 @@
                     <!-- Notary Section -->
                     <div class="p-5 rounded-2xl border border-emerald-100 bg-emerald-50/20 shadow-sm relative overflow-hidden">
                         <div class="absolute left-0 top-0 w-1 h-full bg-emerald-500"></div>
-                        <h4 class="text-gray-800 font-bold mb-4 flex items-center gap-2"><i class="fas fa-pen-nib text-emerald-600"></i> خدمات الموثقين والأمناء الشرعيين</h4>
+                        <h4 class="text-gray-800 font-bold mb-4 flex items-center gap-2"><i class="ti ti-pen-nib text-emerald-600"></i> خدمات الموثقين والأمناء الشرعيين</h4>
                         <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
                             <button onclick="switchTab('notary_tools')" class="p-3 text-right bg-white hover:bg-gray-50 rounded-xl border border-gray-100 transition-shadow hover:shadow-md">
-                                <h5 class="text-xs font-bold text-gray-800"><i class="fas fa-calculator text-emerald-600 ml-1"></i> حاسبة المواريث المطورة</h5>
+                                <h5 class="text-xs font-bold text-gray-800"><i class="ti ti-calculator text-emerald-600 ml-1"></i> حاسبة المواريث المطورة</h5>
                             </button>
                             <button onclick="switchTab('notary_tools')" class="p-3 text-right bg-white hover:bg-gray-50 rounded-xl border border-gray-100 transition-shadow hover:shadow-md">
-                                <h5 class="text-xs font-bold text-gray-800"><i class="fas fa-map-marked-alt text-emerald-600 ml-1"></i> قسمة المساحات והخرائط</h5>
+                                <h5 class="text-xs font-bold text-gray-800"><i class="ti ti-map-marked-alt text-emerald-600 ml-1"></i> قسمة المساحات והخرائط</h5>
                             </button>
                             <button onclick="switchTab('notary_deeds')" class="p-3 text-right bg-white hover:bg-gray-50 rounded-xl border border-gray-100 transition-shadow hover:shadow-md">
-                                <h5 class="text-xs font-bold text-gray-800"><i class="fas fa-file-signature text-emerald-600 ml-1"></i> توثيق العقود والمحررات</h5>
+                                <h5 class="text-xs font-bold text-gray-800"><i class="ti ti-file-signature text-emerald-600 ml-1"></i> توثيق العقود والمحررات</h5>
                             </button>
                         </div>
                     </div>
@@ -238,20 +238,20 @@
         <!-- SHARED: AI Chat -->
         <div id="ai_chat" class="service-panel h-full w-full bg-white relative">
             <div class="h-16 border-b border-gray-100 flex items-center px-6 bg-white shrink-0 z-10 w-full shadow-sm">
-                <i class="fas fa-robot text-blue-600 text-xl ml-3"></i>
+                <i class="ti ti-robot text-blue-600 text-xl ml-3"></i>
                 <h2 class="text-md font-bold text-gray-800">المستشار القانوني العام (AI)</h2>
             </div>
             <div class="flex-1 overflow-y-auto p-4 md:p-6 space-y-4" id="chat-messages-container">
                 <div class="flex gap-3">
-                    <div class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100 text-xs"><i class="fas fa-microchip"></i></div>
+                    <div class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100 text-xs"><i class="ti ti-microchip"></i></div>
                     <div class="bg-gray-50 border border-gray-200 p-3 rounded-2xl rounded-tr-none text-gray-700 text-sm max-w-xl shadow-sm">تفضل، ادخل استفسارك وسيتم ربطه بالمواد القانونية.</div>
                 </div>
             </div>
             <div class="p-4 border-t border-gray-100 bg-white">
                 <form id="chat-form" class="relative flex items-center">
                     <input type="text" id="chat-input" placeholder="اكتب سؤالك..." class="w-full h-12 bg-gray-50 border border-gray-200 rounded-xl px-4 text-gray-800 text-sm focus:border-blue-400 outline-none transition-colors pr-12">
-                    <button type="submit" class="absolute right-2 w-8 h-8 rounded-lg bg-blue-500 text-white flex items-center justify-center hover:bg-blue-600" id="send-btn"><i class="fas fa-paper-plane text-xs"></i></button>
-                    <div id="chat-spinner" class="absolute right-4 hidden text-blue-500"><i class="fas fa-spinner fa-spin"></i></div>
+                    <button type="submit" class="absolute right-2 w-8 h-8 rounded-lg bg-blue-500 text-white flex items-center justify-center hover:bg-blue-600" id="send-btn"><i class="ti ti-paper-plane text-xs"></i></button>
+                    <div id="chat-spinner" class="absolute right-4 hidden text-blue-500"><i class="ti ti-spinner fa-spin"></i></div>
                 </form>
             </div>
         </div>
@@ -259,13 +259,13 @@
         <!-- SHARED: Legal Library -->
         <div id="library" class="service-panel h-full w-full bg-white relative">
             <div class="h-16 border-b border-gray-100 flex items-center px-6 bg-white shrink-0">
-                <h2 class="text-md font-bold text-gray-800"><i class="fas fa-book text-purple-600 ml-2"></i> المكتبة التشريعية</h2>
+                <h2 class="text-md font-bold text-gray-800"><i class="ti ti-book text-purple-600 ml-2"></i> المكتبة التشريعية</h2>
             </div>
             <div class="p-6 flex flex-col h-full overflow-hidden">
                 <form id="search-form" class="relative mb-6 shrink-0">
                     <div class="flex items-center rounded-xl border border-gray-200 p-1 bg-gray-50 focus-within:border-purple-400 focus-within:bg-white transition-all shadow-sm">
                         <input type="text" id="library-input" placeholder="بحث مرجع..." class="flex-1 bg-transparent border-none text-sm px-3 outline-none text-gray-800">
-                        <button type="submit" class="w-10 h-10 rounded-lg bg-purple-600 text-white flex items-center justify-center hover:bg-purple-700 shrink-0 shadow-sm"><i class="fas fa-search" id="lib-search-icon"></i><i class="fas fa-spinner fa-spin hidden" id="lib-spinner-icon"></i></button>
+                        <button type="submit" class="w-10 h-10 rounded-lg bg-purple-600 text-white flex items-center justify-center hover:bg-purple-700 shrink-0 shadow-sm"><i class="ti ti-search" id="lib-search-icon"></i><i class="ti ti-spinner fa-spin hidden" id="lib-spinner-icon"></i></button>
                     </div>
                 </form>
                 <div class="flex-1 overflow-y-auto space-y-3" id="library-results"><p class="text-sm text-gray-400 text-center mt-10">ابدأ البحث لعرض النصوص</p></div>
@@ -274,35 +274,35 @@
 
         <!-- PLACEHOLDER PANELS FOR OTHER APP SERVICES -->
         <div id="client_cases" class="service-panel h-full w-full p-8 flex items-center justify-center bg-gray-50/50">
-            <div class="text-center max-w-sm"><i class="fas fa-search text-teal-500 text-5xl mb-4"></i><h3 class="text-xl font-bold mb-2">نافذة التتبع والاستعلام</h3><p class="text-sm text-gray-500 mb-6">يتيح لك تتبع الدعاوي وحالتها فور تسجيل الدخول والنفاذ الموثق.</p><button onclick="window.location.href='/admin/login/?next=/';" class="bg-gray-900 text-white px-6 py-2.5 rounded-xl font-bold text-sm w-full shadow-md hover:bg-teal-600 transition-colors">الدخول كطرف دعوى</button></div>
+            <div class="text-center max-w-sm"><i class="ti ti-search text-teal-500 text-5xl mb-4"></i><h3 class="text-xl font-bold mb-2">نافذة التتبع والاستعلام</h3><p class="text-sm text-gray-500 mb-6">يتيح لك تتبع الدعاوي وحالتها فور تسجيل الدخول والنفاذ الموثق.</p><button onclick="window.location.href='/admin/login/?next=/';" class="bg-gray-900 text-white px-6 py-2.5 rounded-xl font-bold text-sm w-full shadow-md hover:bg-teal-600 transition-colors">الدخول كطرف دعوى</button></div>
         </div>
 
         <div id="daily_hearings" class="service-panel h-full w-full p-8 flex items-center justify-center bg-gray-50/50">
-            <div class="text-center max-w-sm"><i class="fas fa-calendar-alt text-rose-500 text-5xl mb-4"></i><h3 class="text-xl font-bold mb-2">جدول الجلسات اليومية</h3><p class="text-sm text-gray-500">سجل شفاف بالجلسات العلنية المنعقدة وتوقيتاتها. يُمكن تفعيل الرول الإلكتروني عبر النظام المكتبي للمحكمة.</p></div>
+            <div class="text-center max-w-sm"><i class="ti ti-calendar-alt text-rose-500 text-5xl mb-4"></i><h3 class="text-xl font-bold mb-2">جدول الجلسات اليومية</h3><p class="text-sm text-gray-500">سجل شفاف بالجلسات العلنية المنعقدة وتوقيتاتها. يُمكن تفعيل الرول الإلكتروني عبر النظام المكتبي للمحكمة.</p></div>
         </div>
 
         <div id="efiling" class="service-panel h-full w-full p-8 flex items-center justify-center bg-gray-50/50">
-            <div class="text-center max-w-sm"><i class="fas fa-file-signature text-indigo-500 text-5xl mb-4"></i><h3 class="text-xl font-bold mb-2">رفع الطلبات والدعاوى</h3><p class="text-sm text-gray-500 mb-6">تجهيز ملف الدعوى ومرفقات الإثبات لإرسالها إلكترونياً. مخصص للأعضاء والمحامين.</p><button onclick="window.location.href='/admin/login/?next=/';" class="bg-indigo-600 text-white px-6 py-2 rounded-xl text-sm font-bold w-full">طلب إضافة حق وصول</button></div>
+            <div class="text-center max-w-sm"><i class="ti ti-file-signature text-indigo-500 text-5xl mb-4"></i><h3 class="text-xl font-bold mb-2">رفع الطلبات والدعاوى</h3><p class="text-sm text-gray-500 mb-6">تجهيز ملف الدعوى ومرفقات الإثبات لإرسالها إلكترونياً. مخصص للأعضاء والمحامين.</p><button onclick="window.location.href='/admin/login/?next=/';" class="bg-indigo-600 text-white px-6 py-2 rounded-xl text-sm font-bold w-full">طلب إضافة حق وصول</button></div>
         </div>
 
         <div id="lawyer_ai" class="service-panel h-full w-full p-8 flex items-center justify-center bg-gray-50/50">
-            <div class="text-center border-2 border-dashed border-amber-200 bg-amber-50 rounded-3xl p-8 max-w-md"><i class="fas fa-brain text-primary text-5xl mb-4"></i><h3 class="text-xl font-bold text-gray-800 mb-2">التحليل القانوني للمحامي (AI)</h3><p class="text-sm text-gray-600">هذه الميزة حصرية لحسابات "المحامين". يحلل الذكاء الاصطناعي أوراق الدعوى ويُنشئ خطة قضايا وبناء دفوع متوافقة مع الأنظمة.</p></div>
+            <div class="text-center border-2 border-dashed border-amber-200 bg-amber-50 rounded-3xl p-8 max-w-md"><i class="ti ti-brain text-primary text-5xl mb-4"></i><h3 class="text-xl font-bold text-gray-800 mb-2">التحليل القانوني للمحامي (AI)</h3><p class="text-sm text-gray-600">هذه الميزة حصرية لحسابات "المحامين". يحلل الذكاء الاصطناعي أوراق الدعوى ويُنشئ خطة قضايا وبناء دفوع متوافقة مع الأنظمة.</p></div>
         </div>
         
         <div id="lawyer_clients" class="service-panel h-full w-full p-8 flex items-center justify-center bg-gray-50/50">
-            <div class="text-center border-2 border-dashed border-amber-200 bg-amber-50 rounded-3xl p-8 max-w-md"><i class="fas fa-users-cog text-primary text-5xl mb-4"></i><h3 class="text-xl font-bold text-gray-800 mb-2">إدارة المكاتب والموكلين</h3><p class="text-sm text-gray-600">نظام CRM مصغر متصل بالتطبيق لمتابعة المستحقات المالية وعقود توكيل العملاء والإشعارات.</p></div>
+            <div class="text-center border-2 border-dashed border-amber-200 bg-amber-50 rounded-3xl p-8 max-w-md"><i class="ti ti-users-group text-primary text-5xl mb-4"></i><h3 class="text-xl font-bold text-gray-800 mb-2">إدارة المكاتب والموكلين</h3><p class="text-sm text-gray-600">نظام CRM مصغر متصل بالتطبيق لمتابعة المستحقات المالية وعقود توكيل العملاء والإشعارات.</p></div>
         </div>
 
         <div id="templates" class="service-panel h-full w-full p-8 flex items-center justify-center bg-gray-50/50">
-            <div class="text-center"><i class="fas fa-file-pdf text-gray-400 text-5xl mb-4"></i><h3 class="text-xl font-bold text-gray-800 mb-2">النماذج والصيغ المعتمدة</h3><p class="text-sm text-gray-500">مكتبة للوثائق ولوائح الادعاء الجاهزة للطباعة والتعديل.</p></div>
+            <div class="text-center"><i class="ti ti-file-pdf text-gray-400 text-5xl mb-4"></i><h3 class="text-xl font-bold text-gray-800 mb-2">النماذج والصيغ المعتمدة</h3><p class="text-sm text-gray-500">مكتبة للوثائق ولوائح الادعاء الجاهزة للطباعة والتعديل.</p></div>
         </div>
 
         <div id="notary_tools" class="service-panel h-full w-full p-8 flex items-center justify-center bg-gray-50/50">
-            <div class="text-center border-2 border-dashed border-emerald-200 bg-emerald-50 rounded-3xl p-8 max-w-md"><i class="fas fa-calculator text-emerald-600 text-5xl mb-4"></i><h3 class="text-xl font-bold text-gray-800 mb-2">أدوات الأمين الشرعي</h3><p class="text-sm text-gray-600">حاسبة مواريث خوارزمية ذكية مطابقة لقواعد التركات، إضافة لنظام تخطيط وتقسيم المساحات والأراضي.</p></div>
+            <div class="text-center border-2 border-dashed border-emerald-200 bg-emerald-50 rounded-3xl p-8 max-w-md"><i class="ti ti-calculator text-emerald-600 text-5xl mb-4"></i><h3 class="text-xl font-bold text-gray-800 mb-2">أدوات الأمين الشرعي</h3><p class="text-sm text-gray-600">حاسبة مواريث خوارزمية ذكية مطابقة لقواعد التركات، إضافة لنظام تخطيط وتقسيم المساحات والأراضي.</p></div>
         </div>
 
         <div id="notary_deeds" class="service-panel h-full w-full p-8 flex items-center justify-center bg-gray-50/50">
-            <div class="text-center border-2 border-dashed border-emerald-200 bg-emerald-50 rounded-3xl p-8 max-w-md"><i class="fas fa-stamp text-emerald-600 text-5xl mb-4"></i><h3 class="text-xl font-bold text-gray-800 mb-2">المسودة والتوثيق</h3><p class="text-sm text-gray-600">صياغة وتصديق العقود والوكالات آلياً. يندرج هذا النظام تحت رقابة التوثيق المركزي للمحاكم.</p></div>
+            <div class="text-center border-2 border-dashed border-emerald-200 bg-emerald-50 rounded-3xl p-8 max-w-md"><i class="ti ti-stamp text-emerald-600 text-5xl mb-4"></i><h3 class="text-xl font-bold text-gray-800 mb-2">المسودة والتوثيق</h3><p class="text-sm text-gray-600">صياغة وتصديق العقود والوكالات آلياً. يندرج هذا النظام تحت رقابة التوثيق المركزي للمحاكم.</p></div>
         </div>
 
     </main>
@@ -354,7 +354,7 @@
             
             chatContainer.innerHTML += `
             <div class="flex gap-3 flex-row-reverse">
-                <div class="w-8 h-8 rounded-lg bg-gray-100 text-gray-500 flex items-center justify-center border border-gray-200 text-xs"><i class="fas fa-user"></i></div>
+                <div class="w-8 h-8 rounded-lg bg-gray-100 text-gray-500 flex items-center justify-center border border-gray-200 text-xs"><i class="ti ti-user"></i></div>
                 <div class="bg-gray-800 text-white font-medium p-3 rounded-2xl rounded-tl-none text-sm max-w-xl">${msg}</div>
             </div>`;
             inputEl.value = '';
@@ -377,14 +377,14 @@
                 
                 chatContainer.innerHTML += `
                 <div class="flex gap-3 flex-row">
-                    <div class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100 text-xs"><i class="fas fa-microchip"></i></div>
+                    <div class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100 text-xs"><i class="ti ti-microchip"></i></div>
                     <div class="bg-white border border-gray-200 p-3 rounded-2xl rounded-tr-none text-gray-700 text-sm max-w-xl shadow-sm leading-relaxed">${reply}</div>
                 </div>`;
             } catch (err) {
                 let errText = err.message === 'AUTH_REQUIRED' ? 'يتطلب التحقق وتصريح الدخول للمنصة.' : 'عذرًا، خادم الرد معطل حالياً.';
                 chatContainer.innerHTML += `
                 <div class="flex gap-3 flex-row">
-                    <div class="w-8 h-8 rounded-lg bg-red-50 text-red-500 flex items-center justify-center border border-red-100 text-xs"><i class="fas fa-exclamation-triangle"></i></div>
+                    <div class="w-8 h-8 rounded-lg bg-red-50 text-red-500 flex items-center justify-center border border-red-100 text-xs"><i class="ti ti-exclamation-triangle"></i></div>
                     <div class="bg-red-50 border border-red-100 p-3 rounded-2xl rounded-tr-none text-red-600 text-sm">${errText}</div>
                 </div>`;
             }
@@ -404,7 +404,7 @@
             document.getElementById('lib-search-icon').classList.add('hidden');
             document.getElementById('lib-spinner-icon').classList.remove('hidden');
 
-            resContainer.innerHTML = `<div class="flex items-center justify-center h-40 text-purple-600"><i class="fas fa-circle-notch fa-spin text-2xl"></i></div>`;
+            resContainer.innerHTML = `<div class="flex items-center justify-center h-40 text-purple-600"><i class="ti ti-circle-notch fa-spin text-2xl"></i></div>`;
 
             try {
                 const response = await fetch(`/api/legal-library/search/?q=${encodeURIComponent(q)}`);
@@ -413,13 +413,13 @@
                 const items = data.results || data || [];
 
                 if (items.length === 0) {
-                    resContainer.innerHTML = `<div class="text-center text-gray-500 mt-10"><i class="fas fa-search-minus text-2xl mb-2 text-gray-400"></i><p class="text-sm">لم نجد أي تشريع.</p></div>`;
+                    resContainer.innerHTML = `<div class="text-center text-gray-500 mt-10"><i class="ti ti-search-minus text-2xl mb-2 text-gray-400"></i><p class="text-sm">لم نجد أي تشريع.</p></div>`;
                 } else {
                     let html = '';
                     items.forEach(item => {
                         html += `
                         <div class="bg-gray-50 p-4 rounded-xl border border-gray-100">
-                            <h4 class="text-purple-700 font-bold text-sm mb-1"><i class="fas fa-bookmark text-xs mr-1 text-purple-400"></i> ${item.source_title} ${item.article_number ? '- مادة '+item.article_number : ''}</h4>
+                            <h4 class="text-purple-700 font-bold text-sm mb-1"><i class="ti ti-bookmark text-xs mr-1 text-purple-400"></i> ${item.source_title} ${item.article_number ? '- مادة '+item.article_number : ''}</h4>
                             <p class="text-gray-600 text-sm leading-relaxed">${item.article_text_highlighted || item.article_text || ''}</p>
                         </div>`;
                     });

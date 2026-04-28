@@ -62,7 +62,7 @@
       <!-- Header -->
       <div class="flex items-center justify-between mb-6">
         <a href="/login/" class="w-10 h-10 grid place-items-center rounded-xl bg-ink-900 border border-ink-700 text-ink-200 hover:text-gold transition" aria-label="رجوع">
-          <i class="fas fa-arrow-right"></i>
+          <i class="ti ti-arrow-right"></i>
         </a>
         <h1 class="font-black text-xl text-center">انضم إلى <span class="bg-gradient-to-l from-brand-lighter to-brand-light bg-clip-text text-transparent">منصة القضاء الذكية</span></h1>
         <div class="w-10 h-10 rounded-xl bg-ink-900 border border-ink-700 grid place-items-center overflow-hidden">
@@ -91,15 +91,15 @@
           <div class="space-y-3">
             <div class="field flex items-center gap-3 px-4 h-14">
               <input name="full_name" required value="{{ form.full_name|default:'' }}" placeholder="الاسم الكامل (رباعي)" class="flex-1 text-right text-base font-bold text-ink-100">
-              <i class="fas fa-user text-ink-300"></i>
+              <i class="ti ti-user text-ink-300"></i>
             </div>
             <div class="field flex items-center gap-3 px-4 h-14">
               <input name="phone" type="tel" inputmode="tel" required value="{{ form.phone|default:'' }}" placeholder="رقم الهاتف (مطلوب للتحقق)" dir="ltr" class="flex-1 text-right text-base font-bold text-ink-100">
-              <i class="fas fa-mobile-screen text-ink-300"></i>
+              <i class="ti ti-device-mobile text-ink-300"></i>
             </div>
             <div class="field flex items-center gap-3 px-4 h-14">
               <input name="national_id" value="{{ form.national_id|default:'' }}" placeholder="الرقم الوطني / الهوية" class="flex-1 text-right text-base font-bold text-ink-100">
-              <i class="fas fa-id-card text-ink-300"></i>
+              <i class="ti ti-id text-ink-300"></i>
             </div>
           </div>
         </section>
@@ -110,11 +110,11 @@
           <div class="space-y-3">
             <div class="field flex items-center gap-3 px-4 h-14">
               <input name="username" value="{{ form.username|default:'' }}" placeholder="اسم المستخدم (بالإنجليزي)" dir="ltr" class="flex-1 text-right text-base font-bold text-ink-100">
-              <i class="fas fa-at text-ink-300"></i>
+              <i class="ti ti-at text-ink-300"></i>
             </div>
             <div class="field flex items-center gap-3 px-4 h-14">
               <input name="email" type="email" value="{{ form.email|default:'' }}" placeholder="البريد الإلكتروني" dir="ltr" class="flex-1 text-right text-base font-bold text-ink-100">
-              <i class="fas fa-envelope text-ink-300"></i>
+              <i class="ti ti-mail text-ink-300"></i>
             </div>
           </div>
         </section>
@@ -125,15 +125,15 @@
           <div class="grid grid-cols-3 gap-3">
             <label>
               <input type="radio" name="role" value="notary" class="hidden peer" {% if form.role == 'notary' %}checked{% endif %}>
-              <div class="role-tile"><i class="fas fa-stamp"></i><span>موثّق</span></div>
+              <div class="role-tile"><i class="ti ti-stamp"></i><span>موثّق</span></div>
             </label>
             <label>
               <input type="radio" name="role" value="lawyer" class="hidden peer" {% if form.role == 'lawyer' %}checked{% endif %}>
-              <div class="role-tile"><i class="fas fa-gavel"></i><span>محامي</span></div>
+              <div class="role-tile"><i class="ti ti-gavel"></i><span>محامي</span></div>
             </label>
             <label>
               <input type="radio" name="role" value="citizen" class="hidden peer" {% if not form.role or form.role == 'citizen' %}checked{% endif %}>
-              <div class="role-tile"><i class="fas fa-user"></i><span>مواطن</span></div>
+              <div class="role-tile"><i class="ti ti-user"></i><span>مواطن</span></div>
             </label>
           </div>
         </section>
@@ -143,14 +143,14 @@
           <div class="section-title">الأمان</div>
           <div class="space-y-3">
             <div class="field flex items-center gap-3 px-4 h-14">
-              <button type="button" onclick="togglePw(this,'password')" class="text-ink-300" aria-label="إظهار/إخفاء"><i class="fas fa-eye-slash"></i></button>
+              <button type="button" onclick="togglePw(this,'password')" class="text-ink-300" aria-label="إظهار/إخفاء"><i class="ti ti-eye-off"></i></button>
               <input name="password" type="password" required placeholder="كلمة المرور" class="flex-1 text-right text-base font-bold text-ink-100">
-              <i class="fas fa-lock text-ink-300"></i>
+              <i class="ti ti-lock text-ink-300"></i>
             </div>
             <div class="field flex items-center gap-3 px-4 h-14">
-              <button type="button" onclick="togglePw(this,'password2')" class="text-ink-300" aria-label="إظهار/إخفاء"><i class="fas fa-eye-slash"></i></button>
+              <button type="button" onclick="togglePw(this,'password2')" class="text-ink-300" aria-label="إظهار/إخفاء"><i class="ti ti-eye-off"></i></button>
               <input name="password2" type="password" required placeholder="تأكيد كلمة المرور" class="flex-1 text-right text-base font-bold text-ink-100">
-              <i class="fas fa-lock text-ink-300"></i>
+              <i class="ti ti-lock text-ink-300"></i>
             </div>
           </div>
         </section>

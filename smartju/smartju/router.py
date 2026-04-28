@@ -38,7 +38,7 @@ class MicroserviceRouter:
         'messaging': 'notifications_db',
         
         # Search & Logs
-        'logs': 'search_db',
+        'logs': 'auth_db',
         'audit': 'search_db',
     }
 
