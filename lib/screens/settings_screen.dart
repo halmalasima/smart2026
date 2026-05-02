@@ -1,6 +1,7 @@
 import '../../../../theme/app_theme.dart';
 import '../../../../theme/app_colors.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../config/api_config.dart';
@@ -535,41 +536,42 @@ class _SettingsScreenState extends State<SettingsScreen> {
               onPressed: () => Navigator.pop(ctx),
               child: const Text('إلغاء'),
             ),
-            TextButton(
-              onPressed: () async {
-                // إظهار مؤشر تحميل بسيط
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('جاري البحث عن الخادم في الشبكة المحلية...'),
-                    duration: Duration(seconds: 3),
-                  ),
-                );
-                
-                final discoveredUrl = await ApiConfig.rediscoverLanServer();
-                
-                if (discoveredUrl != null) {
-                  controller.text = discoveredUrl;
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('تم العثور على الخادم: $discoveredUrl'),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
+            if (!kIsWeb)
+              TextButton(
+                onPressed: () async {
+                  // إظهار مؤشر تحميل بسيط
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('جاري البحث عن الخادم في الشبكة المحلية...'),
+                      duration: Duration(seconds: 3),
+                    ),
+                  );
+                  
+                  final discoveredUrl = await ApiConfig.rediscoverLanServer();
+                  
+                  if (discoveredUrl != null) {
+                    controller.text = discoveredUrl;
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('تم العثور على الخادم: $discoveredUrl'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    }
+                  } else {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('لم يتم العثور على خادم SmartJudi. تأكد من تشغيله على الكمبيوتر بنفس الشبكة.'),
+                          backgroundColor: Colors.orange,
+                        ),
+                      );
+                    }
                   }
-                } else {
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('لم يتم العثور على خادم SmartJudi. تأكد من تشغيله على الكمبيوتر بنفس الشبكة.'),
-                        backgroundColor: Colors.orange,
-                      ),
-                    );
-                  }
-                }
-              },
-              child: const Text('اكتشاف تلقائي'),
-            ),
+                },
+                child: const Text('اكتشاف تلقائي'),
+              ),
             TextButton(
               onPressed: () async {
                 await ApiConfig.persistBaseUrl(controller.text);

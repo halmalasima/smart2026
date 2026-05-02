@@ -10,7 +10,7 @@ class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
     """
     ViewSet for AuditLog (Read-only)
     """
-    queryset = AuditLog.objects.select_related('user', 'lawsuit').all()
+    queryset = AuditLog.objects.select_related('lawsuit').prefetch_related('user').all()
     serializer_class = AuditLogSerializer
     permission_classes = [IsJudgeOrAdmin]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]

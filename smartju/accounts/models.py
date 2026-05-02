@@ -67,6 +67,24 @@ class UserProfile(models.Model):
         verbose_name='المسؤول (المحامي)'
     )
     
+    # Subscription fields (added to match auth_db schema)
+    subscription_plan = models.CharField(
+        max_length=50,
+        default='free',
+        verbose_name='باقة الاشتراك'
+    )
+    
+    is_trial = models.BooleanField(
+        default=True,
+        verbose_name='فترة تجريبية'
+    )
+    
+    subscription_expiry = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='تاريخ انتهاء الاشتراك'
+    )
+    
     created_at = models.DateTimeField(
         auto_now_add=True,
         verbose_name='تاريخ الإنشاء'

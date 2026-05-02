@@ -124,13 +124,15 @@ class Case(models.Model):
     created_by = models.BigIntegerField(
         null=True,
         blank=True,
-        verbose_name='أنشأ بواسطة'
+        verbose_name='أنشأ بواسطة',
+        db_column='created_by'
     )
 
     client = models.BigIntegerField(
         null=True,
         blank=True,
-        verbose_name='الموكل'
+        verbose_name='الموكل',
+        db_column='client'
     )
 
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='تاريخ الإنشاء')
@@ -193,7 +195,9 @@ class CaseParty(models.Model):
         null=True,
         blank=True,
         related_name='case_party_account',
-        verbose_name='حساب المستخدم'
+        verbose_name='حساب المستخدم',
+        db_column='user_account_id',
+        db_constraint=False
     )
 
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='تاريخ الإنشاء')
@@ -481,14 +485,16 @@ class Lawsuit(models.Model):
     created_by = models.BigIntegerField(
         null=True,
         blank=True,
-        verbose_name='منشئ الدعوى'
+        verbose_name='منشئ الدعوى',
+        db_column='created_by'
     )
     
     # Client - the person who owns the case
     client = models.BigIntegerField(
         null=True,
         blank=True,
-        verbose_name='الموكل'
+        verbose_name='الموكل',
+        db_column='client'
     )
     
     # ========== Archive Lifecycle Fields ==========
@@ -526,7 +532,8 @@ class Lawsuit(models.Model):
     archived_by = models.BigIntegerField(
         null=True,
         blank=True,
-        verbose_name='أرشف بواسطة'
+        verbose_name='أرشف بواسطة',
+        db_column='archived_by'
     )
     
     # Soft delete

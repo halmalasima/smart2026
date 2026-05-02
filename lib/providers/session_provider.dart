@@ -29,6 +29,9 @@ class SessionProvider extends ChangeNotifier {
   DateTime? _customTo;
   DateTime? get customFrom => _customFrom;
   DateTime? get customTo => _customTo;
+  
+  String? _searchQuery;
+  String? get searchQuery => _searchQuery;
 
   // ─── Helpers ────────────────────────────────────────────
   List _extractList(dynamic data) {
@@ -102,6 +105,11 @@ class SessionProvider extends ChangeNotifier {
     _customFrom = from;
     _customTo = to;
     _periodFilter = 'custom';
+    notifyListeners();
+  }
+  
+  void setSearchQuery(String? query) {
+    _searchQuery = query;
     notifyListeners();
   }
 

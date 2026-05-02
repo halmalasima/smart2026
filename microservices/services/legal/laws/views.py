@@ -274,7 +274,7 @@ class LawArticleViewSet(viewsets.ModelViewSet):
 
 
 class CaseLegalReferenceViewSet(viewsets.ModelViewSet):
-    queryset = CaseLegalReference.objects.select_related('lawsuit', 'article').all()
+    queryset = CaseLegalReference.objects.select_related('article').prefetch_related('lawsuit').all()
     serializer_class = CaseLegalReferenceSerializer
     permission_classes = [IsAuthenticated]
     filterset_fields = ['lawsuit', 'article', 'is_ai']

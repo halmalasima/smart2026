@@ -69,7 +69,7 @@ class HearingViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        queryset = Hearing.objects.select_related('lawsuit', 'judge', 'created_by', 'archived_by')
+        queryset = Hearing.objects.prefetch_related('lawsuit', 'judge', 'created_by', 'archived_by')
         
         # Filter out soft-deleted by default (unless include_deleted param is set)
         if not self.request.query_params.get('include_deleted'):

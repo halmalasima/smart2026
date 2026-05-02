@@ -8,6 +8,7 @@ from accounts.views import (
     UserProfileViewSet, register_user, create_sub_account,
     verify_email, resend_otp,
     request_password_reset, verify_reset_otp, reset_password,
+    check_phone, quick_register, verify_otp_login, send_otp,
 )
 from .internal_views import InternalUserDetailView, InternalUserBulkView, InternalUserValidateView
 
@@ -24,6 +25,10 @@ urlpatterns = [
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('api/register/', register_user, name='register'),
+    path('api/register/check-phone/', check_phone, name='check_phone'),
+    path('api/register/quick-register/', quick_register, name='quick_register'),
+    path('api/register/verify-otp/', verify_otp_login, name='verify_otp_login'),
+    path('api/register/send-otp/', send_otp, name='send_otp'),
     path('api/verify-email/', verify_email, name='verify_email'),
     path('api/resend-otp/', resend_otp, name='resend_otp'),
     path('api/password-reset/', request_password_reset, name='request_password_reset'),

@@ -103,7 +103,9 @@ class Case(models.Model):
         null=True,
         blank=True,
         related_name='cases',
-        verbose_name='المحكمة'
+        verbose_name='المحكمة',
+        db_column='court_id',
+        db_constraint=False
     )
 
     court = models.CharField(
@@ -131,7 +133,9 @@ class Case(models.Model):
         null=True,
         blank=True,
         related_name='created_cases',
-        verbose_name='أنشأ بواسطة'
+        verbose_name='أنشأ بواسطة',
+        db_column='created_by',
+        db_constraint=False
     )
 
     client = models.ForeignKey(
@@ -140,7 +144,9 @@ class Case(models.Model):
         null=True,
         blank=True,
         related_name='client_cases',
-        verbose_name='الموكل'
+        verbose_name='الموكل',
+        db_column='client',
+        db_constraint=False
     )
 
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='تاريخ الإنشاء')
@@ -203,7 +209,8 @@ class CaseParty(models.Model):
         null=True,
         blank=True,
         related_name='case_party_account',
-        verbose_name='حساب المستخدم'
+        verbose_name='حساب المستخدم',
+        db_constraint=False
     )
 
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='تاريخ الإنشاء')
@@ -410,7 +417,9 @@ class Lawsuit(models.Model):
         null=True,
         blank=True,
         related_name='lawsuits',
-        verbose_name='المحكمة'
+        verbose_name='المحكمة',
+        db_column='court_id',
+        db_constraint=False
     )
     
     # Court - CharField (legacy - for backward compatibility)
@@ -498,7 +507,9 @@ class Lawsuit(models.Model):
         null=True,
         blank=True,
         related_name='created_lawsuits',
-        verbose_name='منشئ الدعوى'
+        verbose_name='منشئ الدعوى',
+        db_column='created_by',
+        db_constraint=False
     )
     
     # Client - the person who owns the case
@@ -508,7 +519,9 @@ class Lawsuit(models.Model):
         null=True,
         blank=True,
         related_name='owned_lawsuits',
-        verbose_name='الموكل'
+        verbose_name='الموكل',
+        db_column='client',
+        db_constraint=False
     )
     
     # ========== Archive Lifecycle Fields ==========
@@ -549,7 +562,9 @@ class Lawsuit(models.Model):
         null=True,
         blank=True,
         related_name='archived_lawsuits',
-        verbose_name='أرشف بواسطة'
+        verbose_name='أرشف بواسطة',
+        db_column='archived_by',
+        db_constraint=False
     )
     
     # Soft delete

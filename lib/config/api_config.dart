@@ -21,7 +21,7 @@ class ApiConfig {
   /// `true` = هاتف حقيقي — لا يُستخدم `10.0.2.2` كافتراضي.
   static bool? _androidIsPhysicalDevice;
 
-  static const int _defaultBackendPort = 8000;
+  static const int _defaultBackendPort = 9000;
 
   static Future<void> _loadAndroidPhysicalFlag() async {
     if (kIsWeb || !Platform.isAndroid) {
@@ -59,7 +59,13 @@ class ApiConfig {
     }
     final saved = prefs.getString(prefsKeyApiBaseUrl)?.trim();
     if (saved != null && saved.isNotEmpty) {
-      _savedOverride = _normalizeUrl(saved);
+      final normalized = _normalizeUrl(saved);
+      // Force rediscovery if we're stuck on the wrong port (8000)
+      if (normalized.contains(':8000')) {
+        await rediscoverLanServer();
+      } else {
+        _savedOverride = normalized;
+      }
       return;
     }
 
@@ -102,12 +108,24 @@ class ApiConfig {
 
   /// عنوان الـ API الفعّال (بدون شرطة مائلة أخيرة).
   static String get baseUrl {
+    if (kIsWeb) {
+      // In web, use the same origin as the frontend to avoid CORS and port mismatches.
+      // We ignore saved overrides because the web app is usually served by the monolith itself.
+      try {
+        final origin = Uri.base.origin;
+        if (origin.isNotEmpty && origin != 'null') {
+          return origin;
+        }
+      } catch (_) {}
+      return 'http://localhost:$_defaultBackendPort';
+    }
+
     if (_savedOverride != null && _savedOverride!.isNotEmpty) {
       return _savedOverride!;
     }
     final env = _fromEnvironment.trim();
     if (env.isNotEmpty) return _normalizeUrl(env);
-    if (kIsWeb) return 'http://localhost:$_defaultBackendPort';
+    
     if (Platform.isAndroid) {
       if (_androidIsPhysicalDevice == false) {
         return 'http://10.0.2.2:$_defaultBackendPort';
@@ -199,6 +217,14 @@ class ApiConfig {
   static const String aiChatEndpoint = '/api/ai/chat/';
   static const String aiDocumentsAddEndpoint = '/api/ai/documents/add/';
   static const String aiDocumentsDeleteEndpoint = '/api/ai/documents/delete/';
+
+  static const String ocrExtractTextEndpoint = '/api/ocr/extract-text';
+
+  // Phone-First Auth endpoints
+  static const String checkPhoneEndpoint = '/api/register/check-phone/';
+  static const String quickRegisterEndpoint = '/api/register/quick-register/';
+  static const String verifyOtpLoginEndpoint = '/api/register/verify-otp/';
+  static const String sendOtpEndpoint = '/api/register/send-otp/';
 
   static const Duration timeout = Duration(seconds: 15);
 

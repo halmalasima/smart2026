@@ -5,15 +5,14 @@ from api.security import require_auth
 from domain.engine import calculate_inheritance
 from domain.models import Heir
 
-
 app = FastAPI()
-
-
 @app.get('/api/inheritance/health/')
+def health_api():
+    return {'status': 'ok', 'service': 'inheritance-service'}
+@app.get('/health/')
+
 def health():
     return {'status': 'ok', 'service': 'inheritance-service'}
-
-
 @app.post('/api/inheritance/calculate/', response_model=InheritanceResponse)
 def calculate(req: InheritanceRequest, _auth: None = Depends(require_auth)):
     estate_value = req.estate_value

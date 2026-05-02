@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
 from .models import UserProfile
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 import logging
 
 logger = logging.getLogger(__name__)
@@ -154,3 +155,66 @@ class UserRegistrationSerializer(serializers.Serializer):
             'user': UserSerializer(user).data,
             'profile': UserProfileSerializer(profile).data,
         }
+
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    """
+    Custom JWT serializer that supports login by phone number or username.
+    """
+    def validate(self, attrs):
+        username = attrs.get(self.username_field)
+        password = attrs.get('password')
+        
+        resolved_user = None
+        
+        logger.info(f"Login attempt for username: {username}")
+        
+        if username:
+            # 1. Try username directly
+            resolved_user = User.objects.filter(username=username).first()
+            if resolved_user:
+                 logger.info(f"User found by username: {resolved_user.username}")
+            
+            # 2. Try phone number if not found
+            if not resolved_user:
+                resolved_user = User.objects.filter(profile__phone_number=username).first()
+                if resolved_user:
+                    attrs[self.username_field] = resolved_user.username
+                    logger.info(f"User found by phone number. Resolved to username: {resolved_user.username}")
+                else:
+                    logger.info(f"No user found for: {username}")
+            
+            # 3. Check inactive status for better error messages
+            if resolved_user:
+                if not resolved_user.is_active:
+                    logger.warning(f"User {resolved_user.username} is inactive.")
+                    raise serializers.ValidationError(
+                        {'detail': 'الحساب غير نشط.'},
+                        code='account_inactive'
+                    )
+                
+                # Check password
+                password_correct = resolved_user.check_password(password)
+                logger.info(f"Password check for {resolved_user.username}: {'Correct' if password_correct else 'Incorrect'}")
+                
+                if password and not password_correct:
+                     raise serializers.ValidationError(
+                        {'detail': 'كلمة المرور غير صحيحة.'},
+                        code='wrong_password'
+                    )
+
+        return super().validate(attrs)
+
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+        try:
+            profile = user.profile
+            token['role'] = profile.role
+            token['is_active'] = profile.is_active
+        except:
+            token['role'] = 'citizen'
+            
+        token['is_superuser'] = user.is_superuser
+        token['username'] = user.username
+        return token

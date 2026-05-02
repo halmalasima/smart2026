@@ -1,8 +1,11 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:hijri/hijri_calendar.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../models/case_model.dart';
@@ -23,6 +26,7 @@ import 'lawsuit_detail_screen.dart';
 import 'power_of_attorney_screen.dart';
 import 'session_detail_screen.dart';
 import 'session_form_screen.dart';
+import 'document_scanner_screen.dart';
 
 class CaseDetailScreen extends StatefulWidget {
   final int caseId;
@@ -49,6 +53,13 @@ class _CaseDetailScreenState extends State<CaseDetailScreen>
   List<AppealModel> _appeals = [];
   List<PaymentOrderModel> _paymentOrders = [];
 
+  // ── Search & Filter ──
+  final _lawsuitsSearchCtrl = TextEditingController();
+  final _docsSearchCtrl = TextEditingController();
+  final _hearingsSearchCtrl = TextEditingController();
+  String? _docsTypeFilter; // null = all
+  bool _isUploadingDoc = false;
+
   @override
   void initState() {
     super.initState();
@@ -60,6 +71,9 @@ class _CaseDetailScreenState extends State<CaseDetailScreen>
   @override
   void dispose() {
     _tabController.dispose();
+    _lawsuitsSearchCtrl.dispose();
+    _docsSearchCtrl.dispose();
+    _hearingsSearchCtrl.dispose();
     super.dispose();
   }
 
@@ -288,6 +302,15 @@ class _CaseDetailScreenState extends State<CaseDetailScreen>
               ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
               : const Icon(Icons.add_rounded, color: Colors.white),
           label: const Text('إضافة إجراء', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        );
+      case 3:
+        return FloatingActionButton.extended(
+          onPressed: _isUploadingDoc ? null : _showAddDocumentMenu,
+          backgroundColor: const Color(0xFF2563EB),
+          icon: _isUploadingDoc
+              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+              : const Icon(Icons.note_add_rounded, color: Colors.white),
+          label: const Text('إضافة مستند', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         );
       default:
         return null;
@@ -1148,41 +1171,92 @@ class _CaseDetailScreenState extends State<CaseDetailScreen>
   // ─── Tab: الإجراءات / الدعاوى ────────────────────────────────────────────
 
   Widget _buildLawsuitsTab() {
-    final displayLawsuits = _lawsuits.where(
+    final allLawsuits = _lawsuits.where(
       (l) => l.caseType != 'طعن' && l.caseType != 'استئناف' && l.caseType != 'امر_اداء',
     ).toList();
-    if (displayLawsuits.isEmpty) {
+    if (allLawsuits.isEmpty) {
       return _buildEmpty('لا توجد إجراءات', Icons.gavel_rounded, 'اضغط + لإضافة دعوى أو طعن أو أمر أداء');
     }
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: displayLawsuits.length,
-      itemBuilder: (_, i) {
-        final l = displayLawsuits[i];
-        return Card(
-          elevation: 0,
-          margin: const EdgeInsets.only(bottom: 10),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: BorderSide(color: Colors.grey.shade200),
-          ),
-          child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => LawsuitDetailScreen(lawsuitId: l.id)),
-            ).then((_) => _load()),
-            leading: Container(
-              width: 42, height: 42,
-              decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.1), shape: BoxShape.circle),
-              child: const Icon(Icons.gavel_rounded, color: AppColors.primary, size: 22),
+    final query = _lawsuitsSearchCtrl.text.trim().toLowerCase();
+    final displayLawsuits = query.isEmpty
+        ? allLawsuits
+        : allLawsuits.where((l) {
+            return (l.subject?.toLowerCase().contains(query) ?? false) ||
+                l.caseNumber.toLowerCase().contains(query) ||
+                (l.caseTypeDisplay.toLowerCase().contains(query));
+          }).toList();
+    return Column(
+      children: [
+        // Search bar
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+          child: TextField(
+            controller: _lawsuitsSearchCtrl,
+            textDirection: ui.TextDirection.rtl,
+            onChanged: (_) => setState(() {}),
+            decoration: InputDecoration(
+              hintText: 'بحث في الإجراءات...',
+              hintStyle: TextStyle(color: Colors.grey[400], fontSize: 13),
+              prefixIcon: const Icon(Icons.search, size: 20, color: AppColors.primary),
+              suffixIcon: _lawsuitsSearchCtrl.text.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear, size: 16),
+                      onPressed: () { _lawsuitsSearchCtrl.clear(); setState(() {}); },
+                    )
+                  : null,
+              filled: true,
+              fillColor: Colors.grey.shade50,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: Colors.grey.shade200)),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: Colors.grey.shade200)),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              isDense: true,
             ),
-            title: Text(l.subject ?? l.caseNumber, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-            subtitle: Text('${l.caseTypeDisplay} • ${l.caseStatusDisplay}', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
-            trailing: const Icon(Icons.chevron_left, color: Colors.grey),
           ),
-        );
-      },
+        ),
+        // Results count
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(children: [
+            Text('${displayLawsuits.length} إجراء', style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+            const Spacer(),
+          ]),
+        ),
+        // List
+        Expanded(
+          child: displayLawsuits.isEmpty
+              ? Center(child: Text('لا توجد نتائج', style: TextStyle(color: Colors.grey[400])))
+              : ListView.builder(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 80),
+                  itemCount: displayLawsuits.length,
+                  itemBuilder: (_, i) {
+                    final l = displayLawsuits[i];
+                    return Card(
+                      elevation: 0,
+                      margin: const EdgeInsets.only(bottom: 10),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: BorderSide(color: Colors.grey.shade200),
+                      ),
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => LawsuitDetailScreen(lawsuitId: l.id)),
+                        ).then((_) => _load()),
+                        leading: Container(
+                          width: 42, height: 42,
+                          decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.1), shape: BoxShape.circle),
+                          child: const Icon(Icons.gavel_rounded, color: AppColors.primary, size: 22),
+                        ),
+                        title: Text(l.subject ?? l.caseNumber, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                        subtitle: Text('${l.caseTypeDisplay} • ${l.caseStatusDisplay}', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+                        trailing: const Icon(Icons.chevron_left, color: Colors.grey),
+                      ),
+                    );
+                  },
+                ),
+        ),
+      ],
     );
   }
 
@@ -1195,60 +1269,106 @@ class _CaseDetailScreenState extends State<CaseDetailScreen>
     if (_hearings.isEmpty) {
       return _buildEmpty('لا توجد جلسات', Icons.calendar_month_rounded, 'لم يتم تسجيل أي جلسات لهذه القضية');
     }
+    final query = _hearingsSearchCtrl.text.trim().toLowerCase();
+    final filtered = query.isEmpty
+        ? _hearings
+        : _hearings.where((h) {
+            final dateStr = DateFormat('yyyy/MM/dd').format(h.hearingDate);
+            return dateStr.contains(query) ||
+                h.typeDisplay.toLowerCase().contains(query) ||
+                h.sessionTypeDisplay.toLowerCase().contains(query) ||
+                h.requirements.toLowerCase().contains(query) ||
+                h.notes.toLowerCase().contains(query);
+          }).toList();
     return Column(
       children: [
-        // Add Session button
+        // Search bar
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-          child: SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: () async {
-                final result = await Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const SessionFormScreen()),
-                );
-                if (result != null) _loadRelatedData(_lawsuits, Provider.of<ApiService>(context, listen: false));
-              },
-              icon: const Icon(Icons.add_circle_outline, size: 18),
-              label: const Text('إضافة جلسة'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.primary,
-                side: const BorderSide(color: AppColors.primary),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
+          child: TextField(
+            controller: _hearingsSearchCtrl,
+            textDirection: ui.TextDirection.rtl,
+            onChanged: (_) => setState(() {}),
+            decoration: InputDecoration(
+              hintText: 'بحث في الجلسات...',
+              hintStyle: TextStyle(color: Colors.grey[400], fontSize: 13),
+              prefixIcon: const Icon(Icons.search, size: 20, color: AppColors.primary),
+              suffixIcon: _hearingsSearchCtrl.text.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear, size: 16),
+                      onPressed: () { _hearingsSearchCtrl.clear(); setState(() {}); },
+                    )
+                  : null,
+              filled: true,
+              fillColor: Colors.grey.shade50,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: Colors.grey.shade200)),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: Colors.grey.shade200)),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              isDense: true,
             ),
           ),
         ),
-        Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: _hearings.length,
-            itemBuilder: (_, i) {
-              final h = _hearings[i];
-              final isUpcoming = h.isUpcoming;
-              return InkWell(
-                onTap: () async {
-                  final deleted = await Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => SessionDetailScreen(session: h)),
-                  );
-                  if (deleted == true || deleted is HearingModel) _loadRelatedData(_lawsuits, Provider.of<ApiService>(context, listen: false));
-                },
-                borderRadius: BorderRadius.circular(10),
-                child: _timelineItem(
-                  date: DateFormat('yyyy/MM/dd').format(h.hearingDate),
-                  title: '${h.typeDisplay} • ${h.sessionTypeDisplay}',
-                  subtitle: h.requirements.isNotEmpty
-                      ? h.requirements
-                      : (h.notes.isNotEmpty ? h.notes : 'لا توجد ملاحظات'),
-                  isFuture: isUpcoming,
-                  icon: isUpcoming ? Icons.event_available : Icons.event_busy,
-                  color: isUpcoming ? Colors.blue : AppColors.primary,
+        // Add Session + count
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+          child: Row(
+            children: [
+              Text('${filtered.length} جلسة', style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+              const Spacer(),
+              SizedBox(
+                height: 32,
+                child: OutlinedButton.icon(
+                  onPressed: () async {
+                    final result = await Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const SessionFormScreen()),
+                    );
+                    if (result != null) _loadRelatedData(_lawsuits, Provider.of<ApiService>(context, listen: false));
+                  },
+                  icon: const Icon(Icons.add_circle_outline, size: 16),
+                  label: const Text('إضافة جلسة', style: TextStyle(fontSize: 12)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.primary,
+                    side: const BorderSide(color: AppColors.primary),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                  ),
                 ),
-              );
-            },
+              ),
+            ],
           ),
+        ),
+        Expanded(
+          child: filtered.isEmpty
+              ? Center(child: Text('لا توجد نتائج', style: TextStyle(color: Colors.grey[400])))
+              : ListView.builder(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                  itemCount: filtered.length,
+                  itemBuilder: (_, i) {
+                    final h = filtered[i];
+                    final isUpcoming = h.isUpcoming;
+                    return InkWell(
+                      onTap: () async {
+                        final deleted = await Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => SessionDetailScreen(session: h)),
+                        );
+                        if (deleted == true || deleted is HearingModel) _loadRelatedData(_lawsuits, Provider.of<ApiService>(context, listen: false));
+                      },
+                      borderRadius: BorderRadius.circular(10),
+                      child: _timelineItem(
+                        date: DateFormat('yyyy/MM/dd').format(h.hearingDate),
+                        title: '${h.typeDisplay} • ${h.sessionTypeDisplay}',
+                        subtitle: h.requirements.isNotEmpty
+                            ? h.requirements
+                            : (h.notes.isNotEmpty ? h.notes : 'لا توجد ملاحظات'),
+                        isFuture: isUpcoming,
+                        icon: isUpcoming ? Icons.event_available : Icons.event_busy,
+                        color: isUpcoming ? Colors.blue : AppColors.primary,
+                      ),
+                    );
+                  },
+                ),
         ),
       ],
     );
@@ -1493,96 +1613,199 @@ class _CaseDetailScreenState extends State<CaseDetailScreen>
     );
   }
 
+  static const _docTypes = [
+    {'value': 'identity', 'label': 'هوية', 'icon': Icons.badge_rounded},
+    {'value': 'contract', 'label': 'عقد', 'icon': Icons.handshake_rounded},
+    {'value': 'certificate', 'label': 'شهادة', 'icon': Icons.workspace_premium_rounded},
+    {'value': 'evidence', 'label': 'دليل', 'icon': Icons.policy_rounded},
+    {'value': 'statement', 'label': 'بيان', 'icon': Icons.article_rounded},
+    {'value': 'receipt', 'label': 'إيصال', 'icon': Icons.receipt_long_rounded},
+    {'value': 'other', 'label': 'أخرى', 'icon': Icons.description_rounded},
+  ];
+
   Widget _buildDocsTab() {
     if (_isLoadingRelated && _attachments.isEmpty) {
       return const Center(child: CircularProgressIndicator(color: AppColors.primary));
     }
     if (_attachments.isEmpty) {
-      return _buildEmpty('لا توجد مستندات', Icons.folder_copy_rounded, 'لم يتم إرفاق أي مستندات بهذه القضية');
+      return _buildEmpty('لا توجد مستندات', Icons.folder_copy_rounded, 'اضغط + لإضافة مستند جديد');
     }
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: _attachments.length,
-      itemBuilder: (_, i) {
-        final a = _attachments[i];
-        final color = AttachmentUtils.fileColor(a.originalFilename, fallback: AppColors.primary);
-        return Card(
-          elevation: 0,
-          margin: const EdgeInsets.only(bottom: 10),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: BorderSide(color: Colors.grey.shade200),
+    // Filter by search query and type
+    final query = _docsSearchCtrl.text.trim().toLowerCase();
+    final filtered = _attachments.where((a) {
+      final matchesType = _docsTypeFilter == null || a.documentType == _docsTypeFilter;
+      final matchesSearch = query.isEmpty ||
+          (a.originalFilename?.toLowerCase().contains(query) ?? false) ||
+          a.typeDisplay.toLowerCase().contains(query) ||
+          a.content.toLowerCase().contains(query);
+      return matchesType && matchesSearch;
+    }).toList();
+
+    return Column(
+      children: [
+        // Search bar
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+          child: TextField(
+            controller: _docsSearchCtrl,
+            textDirection: ui.TextDirection.rtl,
+            onChanged: (_) => setState(() {}),
+            decoration: InputDecoration(
+              hintText: 'بحث في المستندات...',
+              hintStyle: TextStyle(color: Colors.grey[400], fontSize: 13),
+              prefixIcon: const Icon(Icons.search, size: 20, color: Color(0xFF2563EB)),
+              suffixIcon: _docsSearchCtrl.text.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear, size: 16),
+                      onPressed: () { _docsSearchCtrl.clear(); setState(() {}); },
+                    )
+                  : null,
+              filled: true,
+              fillColor: Colors.grey.shade50,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: Colors.grey.shade200)),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: Colors.grey.shade200)),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              isDense: true,
+            ),
           ),
-          child: Column(
+        ),
+        // Type filter chips
+        SizedBox(
+          height: 38,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            reverse: true,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
             children: [
-              ListTile(
-                contentPadding: const EdgeInsets.fromLTRB(12, 8, 8, 4),
-                leading: Container(
-                  width: 42, height: 42,
-                  decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle),
-                  child: Icon(AttachmentUtils.fileIcon(a.originalFilename), color: color, size: 22),
-                ),
-                title: Text(
-                  a.originalFilename ?? a.typeDisplay,
-                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-                ),
-                subtitle: Text(
-                  '${a.typeDisplay} • ${a.createdAt != null ? DateFormat('yyyy/MM/dd').format(a.createdAt!) : '-'} • ${a.fileSizeDisplay}',
-                  style: TextStyle(color: Colors.grey[600], fontSize: 11),
+              Padding(
+                padding: const EdgeInsets.only(left: 6),
+                child: ChoiceChip(
+                  label: Text('الكل (${_attachments.length})', style: TextStyle(fontSize: 11, color: _docsTypeFilter == null ? Colors.white : Colors.grey[600])),
+                  selected: _docsTypeFilter == null,
+                  selectedColor: const Color(0xFF2563EB),
+                  backgroundColor: Colors.grey.shade100,
+                  onSelected: (_) => setState(() => _docsTypeFilter = null),
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  visualDensity: VisualDensity.compact,
                 ),
               ),
-              if (a.content.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                  child: Text(a.content, style: TextStyle(color: Colors.grey[700], fontSize: 12), maxLines: 2, overflow: TextOverflow.ellipsis),
-                ),
-              const Divider(height: 1),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextButton.icon(
-                      icon: Icon(Icons.visibility_rounded, size: 16, color: color),
-                      label: Text('معاينة', style: TextStyle(fontSize: 12, color: color)),
-                      onPressed: () => _previewAttachment(a),
-                    ),
+              ..._docTypes.where((t) => _attachments.any((a) => a.documentType == t['value'])).map((t) {
+                final count = _attachments.where((a) => a.documentType == t['value']).length;
+                final isSelected = _docsTypeFilter == t['value'];
+                return Padding(
+                  padding: const EdgeInsets.only(left: 6),
+                  child: ChoiceChip(
+                    label: Text('${t['label']} ($count)', style: TextStyle(fontSize: 11, color: isSelected ? Colors.white : Colors.grey[600])),
+                    selected: isSelected,
+                    selectedColor: const Color(0xFF2563EB),
+                    backgroundColor: Colors.grey.shade100,
+                    onSelected: (_) => setState(() => _docsTypeFilter = isSelected ? null : t['value'] as String),
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    visualDensity: VisualDensity.compact,
                   ),
-                  Container(width: 1, height: 32, color: Colors.grey.shade200),
-                  Expanded(
-                    child: TextButton.icon(
-                      icon: const Icon(Icons.edit_rounded, size: 16, color: Colors.orange),
-                      label: const Text('تعديل', style: TextStyle(fontSize: 12, color: Colors.orange)),
-                      onPressed: () => _editAttachmentDialog(a),
-                    ),
-                  ),
-                  Container(width: 1, height: 32, color: Colors.grey.shade200),
-                  Expanded(
-                    child: TextButton.icon(
-                      icon: const Icon(Icons.delete_outline_rounded, size: 16, color: Colors.red),
-                      label: const Text('حذف', style: TextStyle(fontSize: 12, color: Colors.red)),
-                      onPressed: () => _deleteAttachment(a),
-                    ),
-                  ),
-                  if (a.fileUrl != null) ...[
-                    Container(width: 1, height: 32, color: Colors.grey.shade200),
-                    Expanded(
-                      child: TextButton.icon(
-                        icon: const Icon(Icons.open_in_new_rounded, size: 16, color: Colors.blueGrey),
-                        label: const Text('فتح', style: TextStyle(fontSize: 12, color: Colors.blueGrey)),
-                        onPressed: () {
-                          final fullUrl = AttachmentUtils.resolveUrl(a.fileUrl);
-                          if (fullUrl != null) {
-                            launchUrl(Uri.parse(fullUrl), mode: LaunchMode.externalApplication);
-                          }
-                        },
-                      ),
-                    ),
-                  ],
-                ],
-              ),
+                );
+              }),
             ],
           ),
-        );
-      },
+        ),
+        // Results count
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+          child: Row(children: [
+            Text('${filtered.length} مستند', style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+            const Spacer(),
+          ]),
+        ),
+        // List
+        Expanded(
+          child: filtered.isEmpty
+              ? Center(child: Text('لا توجد نتائج', style: TextStyle(color: Colors.grey[400])))
+              : ListView.builder(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 80),
+                  itemCount: filtered.length,
+                  itemBuilder: (_, i) {
+                    final a = filtered[i];
+                    final color = AttachmentUtils.fileColor(a.originalFilename, fallback: AppColors.primary);
+                    return Card(
+                      elevation: 0,
+                      margin: const EdgeInsets.only(bottom: 10),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: BorderSide(color: Colors.grey.shade200),
+                      ),
+                      child: Column(
+                        children: [
+                          ListTile(
+                            contentPadding: const EdgeInsets.fromLTRB(12, 8, 8, 4),
+                            leading: Container(
+                              width: 42, height: 42,
+                              decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle),
+                              child: Icon(AttachmentUtils.fileIcon(a.originalFilename), color: color, size: 22),
+                            ),
+                            title: Text(
+                              a.originalFilename ?? a.typeDisplay,
+                              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                            ),
+                            subtitle: Text(
+                              '${a.typeDisplay} • ${a.createdAt != null ? DateFormat('yyyy/MM/dd').format(a.createdAt!) : '-'} • ${a.fileSizeDisplay}',
+                              style: TextStyle(color: Colors.grey[600], fontSize: 11),
+                            ),
+                          ),
+                          if (a.content.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                              child: Text(a.content, style: TextStyle(color: Colors.grey[700], fontSize: 12), maxLines: 2, overflow: TextOverflow.ellipsis),
+                            ),
+                          const Divider(height: 1),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextButton.icon(
+                                  icon: Icon(Icons.visibility_rounded, size: 16, color: color),
+                                  label: Text('معاينة', style: TextStyle(fontSize: 12, color: color)),
+                                  onPressed: () => _previewAttachment(a),
+                                ),
+                              ),
+                              Container(width: 1, height: 32, color: Colors.grey.shade200),
+                              Expanded(
+                                child: TextButton.icon(
+                                  icon: const Icon(Icons.edit_rounded, size: 16, color: Colors.orange),
+                                  label: const Text('تعديل', style: TextStyle(fontSize: 12, color: Colors.orange)),
+                                  onPressed: () => _editAttachmentDialog(a),
+                                ),
+                              ),
+                              Container(width: 1, height: 32, color: Colors.grey.shade200),
+                              Expanded(
+                                child: TextButton.icon(
+                                  icon: const Icon(Icons.delete_outline_rounded, size: 16, color: Colors.red),
+                                  label: const Text('حذف', style: TextStyle(fontSize: 12, color: Colors.red)),
+                                  onPressed: () => _deleteAttachment(a),
+                                ),
+                              ),
+                              if (a.fileUrl != null) ...[
+                                Container(width: 1, height: 32, color: Colors.grey.shade200),
+                                Expanded(
+                                  child: TextButton.icon(
+                                    icon: const Icon(Icons.open_in_new_rounded, size: 16, color: Colors.blueGrey),
+                                    label: const Text('فتح', style: TextStyle(fontSize: 12, color: Colors.blueGrey)),
+                                    onPressed: () {
+                                      final fullUrl = AttachmentUtils.resolveUrl(a.fileUrl);
+                                      if (fullUrl != null) {
+                                        launchUrl(Uri.parse(fullUrl), mode: LaunchMode.externalApplication);
+                                      }
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+        ),
+      ],
     );
   }
 
@@ -1681,6 +1904,244 @@ class _CaseDetailScreenState extends State<CaseDetailScreen>
           style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white),
         ),
       ]),
+    );
+  }
+
+  // ─── Add Document Menu ──────────────────────────────────────────────────
+  void _showAddDocumentMenu() {
+    if (_lawsuits.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('يجب إضافة إجراء (دعوى) أولاً قبل رفع المستندات'), backgroundColor: Colors.orange),
+      );
+      return;
+    }
+    // Pick the first (or only) lawsuit for this case
+    final targetLawsuit = _lawsuits.first;
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(25))),
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('إضافة مستند جديد', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            const SizedBox(height: 8),
+            Text('اختر طريقة إضافة المستند', style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                // Upload file
+                _docActionBtn(ctx, Icons.upload_file_rounded, 'رفع ملف', const Color(0xFF2563EB), () async {
+                  Navigator.pop(ctx);
+                  final result = await FilePicker.platform.pickFiles(
+                    type: FileType.custom,
+                    allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx', 'xls', 'xlsx'],
+                  );
+                  if (result != null && result.files.isNotEmpty) {
+                    final file = result.files.first;
+                    if (file.path != null) {
+                      _showDocMetadataForm(filePath: file.path!, lawsuitId: targetLawsuit.id!);
+                    }
+                  }
+                }),
+                // Camera (Advanced Scanner)
+                if (!kIsWeb)
+                  _docActionBtn(ctx, Icons.document_scanner_rounded, 'الماسح الذكي', AppColors.primary, () async {
+                    Navigator.pop(ctx);
+                    final result = await Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const DocumentScannerScreen()),
+                    );
+                    if (result != null && result is String) {
+                      _showDocMetadataForm(filePath: result, lawsuitId: targetLawsuit.id!);
+                    }
+                  }),
+                  _docActionBtn(ctx, Icons.camera_alt_rounded, 'كاميرا', Colors.green, () async {
+                    Navigator.pop(ctx);
+                    final result = await FilePicker.platform.pickFiles(type: FileType.image);
+                    if (result != null && result.files.isNotEmpty) {
+                      final file = result.files.first;
+                      if (file.path != null) {
+                        _showDocMetadataForm(filePath: file.path!, lawsuitId: targetLawsuit.id!);
+                      }
+                    }
+                  }),
+                // Scanner
+                _docActionBtn(ctx, Icons.document_scanner_rounded, 'ماسح ضوئي', Colors.deepPurple, () async {
+                  Navigator.pop(ctx);
+                  final scannedPath = await Navigator.push<String>(
+                    context,
+                    MaterialPageRoute(builder: (_) => const DocumentScannerScreen()),
+                  );
+                  if (scannedPath != null && scannedPath.isNotEmpty) {
+                    _showDocMetadataForm(filePath: scannedPath, lawsuitId: targetLawsuit.id!);
+                  }
+                }),
+              ],
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _docActionBtn(BuildContext ctx, IconData icon, String label, Color color, VoidCallback onTap) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      child: Column(children: [
+        Container(
+          width: 56, height: 56,
+          decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle),
+          child: Icon(icon, color: color, size: 28),
+        ),
+        const SizedBox(height: 8),
+        Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+      ]),
+    );
+  }
+
+  void _showDocMetadataForm({required String filePath, required int lawsuitId}) {
+    String selectedType = 'other';
+    final contentCtrl = TextEditingController();
+    final evidenceCtrl = TextEditingController();
+    final pageCtrl = TextEditingController(text: '1');
+    bool isSaving = false;
+
+    final fileName = filePath.split('/').last.split('\\').last;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setBS) => Padding(
+          padding: EdgeInsets.only(
+            left: 20, right: 20, top: 20,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    const Expanded(child: Text('بيانات المستند', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold))),
+                    IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(color: const Color(0xFFEFF6FF), borderRadius: BorderRadius.circular(10)),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.insert_drive_file_rounded, size: 20, color: Color(0xFF2563EB)),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text(fileName, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: selectedType,
+                  decoration: InputDecoration(
+                    labelText: 'نوع المستند',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ),
+                  items: _docTypes.map((t) => DropdownMenuItem(value: t['value'] as String, child: Text(t['label'] as String))).toList(),
+                  onChanged: (v) => setBS(() => selectedType = v!),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: pageCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: 'عدد الصفحات',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: contentCtrl,
+                  maxLines: 3,
+                  textDirection: ui.TextDirection.rtl,
+                  decoration: InputDecoration(
+                    labelText: 'وصف المستند',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: evidenceCtrl,
+                  maxLines: 2,
+                  textDirection: ui.TextDirection.rtl,
+                  decoration: InputDecoration(
+                    labelText: 'الأساس القانوني / الدليل',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    icon: isSaving
+                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : const Icon(Icons.cloud_upload_rounded),
+                    label: Text(isSaving ? 'جارٍ الرفع...' : 'رفع المستند'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2563EB),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    onPressed: isSaving ? null : () async {
+                      setBS(() => isSaving = true);
+                      try {
+                        final now = DateTime.now();
+                        final hijri = HijriCalendar.fromDate(now);
+                        final api = Provider.of<ApiService>(context, listen: false);
+                        await api.uploadAttachment(
+                          lawsuitId: lawsuitId,
+                          filePath: filePath,
+                          documentType: selectedType,
+                          gregorianDate: DateFormat('yyyy-MM-dd').format(now),
+                          hijriDate: '${hijri.hYear}-${hijri.hMonth.toString().padLeft(2, '0')}-${hijri.hDay.toString().padLeft(2, '0')}',
+                          pageCount: int.tryParse(pageCtrl.text) ?? 1,
+                          content: contentCtrl.text.trim(),
+                          evidenceBasis: evidenceCtrl.text.trim(),
+                        );
+                        if (ctx.mounted) Navigator.pop(ctx);
+                        if (mounted) {
+                          await _loadRelatedData(_lawsuits, Provider.of<ApiService>(context, listen: false));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('تم رفع المستند بنجاح'), backgroundColor: Colors.green),
+                          );
+                        }
+                      } catch (e) {
+                        setBS(() => isSaving = false);
+                        if (ctx.mounted) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(
+                            SnackBar(content: Text('خطأ في رفع المستند: $e'), backgroundColor: Colors.red),
+                          );
+                        }
+                      }
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 

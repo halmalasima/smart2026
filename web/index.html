@@ -46,6 +46,33 @@
   </script>
 </head>
 <body>
+  <script>
+    // مسح البيانات القديمة لتجنب مشكلة "انتهت الجلسة"
+    (function() {
+      var CACHE_VERSION = 'v2';
+      if (localStorage.getItem('app_cache_version') !== CACHE_VERSION) {
+        if (window.indexedDB && window.indexedDB.databases) {
+          window.indexedDB.databases().then(function(dbs) {
+            dbs.forEach(function(db) { window.indexedDB.deleteDatabase(db.name); });
+          });
+        }
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then(function(registrations) {
+            registrations.forEach(function(r) { r.unregister(); });
+          });
+        }
+        var version = CACHE_VERSION;
+        localStorage.clear();
+        localStorage.setItem('app_cache_version', version);
+        sessionStorage.clear();
+        if ('caches' in window) {
+          caches.keys().then(function(names) {
+            names.forEach(function(name) { caches.delete(name); });
+          });
+        }
+      }
+    })();
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

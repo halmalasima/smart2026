@@ -111,7 +111,8 @@ class CaseFileItem(models.Model):
     created_by = models.BigIntegerField(
         null=True,
         blank=True,
-        verbose_name='أنشأ بواسطة'
+        verbose_name='أنشأ بواسطة',
+        db_column='created_by'
     )
     
     # ترتيب العرض

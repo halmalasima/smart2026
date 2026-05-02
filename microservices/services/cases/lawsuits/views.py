@@ -161,7 +161,7 @@ class CaseViewSet(viewsets.ModelViewSet):
 class CasePartyViewSet(viewsets.ModelViewSet):
     """ViewSet for CaseParty – أطراف القضية"""
 
-    queryset = CaseParty.objects.select_related('case', 'user_account').all()
+    queryset = CaseParty.objects.select_related('case').prefetch_related('user_account').all()
     serializer_class = CasePartySerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
@@ -173,7 +173,7 @@ class CasePartyViewSet(viewsets.ModelViewSet):
         user = self.request.user
         user_role = get_user_role(user)
         uid = user.id
-        qs = CaseParty.objects.select_related('case', 'user_account')
+        qs = CaseParty.objects.select_related('case').prefetch_related('user_account')
         if user_role == 'admin':
             return qs
         return qs.filter(Q(case__created_by=uid) | Q(case__client=uid))
@@ -228,9 +228,9 @@ class LawsuitViewSet(viewsets.ModelViewSet):
     ViewSet for Lawsuit - with advanced archive features
     """
     queryset = Lawsuit.objects.select_related(
-        'parent_lawsuit', 'archived_by'
+        'parent_lawsuit'
     ).prefetch_related(
-        'financial_claims', 'plaintiffs', 'defendants'
+        'financial_claims'
     ).all()
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
@@ -470,7 +470,7 @@ class CaseFileItemViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         user = self.request.user
-        qs = CaseFileItem.objects.select_related('lawsuit', 'created_by').all()
+        qs = CaseFileItem.objects.select_related('lawsuit').prefetch_related('created_by').all()
         
         from smartjudi_common.user_utils import get_user_role
         role = get_user_role(user)

@@ -114,3 +114,27 @@ class LegalProcedureNodeSerializer(serializers.ModelSerializer):
         model = LegalProcedureNode
         fields = '__all__'
 
+
+class LawLibrarySerializer(serializers.ModelSerializer):
+    """
+    Serializer لمكتبة الكتب والتشريعات (المقدمة من ملف SQL) - محول للتوافقية
+    """
+    title = serializers.CharField(source='name', read_only=True)
+    category = serializers.CharField(source='category.name', read_only=True)
+    source_url = serializers.SerializerMethodField()
+    pdf_url = serializers.SerializerMethodField()
+    image_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Law
+        fields = ('id', 'title', 'category', 'source_url', 'pdf_url', 'image_url', 'created_at')
+        
+    def get_source_url(self, obj):
+        return None
+        
+    def get_pdf_url(self, obj):
+        return None
+        
+    def get_image_url(self, obj):
+        return None
+

@@ -131,7 +131,7 @@ class LegalTemplateViewSet(viewsets.ReadOnlyModelViewSet):
 class CaseViewSet(viewsets.ModelViewSet):
     """ViewSet for Case (قضية)"""
 
-    queryset = Case.objects.select_related('court_fk', 'created_by', 'client').prefetch_related('parties').all()
+    queryset = Case.objects.prefetch_related('court_fk', 'created_by', 'client', 'parties').all()
     serializer_class = CaseSerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
@@ -147,7 +147,7 @@ class CaseViewSet(viewsets.ModelViewSet):
 class CasePartyViewSet(viewsets.ModelViewSet):
     """ViewSet for CaseParty – أطراف القضية"""
 
-    queryset = CaseParty.objects.select_related('case', 'user_account').all()
+    queryset = CaseParty.objects.select_related('case').prefetch_related('user_account').all()
     serializer_class = CasePartySerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
@@ -217,8 +217,8 @@ class LawsuitViewSet(viewsets.ModelViewSet):
     ViewSet for Lawsuit - with advanced archive features
     """
     queryset = Lawsuit.objects.select_related(
-        'created_by', 'court_fk', 'archived_by', 'parent_lawsuit'
-    ).prefetch_related('financial_claims').all()
+        'parent_lawsuit'
+    ).prefetch_related('financial_claims', 'created_by', 'court_fk', 'archived_by').all()
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_class = LawsuitFilter

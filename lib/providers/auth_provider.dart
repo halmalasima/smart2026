@@ -410,17 +410,8 @@ class AuthProvider with ChangeNotifier, WidgetsBindingObserver {
     _isGuest = false;
     _guestTimer = null;
     
-    // Clear saved phone number for auto-login
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('saved_phone');
-    
-    // Disable biometric login
-    try {
-      final bio = BiometricService.instance;
-      if (await bio.isEnabled) {
-        await bio.disable();
-      }
-    } catch (_) {}
+    // ملاحظة: لا نحذف saved_phone — يبقى محفوظاً لتعبئته تلقائياً في شاشة الدخول
+    // المستخدم يرى رقمه جاهزاً عند إعادة فتح التطبيق
     
     notifyListeners();
   }
@@ -518,5 +509,67 @@ class AuthProvider with ChangeNotifier, WidgetsBindingObserver {
       developer.log('Error refreshing profile: $e', name: 'AuthProvider');
     }
   }
-}
 
+  /// تسجيل دخول بالـ OTP (بدون كلمة مرور)
+  Future<bool> loginWithOtp(String phone, String code) async {
+    _isLoading = true;
+    _errorMessage = null;
+    _currentUser = null;
+    notifyListeners();
+
+    try {
+      final response = await _apiService.verifyOtpLogin(phone, code);
+
+      final accessToken = response['access'];
+      final refreshToken = response['refresh'];
+
+      if (accessToken == null || refreshToken == null) {
+        _errorMessage = 'فشل في الحصول على tokens';
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+
+      // حفظ الـ tokens
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('access_token', accessToken);
+      await prefs.setString('refresh_token', refreshToken);
+      await prefs.setString('saved_phone', phone);
+
+      _apiService.setTokens(accessToken, refreshToken);
+
+      // جلب بيانات المستخدم
+      try {
+        _currentUser = await _apiService.getCurrentUser();
+        await _cacheUserProfile(_currentUser!);
+      } catch (e) {
+        print('⚠️ [Auth] Could not fetch profile after OTP login: $e');
+        _currentUser = await _loadCachedProfile();
+        if (_currentUser == null) {
+          await _clearStoredTokens();
+          _apiService.clearTokens();
+          _errorMessage = 'فشل في جلب معلومات المستخدم';
+          _isLoading = false;
+          notifyListeners();
+          return false;
+        }
+      }
+
+      _startSessionTimer();
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _currentUser = null;
+      final msg = e.toString();
+      if (msg.contains('رمز التحقق')) {
+        _errorMessage = 'رمز التحقق غير صحيح أو منتهي الصلاحية';
+      } else {
+        _errorMessage = 'فشل التحقق: $msg';
+      }
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+}

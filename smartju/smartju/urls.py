@@ -16,9 +16,9 @@ from notifications.views import (
     notifications_mark_all_read,
 )
 from rest_framework_simplejwt.views import (
-    TokenObtainPairView,
     TokenRefreshView,
 )
+from accounts.views import CustomTokenObtainPairView
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 
@@ -40,10 +40,11 @@ from payments.views import PaymentOrderViewSet
 from laws.views import (
     LegalCategoryViewSet, LawViewSet, LawChapterViewSet,
     LawSectionViewSet, LawArticleViewSet, CaseLegalReferenceViewSet,
-    LegalArticleFlatViewSet, LegalProcedureViewSet
+    LegalArticleFlatViewSet, LegalProcedureViewSet, LawLibraryViewSet
 )
-from logs.views import UserSessionViewSet, SearchLogViewSet, AIChatLogViewSet
+from logs.views import UserSessionViewSet, SearchLogViewSet, AIChatLogViewSet, AIConversationViewSet
 from lawyers.views import LawyerViewSet, LawyerFilterOptionsViewSet
+from lawsuits.views_ocr import ExtractTextView
 
 # Create router
 router = DefaultRouter()
@@ -82,10 +83,12 @@ router.register(r'case-legal-references', CaseLegalReferenceViewSet, basename='c
 # Legal Library - Full-Text Search
 router.register(r'legal-library', LegalArticleFlatViewSet, basename='legal-library')
 router.register(r'legal-procedures', LegalProcedureViewSet, basename='legal-procedure')
+router.register(r'law-library-books', LawLibraryViewSet, basename='law-library-books')
 # Logs
 router.register(r'user-sessions', UserSessionViewSet, basename='user-session')
 router.register(r'search-logs', SearchLogViewSet, basename='search-log')
 router.register(r'ai-chat-logs', AIChatLogViewSet, basename='ai-chat-log')
+router.register(r'ai-conversations', AIConversationViewSet, basename='ai-conversation')
 
 # Swagger schema view
 schema_view = get_schema_view(
@@ -249,6 +252,9 @@ urlpatterns = [
     
     # API Routes
     path('api/', include(router.urls)),
+    
+    # OCR API (Handles both with and without trailing slash to avoid 301 redirects)
+    re_path(r'^api/ocr/extract-text/?$', ExtractTextView.as_view(), name='ocr-extract-text'),
 
     # إشعارات التطبيق (Flutter يتوقع JSON وليس صفحة 404 HTML)
     path('api/notifications/mark-all-read/', notifications_mark_all_read),
@@ -256,7 +262,7 @@ urlpatterns = [
     path('api/notifications/', notifications_list),
     
     # JWT Authentication
-    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('api/token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     
     # User Registration

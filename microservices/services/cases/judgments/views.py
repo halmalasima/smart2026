@@ -27,7 +27,7 @@ class JudgmentViewSet(viewsets.ModelViewSet):
         return Judgment.objects.filter(
             Q(lawsuit__created_by=user.id) |
             Q(lawsuit__client=user.id)
-        ).select_related('lawsuit', 'judge', 'created_by')
+        ).select_related('lawsuit').prefetch_related('judge', 'created_by')
     
     def get_permissions(self):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:

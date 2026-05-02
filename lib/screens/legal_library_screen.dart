@@ -80,7 +80,8 @@ class _LegalLibraryScreenState extends State<LegalLibraryScreen> with SingleTick
         searchQuery: _tabController.index == 0 ? _searchController.text : null,
         category: _selectedBookCategory,
       );
-      final results = response['results'] as List? ?? [];
+      final data = response['data'] ?? response;
+      final results = data['results'] as List? ?? [];
       if (mounted) {
         setState(() {
           _lawBooks = List<Map<String, dynamic>>.from(results);
@@ -684,7 +685,20 @@ class _LegalLibraryScreenState extends State<LegalLibraryScreen> with SingleTick
               children: [
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: () => _launchURL(book['pdf_url']),
+                    onPressed: () {
+                      final url = book['pdf_url'];
+                      if (url != null && url.toString().isNotEmpty) {
+                        _launchURL(url);
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('عفواً، رابط تحميل المرجع غير متوفر حالياً.', style: TextStyle(fontFamily: 'Cairo')),
+                            backgroundColor: Colors.redAccent,
+                            duration: Duration(seconds: 3),
+                          ),
+                        );
+                      }
+                    },
                     icon: const Icon(Icons.file_download_outlined, color: Colors.white),
                     label: const Text('تحميل المرجع (PDF)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                     style: ElevatedButton.styleFrom(

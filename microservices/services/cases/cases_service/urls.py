@@ -30,11 +30,16 @@ router.register(r'judgments', JudgmentViewSet, basename='judgment')
 router.register(r'payment-orders', PaymentOrderViewSet, basename='payment-order')
 router.register(r'audit-logs', AuditLogViewSet, basename='audit-log')
 
+from lawsuits.views_ocr import ExtractTextView
+
 urlpatterns = [
     path('admin/cases/', admin.site.urls),
     # Legacy API (Backward Compatibility)
     path('api/', include(router.urls)),
     # Versioned API (v1)
     path('api/v1/', include(router.urls)),
+    # OCR API
+    path('api/ocr/extract-text/', ExtractTextView.as_view(), name='ocr-extract-text'),
+    path('api/v1/ocr/extract-text/', ExtractTextView.as_view(), name='ocr-extract-text-v1'),
     path('health/', health_check, name='health_check'),
 ]

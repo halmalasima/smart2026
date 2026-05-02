@@ -87,9 +87,11 @@ dependencies:
   # File picker for attachments
   file_picker: ^8.1.2
   
-  # Image picker (commented out - will add when needed)
-  # Image picker (commented out - will add when needed)
-  # image_picker: ^1.0.7
+  # Image picker for camera/gallery
+  image_picker: ^1.0.7
+
+  # Image processing (filters, crop, etc.)
+  image: ^4.1.3
 
   # HTML Rendering
   flutter_html: ^3.0.0-beta.2
@@ -124,6 +126,9 @@ dependencies:
   # Biometric Authentication (fingerprint / face)
   local_auth: ^2.3.0
   flutter_secure_storage: ^9.2.4
+
+  # Advanced Document Scanner with Edge Detection
+  cunning_document_scanner: ^1.1.2
 
 dev_dependencies:
   flutter_test:

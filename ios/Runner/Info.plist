@@ -45,6 +45,10 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>نحتاج للوصول للكاميرا لمسح المستندات ضوئياً.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>نحتاج للوصول لمكتبة الصور لاختيار المستندات.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>للاتصال بخادم SmartJudi على شبكة Wi‑Fi المحلية.</string>
 	<key>NSAppTransportSecurity</key>

@@ -8,28 +8,28 @@ $env:INTERNAL_API_KEY = "smartjudi-internal-2026"
 $env:DEBUG = "1"
 
 # Auth Service -> port 8001
-$env:DATABASE_URL = "postgres://smartjudi:smartjudi_secret@localhost:5432/smartjudi_auth"
+$env:DATABASE_URL = "postgres://smartjudi:smartjudi_secret@127.0.0.1:5432/smartjudi_auth"
 $env:DJANGO_SETTINGS_MODULE = "auth_service.settings"
 Start-Process -NoNewWindow python -ArgumentList "-m", "django", "runserver", "0.0.0.0:8001" -WorkingDirectory "$PSScriptRoot\services\auth"
 
 # Cases Service -> port 8002
-$env:DATABASE_URL = "postgres://smartjudi:smartjudi_secret@localhost:5432/smartjudi_cases"
+$env:DATABASE_URL = "postgres://smartjudi:smartjudi_secret@127.0.0.1:5432/smartjudi_cases"
 $env:DJANGO_SETTINGS_MODULE = "cases_service.settings"
 $env:AUTH_SERVICE_URL = "http://127.0.0.1:8001"
 Start-Process -NoNewWindow python -ArgumentList "-m", "django", "runserver", "0.0.0.0:8002" -WorkingDirectory "$PSScriptRoot\services\cases"
 
 # Legal Service -> port 8003
-$env:DATABASE_URL = "postgres://smartjudi:smartjudi_secret@localhost:5432/smartjudi_legal"
+$env:DATABASE_URL = "postgres://smartjudi:smartjudi_secret@127.0.0.1:5432/smartjudi_legal"
 $env:DJANGO_SETTINGS_MODULE = "legal_service.settings"
 Start-Process -NoNewWindow python -ArgumentList "-m", "django", "runserver", "0.0.0.0:8003" -WorkingDirectory "$PSScriptRoot\services\legal"
 
 # Hearings Service -> port 8004
-$env:DATABASE_URL = "postgres://smartjudi:smartjudi_secret@localhost:5432/smartjudi_hearings"
+$env:DATABASE_URL = "postgres://smartjudi:smartjudi_secret@127.0.0.1:5432/smartjudi_hearings"
 $env:DJANGO_SETTINGS_MODULE = "hearings_service.settings"
 Start-Process -NoNewWindow python -ArgumentList "-m", "django", "runserver", "0.0.0.0:8004" -WorkingDirectory "$PSScriptRoot\services\hearings"
 
 # Search Service -> port 8005
-$env:DATABASE_URL = "postgres://smartjudi:smartjudi_secret@localhost:5432/smartjudi_search"
+$env:DATABASE_URL = "postgres://smartjudi:smartjudi_secret@127.0.0.1:5432/smartjudi_search"
 $env:DJANGO_SETTINGS_MODULE = "search_service.settings"
 Start-Process -NoNewWindow python -ArgumentList "-m", "django", "runserver", "0.0.0.0:8005" -WorkingDirectory "$PSScriptRoot\services\search"
 

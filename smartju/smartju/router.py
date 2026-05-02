@@ -13,6 +13,7 @@ class MicroserviceRouter:
         'contenttypes': 'auth_db',
         'dashboard': 'auth_db',
         'control_panel': 'auth_db',
+        'token_blacklist': 'auth_db',
         
         # Cases & Lawsuits
         'lawsuits': 'cases_db',

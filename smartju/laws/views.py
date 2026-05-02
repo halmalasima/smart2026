@@ -8,7 +8,8 @@ from .models import LegalCategory, Law, LawChapter, LawSection, LawArticle, Case
 from .serializers import (
     LegalCategorySerializer, LawSerializer, LawChapterSerializer,
     LawSectionSerializer, LawArticleSerializer, CaseLegalReferenceSerializer,
-    LegalArticleFlatSerializer, LegalArticleFlatListSerializer, LegalProcedureNodeSerializer
+    LegalArticleFlatSerializer, LegalArticleFlatListSerializer, LegalProcedureNodeSerializer,
+    LawLibrarySerializer
 )
 import re
 
@@ -369,3 +370,33 @@ class LegalProcedureViewSet(viewsets.ReadOnlyModelViewSet):
             'count': queryset.count(),
             'results': highlighted_results
         })
+
+class LawLibraryViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet لمكتبة الكتب والتشريعات (المقدمة من ملف SQL) - محول للتوافقية
+    """
+    queryset = Law.objects.select_related('category').all()
+    serializer_class = LawLibrarySerializer
+    permission_classes = [AllowAny]
+    
+    def get_queryset(self):
+        queryset = Law.objects.select_related('category').all()
+        q = self.request.query_params.get('q', '').strip()
+        category = self.request.query_params.get('category', '')
+        
+        if q:
+            from django.db.models import Q
+            queryset = queryset.filter(Q(name__icontains=q) | Q(category__name__icontains=q))
+        if category:
+            queryset = queryset.filter(category__name=category)
+            
+        return queryset
+
+    @action(detail=False, methods=['get'])
+    def categories(self, request):
+        """الحصول على قائمة التصنيفات"""
+        from django.db.models import Count, F
+        categories = Law.objects.values(category_name=F('category__name')).annotate(count=Count('id')).order_by('category_name')
+        # Map to old structure {'category': ...}
+        result = [{'category': c['category_name'], 'count': c['count']} for c in categories]
+        return Response({'categories': result})

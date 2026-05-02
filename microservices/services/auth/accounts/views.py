@@ -393,3 +393,129 @@ def create_sub_account(request):
     except Exception as e:
         logger.exception(f"Error creating sub-account: {e}")
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# ═══════════════════════════════════════════════════════════
+# Phone-First Auth Flow
+# ═══════════════════════════════════════════════════════════
+
+def _find_user_by_phone(phone):
+    """Find user by username or phone_number profile field."""
+    user = User.objects.filter(username=phone).first()
+    if not user:
+        user = User.objects.filter(profile__phone_number=phone).first()
+    return user
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def check_phone(request):
+    """فحص رقم الهاتف — هل مسجل في قاعدة البيانات؟"""
+    phone = request.data.get('phone', '').strip()
+    if not phone:
+        return Response({'error': 'رقم الهاتف مطلوب'}, status=status.HTTP_400_BAD_REQUEST)
+    user = _find_user_by_phone(phone)
+    return Response({'exists': user is not None})
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def quick_register(request):
+    """تسجيل سريع برقم الهاتف فقط + إرسال OTP"""
+    import random, string
+    phone = request.data.get('phone', '').strip()
+    if not phone:
+        return Response({'error': 'رقم الهاتف مطلوب'}, status=status.HTTP_400_BAD_REQUEST)
+
+    if _find_user_by_phone(phone):
+        return Response({'error': 'هذا الرقم مسجل مسبقاً'}, status=status.HTTP_400_BAD_REQUEST)
+
+    random_pass = ''.join(random.choices(string.ascii_letters + string.digits, k=16))
+    user = User.objects.create_user(username=phone, password=random_pass, is_active=True)
+
+    profile = user.profile
+    profile.phone_number = phone
+    profile.role = UserProfile.ROLE_CITIZEN
+    profile.save()
+
+    otp = OTPCode.create_otp(user, OTPCode.PURPOSE_VERIFY_EMAIL)
+    sms_sent = _send_otp_sms(user, otp, OTPCode.PURPOSE_VERIFY_EMAIL)
+
+    logger.info(f'📱 [Quick Register] OTP for {phone}: {otp.code}')
+    return Response({
+        'message': 'تم إنشاء الحساب وإرسال رمز التحقق',
+        'otp_sent': True,
+        'sms_sent': sms_sent,
+    }, status=status.HTTP_201_CREATED)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def verify_otp_login(request):
+    """التحقق من رمز OTP وتسجيل الدخول (إرجاع JWT tokens)"""
+    from rest_framework_simplejwt.tokens import RefreshToken
+
+    phone = request.data.get('phone', '').strip()
+    code = request.data.get('code', '').strip()
+    if not phone or not code:
+        return Response({'error': 'رقم الهاتف ورمز التحقق مطلوبان'}, status=status.HTTP_400_BAD_REQUEST)
+
+    user = _find_user_by_phone(phone)
+    if not user:
+        return Response({'error': 'المستخدم غير موجود'}, status=status.HTTP_404_NOT_FOUND)
+
+    # Verify OTP
+    otp = OTPCode.objects.filter(
+        user=user, purpose=OTPCode.PURPOSE_VERIFY_EMAIL, is_used=False
+    ).order_by('-created_at').first()
+
+    if not otp or otp.is_expired or otp.code != code:
+        return Response({'error': 'رمز التحقق غير صحيح أو منتهي الصلاحية'}, status=status.HTTP_400_BAD_REQUEST)
+
+    otp.is_used = True
+    otp.save(update_fields=['is_used'])
+
+    # Activate user if not active
+    if not user.is_active:
+        user.is_active = True
+        user.save(update_fields=['is_active'])
+
+    # Generate JWT
+    refresh = RefreshToken.for_user(user)
+    try:
+        profile = user.profile
+        refresh['role'] = profile.role
+        refresh['is_active'] = profile.is_active
+    except UserProfile.DoesNotExist:
+        refresh['role'] = 'citizen'
+    refresh['is_superuser'] = user.is_superuser
+    refresh['username'] = user.username
+
+    is_new = not user.first_name
+    logger.info(f'✅ [OTP Login] {phone} (new={is_new})')
+
+    return Response({
+        'access': str(refresh.access_token),
+        'refresh': str(refresh),
+        'is_new_user': is_new,
+    })
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def send_otp(request):
+    """إرسال / إعادة إرسال رمز OTP"""
+    phone = request.data.get('phone', '').strip()
+    if not phone:
+        return Response({'error': 'رقم الهاتف مطلوب'}, status=status.HTTP_400_BAD_REQUEST)
+
+    user = _find_user_by_phone(phone)
+    if not user:
+        return Response({'error': 'المستخدم غير موجود'}, status=status.HTTP_404_NOT_FOUND)
+
+    otp = OTPCode.create_otp(user, OTPCode.PURPOSE_VERIFY_EMAIL)
+    sms_sent = _send_otp_sms(user, otp, OTPCode.PURPOSE_VERIFY_EMAIL)
+
+    logger.info(f'📱 [Send OTP] for {phone}: {otp.code}')
+    return Response({'message': 'تم إرسال رمز التحقق', 'otp_sent': True, 'sms_sent': sms_sent})
+

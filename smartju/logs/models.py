@@ -126,6 +126,58 @@ class SearchLog(models.Model):
         return f'{self.search_query[:50]}... - {self.search_date}'
 
 
+
+class AIConversation(models.Model):
+    """
+    AI Conversation Model - محادثات المساعد الذكي
+    يجمع رسائل الدردشة في محادثات منفصلة
+    """
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='ai_conversations',
+        verbose_name='المستخدم'
+    )
+    
+    title = models.CharField(
+        max_length=255,
+        default='محادثة جديدة',
+        verbose_name='عنوان المحادثة'
+    )
+    
+    is_archived = models.BooleanField(
+        default=False,
+        verbose_name='مؤرشفة'
+    )
+    
+    is_favorite = models.BooleanField(
+        default=False,
+        verbose_name='مفضلة'
+    )
+    
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='تاريخ الإنشاء'
+    )
+    
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name='تاريخ التحديث'
+    )
+    
+    class Meta:
+        verbose_name = 'محادثة ذكية'
+        verbose_name_plural = 'المحادثات الذكية'
+        ordering = ['-updated_at']
+        indexes = [
+            models.Index(fields=['user']),
+            models.Index(fields=['updated_at']),
+        ]
+    
+    def __str__(self):
+        return f'{self.title} - {self.user.username}'
+
+
 class AIChatLog(models.Model):
     """
     AI Chat Log Model - سجل محادثات AI
@@ -137,6 +189,15 @@ class AIChatLog(models.Model):
         blank=True,
         related_name='ai_chat_logs',
         verbose_name='المستخدم'
+    )
+    
+    conversation = models.ForeignKey(
+        AIConversation,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='messages',
+        verbose_name='المحادثة'
     )
     
     question = models.TextField(
@@ -163,12 +224,14 @@ class AIChatLog(models.Model):
     class Meta:
         verbose_name = 'سجل محادثة AI'
         verbose_name_plural = 'سجلات محادثات AI'
-        ordering = ['-created_at']
+        ordering = ['created_at']
         indexes = [
             models.Index(fields=['user']),
             models.Index(fields=['created_at']),
+            models.Index(fields=['conversation']),
         ]
     
     def __str__(self):
         return f'{self.question[:50]}... - {self.created_at}'
+
 

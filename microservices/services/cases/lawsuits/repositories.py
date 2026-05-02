@@ -11,9 +11,9 @@ class LawsuitRepository:
     def get_base_queryset():
         """Returns the base queryset with necessary select_related and prefetch_related"""
         return Lawsuit.objects.select_related(
-            'parent_lawsuit', 'archived_by'
+            'parent_lawsuit'
         ).prefetch_related(
-            'financial_claims', 'plaintiffs', 'defendants'
+            'financial_claims'
         )
 
     @staticmethod

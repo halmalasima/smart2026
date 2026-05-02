@@ -31,7 +31,15 @@ def _read_key_env_or_file(env_name: str, file_env_name: str) -> str:
     except FileNotFoundError:
         return ''
 DEBUG = True
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '192.168.43.198', '192.168.0.157', '10.0.2.2', '*']
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '192.168.43.198', '192.168.0.157', '192.168.0.147', '10.0.2.2', '*']
+
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:8000', 'http://127.0.0.1:8000',
+    'http://localhost:9000', 'http://127.0.0.1:9000',
+    'http://192.168.0.147:8000', 'http://192.168.0.147:9000',
+    'http://192.168.43.198:8000', 'http://192.168.43.198:9000',
+    'http://192.168.0.157:8000', 'http://192.168.0.157:9000',
+]
 
 # Application definition
 INSTALLED_APPS = [

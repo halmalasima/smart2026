@@ -1,4 +1,4 @@
-﻿import 'dart:ui' as ui;
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
@@ -122,9 +122,13 @@ class _ArchiveScreenState extends State<ArchiveScreen> with SingleTickerProvider
   }
 
   void _applySearch() {
+    final query = _searchController.text.trim();
     final provider = Provider.of<LawsuitProvider>(context, listen: false);
-    provider.setSearchQuery(_searchController.text.trim().isEmpty ? null : _searchController.text.trim());
+    provider.setSearchQuery(query.isEmpty ? null : query);
     provider.loadCases(refresh: true);
+    
+    final sessionProvider = Provider.of<SessionProvider>(context, listen: false);
+    sessionProvider.setSearchQuery(query.isEmpty ? null : query);
   }
 
   void _applyFilters() {
@@ -171,7 +175,10 @@ class _ArchiveScreenState extends State<ArchiveScreen> with SingleTickerProvider
     });
     final provider = Provider.of<LawsuitProvider>(context, listen: false);
     provider.clearFilters();
+    final sessionProvider = Provider.of<SessionProvider>(context, listen: false);
+    sessionProvider.setSearchQuery(null);
     provider.loadCases(refresh: true);
+    sessionProvider.loadSessions();
   }
 
   @override
@@ -406,16 +413,26 @@ class _ArchiveScreenState extends State<ArchiveScreen> with SingleTickerProvider
   Widget _buildStatsBar() {
     return Consumer<LawsuitProvider>(
       builder: (context, provider, _) {
-        final total = provider.casesTotalCount;
-        final loaded = provider.cases.length;
+        final stats = provider.archiveStats;
+        final total = stats != null ? stats['total'] : provider.casesTotalCount;
+        
+        int activeCount = 0;
+        int archivedCount = 0;
+        if (stats != null && stats['by_archive_status'] != null) {
+          activeCount = stats['by_archive_status']['active'] ?? 0;
+          archivedCount = stats['by_archive_status']['archived'] ?? 0;
+        }
+
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           child: IntrinsicHeight(
             child: Row(
               children: [
-                _buildStatChip('إجمالي القضايا', total, (context.isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary)),
+                _buildStatChip('إجمالي القضايا', total, context.isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary, Icons.folder_copy_outlined),
                 const SizedBox(width: 6),
-                _buildStatChip('المحملة', loaded, AppColors.brand),
+                _buildStatChip('قيد النظر', activeCount, AppColors.brand, Icons.pending_actions_rounded),
+                const SizedBox(width: 6),
+                _buildStatChip('مؤرشفة', archivedCount, Colors.teal, Icons.archive_outlined),
               ],
             ),
           ),
@@ -424,10 +441,10 @@ class _ArchiveScreenState extends State<ArchiveScreen> with SingleTickerProvider
     );
   }
 
-  Widget _buildStatChip(String label, dynamic count, Color color) {
+  Widget _buildStatChip(String label, dynamic count, Color color, IconData icon) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
         decoration: BoxDecoration(
           color: color.withOpacity(0.08),
           borderRadius: BorderRadius.circular(10),
@@ -435,28 +452,29 @@ class _ArchiveScreenState extends State<ArchiveScreen> with SingleTickerProvider
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                '$count',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                  color: color,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 14, color: color),
+                const SizedBox(width: 4),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: color.withOpacity(0.9),
+                  ),
                 ),
-              ),
+              ],
             ),
-            const SizedBox(height: 2),
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                label,
-                style: TextStyle(
-                  fontSize: 10,
-                  color: color.withOpacity(0.8),
-                ),
+            const SizedBox(height: 4),
+            Text(
+              '$count',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: color,
               ),
             ),
           ],
@@ -686,7 +704,46 @@ class _ArchiveScreenState extends State<ArchiveScreen> with SingleTickerProvider
           return Center(child: Text(prov.error!, style: TextStyle(color: AppColors.error)));
         }
 
-        final filtered = prov.filteredSessions;
+        final query = prov.searchQuery?.toLowerCase() ?? '';
+        final filtered = prov.sessions.where((s) {
+          // Date period filter
+          bool matchesPeriod = true;
+          final d = DateTime(s.hearingDate.year, s.hearingDate.month, s.hearingDate.day);
+          switch (prov.periodFilter) {
+            case 'today':
+              final now = DateTime.now();
+              matchesPeriod = d.isAtSameMomentAs(DateTime(now.year, now.month, now.day));
+              break;
+            case 'week':
+              final now = DateTime.now();
+              final start = now.subtract(Duration(days: now.weekday - 6));
+              final startDay = DateTime(start.year, start.month, start.day);
+              final endDay = startDay.add(const Duration(days: 7));
+              matchesPeriod = !d.isBefore(startDay) && d.isBefore(endDay);
+              break;
+            case 'month':
+              final now = DateTime.now();
+              matchesPeriod = s.hearingDate.year == now.year && s.hearingDate.month == now.month;
+              break;
+            case 'custom':
+              if (prov.customFrom != null && prov.customTo != null) {
+                final from = DateTime(prov.customFrom!.year, prov.customFrom!.month, prov.customFrom!.day);
+                final to = DateTime(prov.customTo!.year, prov.customTo!.month, prov.customTo!.day, 23, 59, 59);
+                matchesPeriod = !s.hearingDate.isBefore(from) && !s.hearingDate.isAfter(to);
+              }
+              break;
+          }
+          
+          // Search query filter
+          bool matchesSearch = query.isEmpty ||
+              (s.lawsuitNumber?.toLowerCase().contains(query) ?? false) ||
+              (s.typeDisplay.toLowerCase().contains(query)) ||
+              (s.sessionTypeDisplay.toLowerCase().contains(query)) ||
+              (s.notes.toLowerCase().contains(query)) ||
+              (s.requirements.toLowerCase().contains(query));
+          
+          return matchesPeriod && matchesSearch;
+        }).toList();
 
         return Column(
           children: [

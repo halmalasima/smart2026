@@ -9,6 +9,9 @@ WORKDIR /app
 COPY shared /tmp/shared
 RUN pip install --no-cache-dir /tmp/shared && rm -rf /tmp/shared
 
+# Install Tesseract OCR and Arabic language data
+RUN apt-get update && apt-get install -y tesseract-ocr tesseract-ocr-ara && rm -rf /var/lib/apt/lists/*
+
 COPY services/cases/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 

@@ -226,6 +226,9 @@ class ApiService {
       }
 
       print('📡 [API] Response status: ${response.statusCode}');
+      if (response.statusCode >= 300 && response.statusCode < 400) {
+        print('⚠️ [API] Redirect detected: ${response.headers['location']}');
+      }
       print('📡 [API] Response body: ${response.body}');
       
       // Handle empty response body
@@ -258,11 +261,12 @@ class ApiService {
           }
         }
         final detail = responseData['detail']?.toString() ?? '';
-        if (detail.contains('No active account') ||
+        if (endpoint == ApiConfig.loginEndpoint ||
+            detail.contains('No active account') ||
             detail.contains('Unable to log in') ||
             detail.isEmpty) {
           throw const ApiException(
-            message: 'Invalid credentials',
+            message: 'اسم المستخدم أو كلمة المرور غير صحيحة',
             code: ApiErrorCode.invalidCredentials,
             statusCode: 401,
           );
@@ -670,6 +674,24 @@ class ApiService {
       endpoint += '?lawsuit_id=$lawsuitId';
     }
     return await _makeRequest('GET', endpoint);
+  }
+
+  // OCR
+  Future<String> extractTextFromImage(String filePath) async {
+    try {
+      final response = await _makeRequest(
+        'POST',
+        ApiConfig.ocrExtractTextEndpoint,
+        files: {'file': filePath},
+      );
+      if (response['text'] != null) {
+        return response['text'] as String;
+      }
+      return '';
+    } catch (e) {
+      print('❌ OCR Error: $e');
+      throw Exception('فشل استخراج النص: $e');
+    }
   }
 
   Future<Map<String, dynamic>> uploadAttachment({
@@ -1319,6 +1341,44 @@ class ApiService {
         'subject': subject,
         'description': description,
       },
+    );
+  }
+
+  // ========== Phone-First Auth API ==========
+
+  /// فحص رقم الهاتف — هل مسجل في قاعدة البيانات؟
+  Future<Map<String, dynamic>> checkPhone(String phone) async {
+    return await _makeRequest(
+      'POST',
+      ApiConfig.checkPhoneEndpoint,
+      body: {'phone': phone},
+    );
+  }
+
+  /// تسجيل سريع برقم الهاتف فقط + إرسال OTP
+  Future<Map<String, dynamic>> quickRegister(String phone) async {
+    return await _makeRequest(
+      'POST',
+      ApiConfig.quickRegisterEndpoint,
+      body: {'phone': phone},
+    );
+  }
+
+  /// التحقق من رمز OTP وتسجيل الدخول
+  Future<Map<String, dynamic>> verifyOtpLogin(String phone, String code) async {
+    return await _makeRequest(
+      'POST',
+      ApiConfig.verifyOtpLoginEndpoint,
+      body: {'phone': phone, 'code': code},
+    );
+  }
+
+  /// إرسال رمز OTP (إعادة إرسال)
+  Future<Map<String, dynamic>> sendOtp(String phone) async {
+    return await _makeRequest(
+      'POST',
+      ApiConfig.sendOtpEndpoint,
+      body: {'phone': phone},
     );
   }
 
