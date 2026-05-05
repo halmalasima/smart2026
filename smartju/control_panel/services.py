@@ -81,12 +81,13 @@ class GatewayClient:
 
             t0 = time.perf_counter()
             try:
+                # Do not follow redirects to avoid port-stripping issues from NGINX to FastAPI
                 resp = requests.get(
-                    url, timeout=self.DEFAULT_TIMEOUT, headers=self._headers()
+                    url, timeout=self.DEFAULT_TIMEOUT, headers=self._headers(), allow_redirects=False
                 )
                 latency = int((time.perf_counter() - t0) * 1000)
-                # auth-protected endpoints return 401 → service is up
-                healthy = resp.status_code in (200, 201, 204, 401, 403)
+                # 200 OK or 3xx Redirect means the service is alive and responding (401/403 means auth is working)
+                healthy = resp.status_code in (200, 301, 307, 308, 401, 403)
                 results.append(
                     ServiceStatus(
                         name=name,
@@ -110,6 +111,124 @@ class GatewayClient:
                 )
         return results
 
+
+# ─────────────────── Microservice Registry ────────────────────────────
+
+MICROSERVICE_REGISTRY = {
+    # service_key: { label, icon, db, apps[], color }
+    'auth': {
+        'label': 'المصادقة والمستخدمين',
+        'icon': 'shield-lock',
+        'db': 'auth_db',
+        'port': 5439,
+        'apps': ['accounts', 'dashboard'],
+        'color': '#6366f1',
+    },
+    'cases': {
+        'label': 'القضايا والدعاوى',
+        'icon': 'briefcase',
+        'db': 'cases_db',
+        'port': 5433,
+        'apps': ['lawsuits', 'parties', 'appeals', 'judgments', 'payments', 'responses', 'courts'],
+        'color': '#0ea5e9',
+    },
+    'hearings': {
+        'label': 'الجلسات',
+        'icon': 'calendar-event',
+        'db': 'hearings_db',
+        'port': 5434,
+        'apps': ['hearings'],
+        'color': '#f59e0b',
+    },
+    'legal': {
+        'label': 'المكتبة القانونية',
+        'icon': 'book',
+        'db': 'legal_db',
+        'port': 5435,
+        'apps': ['laws', 'lawyers'],
+        'color': '#10b981',
+    },
+    'documents': {
+        'label': 'المستندات والمرفقات',
+        'icon': 'file-text',
+        'db': 'documents_db',
+        'port': 5436,
+        'apps': ['attachments'],
+        'color': '#8b5cf6',
+    },
+    'notifications': {
+        'label': 'الإشعارات والرسائل',
+        'icon': 'bell',
+        'db': 'notifications_db',
+        'port': 5437,
+        'apps': ['notifications', 'messaging'],
+        'color': '#ef4444',
+    },
+    'search': {
+        'label': 'البحث والسجلات',
+        'icon': 'search',
+        'db': 'search_db',
+        'port': 5438,
+        'apps': ['logs', 'audit'],
+        'color': '#14b8a6',
+    },
+    'ai': {
+        'label': 'المساعد الذكي',
+        'icon': 'robot',
+        'db': 'default',
+        'port': None,
+        'apps': ['ai_assistant'],
+        'color': '#a855f7',
+    },
+}
+
+def get_service_for_app(app_label: str) -> str | None:
+    """Return the microservice key for a given app_label."""
+    for key, svc in MICROSERVICE_REGISTRY.items():
+        if app_label in svc['apps']:
+            return key
+    return None
+
+def list_app_models_by_service() -> list[dict[str, Any]]:
+    """Return models grouped by microservice instead of Django app."""
+    services = {}
+    for model in apps.get_models():
+        meta = model._meta
+        if meta.app_label in EXCLUDED_APPS:
+            continue
+        svc_key = get_service_for_app(meta.app_label) or 'other'
+        if svc_key not in services:
+            svc_info = MICROSERVICE_REGISTRY.get(svc_key, {
+                'label': 'أخرى',
+                'icon': 'box',
+                'db': 'default',
+                'color': '#64748b',
+            })
+            services[svc_key] = {
+                'key': svc_key,
+                'label': svc_info['label'],
+                'icon': svc_info.get('icon', 'box'),
+                'color': svc_info.get('color', '#64748b'),
+                'db': svc_info.get('db', 'default'),
+                'models': [],
+                'total_rows': 0,
+            }
+        try:
+            count = model._default_manager.count()
+        except Exception:
+            count = 0
+        services[svc_key]['models'].append({
+            'app_label': meta.app_label,
+            'name': meta.model_name,
+            'verbose': str(meta.verbose_name_plural).title(),
+            'count': count,
+        })
+        services[svc_key]['total_rows'] += count if isinstance(count, int) else 0
+
+    for svc in services.values():
+        svc['models'].sort(key=lambda m: m['verbose'])
+
+    return sorted(services.values(), key=lambda s: s.get('label', ''))
 
 # ─────────────────────────── Schema helpers ───────────────────────────
 
@@ -177,7 +296,7 @@ def get_model_or_404(app_label: str, model_name: str):
         raise Http404(str(exc))
 
 
-def field_display(obj, field) -> str:
+def field_display(obj, field, full=False) -> str:
     """Render a single field value in a human friendly way."""
     try:
         value = getattr(obj, field.name, None)
@@ -196,9 +315,14 @@ def field_display(obj, field) -> str:
         return value.strftime("%Y-%m-%d %H:%M") if hasattr(value, "strftime") else str(value)
     if isinstance(field, dj_models.BooleanField):
         return "✓" if value else "✗"
+    if isinstance(field, (dj_models.FileField, dj_models.ImageField)):
+        try:
+            return value.url
+        except Exception:
+            return str(value)
     text = str(value)
-    if len(text) > 80:
-        return text[:77] + "…"
+    if not full and len(text) > 100:
+        return text[:97] + "…"
     return text
 
 

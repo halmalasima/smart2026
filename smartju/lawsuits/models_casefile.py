@@ -114,7 +114,9 @@ class CaseFileItem(models.Model):
         null=True,
         blank=True,
         related_name='created_case_file_items',
-        verbose_name='أنشأ بواسطة'
+        verbose_name='أنشأ بواسطة',
+        db_column='created_by',
+        db_constraint=False
     )
     
     # ترتيب العرض

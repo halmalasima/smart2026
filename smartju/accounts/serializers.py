@@ -160,50 +160,70 @@ class UserRegistrationSerializer(serializers.Serializer):
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     """
     Custom JWT serializer that supports login by phone number or username.
+    
+    Resolution strategy:
+    1. Try username + password directly via super().validate()
+    2. If that fails, look up by phone_number and retry with the resolved username
+    3. Provide clear Arabic error messages for each failure case
     """
     def validate(self, attrs):
-        username = attrs.get(self.username_field)
-        password = attrs.get('password')
-        
-        resolved_user = None
-        
-        logger.info(f"Login attempt for username: {username}")
-        
-        if username:
-            # 1. Try username directly
-            resolved_user = User.objects.filter(username=username).first()
-            if resolved_user:
-                 logger.info(f"User found by username: {resolved_user.username}")
-            
-            # 2. Try phone number if not found
-            if not resolved_user:
-                resolved_user = User.objects.filter(profile__phone_number=username).first()
-                if resolved_user:
-                    attrs[self.username_field] = resolved_user.username
-                    logger.info(f"User found by phone number. Resolved to username: {resolved_user.username}")
-                else:
-                    logger.info(f"No user found for: {username}")
-            
-            # 3. Check inactive status for better error messages
-            if resolved_user:
-                if not resolved_user.is_active:
-                    logger.warning(f"User {resolved_user.username} is inactive.")
-                    raise serializers.ValidationError(
-                        {'detail': 'الحساب غير نشط.'},
-                        code='account_inactive'
-                    )
-                
-                # Check password
-                password_correct = resolved_user.check_password(password)
-                logger.info(f"Password check for {resolved_user.username}: {'Correct' if password_correct else 'Incorrect'}")
-                
-                if password and not password_correct:
-                     raise serializers.ValidationError(
-                        {'detail': 'كلمة المرور غير صحيحة.'},
-                        code='wrong_password'
-                    )
+        raw_input = attrs.get(self.username_field, '')
+        password = attrs.get('password', '')
 
-        return super().validate(attrs)
+        logger.info(f"Login attempt for: {raw_input}")
+
+        # ── Strategy 1: Try the input as-is (direct username match) ──
+        try:
+            result = super().validate(attrs)
+            logger.info(f"Login success via direct username: {raw_input}")
+            return result
+        except Exception as direct_error:
+            logger.info(f"Direct username login failed: {direct_error}")
+
+        # ── Strategy 2: Resolve by phone number and retry ──
+        phone_user = User.objects.filter(profile__phone_number=raw_input).first()
+        if phone_user:
+            logger.info(f"Found user by phone {raw_input} -> username: {phone_user.username}")
+            
+            # Check account status first for clear error messages
+            if not phone_user.is_active:
+                raise serializers.ValidationError(
+                    {'detail': 'الحساب غير نشط. تواصل مع الدعم الفني.'},
+                    code='account_inactive'
+                )
+            
+            # Retry authentication with the resolved username
+            attrs[self.username_field] = phone_user.username
+            try:
+                result = super().validate(attrs)
+                logger.info(f"Login success via phone resolution: {raw_input} -> {phone_user.username}")
+                return result
+            except Exception:
+                logger.info(f"Password incorrect for phone-resolved user: {phone_user.username}")
+                raise serializers.ValidationError(
+                    {'detail': 'كلمة المرور غير صحيحة.'},
+                    code='wrong_password'
+                )
+
+        # ── No user found at all ──
+        # Check if a user exists with this username but password was wrong
+        direct_user = User.objects.filter(username=raw_input).first()
+        if direct_user:
+            if not direct_user.is_active:
+                raise serializers.ValidationError(
+                    {'detail': 'الحساب غير نشط. تواصل مع الدعم الفني.'},
+                    code='account_inactive'
+                )
+            raise serializers.ValidationError(
+                {'detail': 'كلمة المرور غير صحيحة.'},
+                code='wrong_password'
+            )
+
+        # Truly no user found
+        raise serializers.ValidationError(
+            {'detail': 'لا يوجد حساب بهذا الرقم. قم بإنشاء حساب جديد.'},
+            code='no_account'
+        )
 
     @classmethod
     def get_token(cls, user):

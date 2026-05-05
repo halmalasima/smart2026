@@ -1,47 +1,30 @@
+from control_panel.services import MICROSERVICE_REGISTRY
+
 class MicroserviceRouter:
     """
     A router to control all database operations on models in the
     different microservice-linked applications.
     """
     
-    # Map of app_label to database alias
-    APP_MAP = {
-        # Auth & Accounts
-        'accounts': 'auth_db',
-        'auth': 'auth_db',
-        'sessions': 'auth_db',
-        'contenttypes': 'auth_db',
-        'dashboard': 'auth_db',
-        'control_panel': 'auth_db',
-        'token_blacklist': 'auth_db',
+    # Map of app_label to database alias dynamically from registry
+    APP_MAP = {}
+
+    def __init__(self):
+        # Generate APP_MAP dynamically
+        # Map Django default apps
+        self.APP_MAP = {
+            'auth': 'auth_db',
+            'sessions': 'auth_db',
+            'contenttypes': 'auth_db',
+            'dashboard': 'auth_db',
+            'control_panel': 'auth_db',
+            'token_blacklist': 'auth_db',
+            'logs': 'auth_db',
+        }
         
-        # Cases & Lawsuits
-        'lawsuits': 'cases_db',
-        'parties': 'cases_db',
-        'responses': 'cases_db',
-        'appeals': 'cases_db',
-        'judgments': 'cases_db',
-        'payments': 'cases_db',
-        
-        # Hearings
-        'hearings': 'hearings_db',
-        
-        # Legal
-        'laws': 'legal_db',
-        'courts': 'legal_db',
-        'lawyers': 'legal_db',
-        
-        # Documents
-        'attachments': 'documents_db',
-        
-        # Notifications & Messaging
-        'notifications': 'notifications_db',
-        'messaging': 'notifications_db',
-        
-        # Search & Logs
-        'logs': 'auth_db',
-        'audit': 'search_db',
-    }
+        for svc_key, svc_data in MICROSERVICE_REGISTRY.items():
+            for app in svc_data.get('apps', []):
+                self.APP_MAP[app] = svc_data.get('db', 'default')
 
     def db_for_read(self, model, **hints):
         return self.APP_MAP.get(model._meta.app_label, 'default')

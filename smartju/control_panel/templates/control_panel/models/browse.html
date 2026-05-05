@@ -96,12 +96,25 @@
   </div>
 </div>
 
+<!-- Bulk Actions -->
+<div class="mb-3 d-none" id="bulk-actions">
+  <form method="post" action="{% url 'control_panel:model_bulk_action' app_label model_name %}" id="bulk-action-form">
+    {% csrf_token %}
+    <input type="hidden" name="action" id="bulk-action-type" value="">
+    <button type="button" class="btn btn-danger" onclick="submitBulkAction('delete')">
+      <i class="ti ti-trash me-1"></i> حذف المحدد
+    </button>
+    <div id="bulk-inputs-container"></div>
+  </form>
+</div>
+
 <!-- Data Table -->
 <div class="card">
   <div class="table-responsive">
     <table class="table table-vcenter card-table table-hover">
       <thead>
         <tr>
+          <th class="w-1"><input class="form-check-input m-0 align-middle" type="checkbox" aria-label="Select all" id="select-all"></th>
           <th class="w-1">#</th>
           {% for f in fields %}
           <th>
@@ -123,6 +136,7 @@
       <tbody>
         {% for r in rows %}
           <tr>
+            <td><input class="form-check-input m-0 align-middle item-checkbox" type="checkbox" value="{{ r.pk }}" aria-label="Select item"></td>
             <td class="text-secondary small">{{ r.pk }}</td>
             {% for item in r.values %}
               <td class="cp-cell">
@@ -134,7 +148,7 @@
                   {% endif %}
                 {% elif item.type == 'FileField' or item.type == 'ImageField' %}
                   {% if item.value and item.value != '—' %}
-                    <a href="#" class="badge bg-blue-lt"><i class="ti ti-file me-1"></i> ملف</a>
+                    <a href="{{ item.value }}" target="_blank" class="badge bg-blue-lt"><i class="ti ti-file me-1"></i> عرض الملف</a>
                   {% else %}
                     <span class="text-secondary">—</span>
                   {% endif %}
@@ -152,7 +166,7 @@
             </td>
           </tr>
         {% empty %}
-          <tr><td colspan="{{ fields|length|add:'2' }}" class="text-center text-secondary py-5">
+          <tr><td colspan="{{ fields|length|add:'3' }}" class="text-center text-secondary py-5">
             <i class="ti ti-database-off mb-3" style="font-size: 3rem; opacity: 0.5;"></i><br>
             لا توجد سجلات مطابقة
           </td></tr>
@@ -162,4 +176,57 @@
   </div>
   {% include "control_panel/partials/pagination.html" with page=page %}
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const selectAll = document.getElementById('select-all');
+  const itemCheckboxes = document.querySelectorAll('.item-checkbox');
+  const bulkActions = document.getElementById('bulk-actions');
+  const bulkActionType = document.getElementById('bulk-action-type');
+  const bulkForm = document.getElementById('bulk-action-form');
+  const container = document.getElementById('bulk-inputs-container');
+
+  function updateBulkActionsVisibility() {
+    const checkedCount = document.querySelectorAll('.item-checkbox:checked').length;
+    if (checkedCount > 0) {
+      bulkActions.classList.remove('d-none');
+    } else {
+      bulkActions.classList.add('d-none');
+    }
+  }
+
+  if(selectAll) {
+    selectAll.addEventListener('change', function() {
+      itemCheckboxes.forEach(cb => cb.checked = this.checked);
+      updateBulkActionsVisibility();
+    });
+  }
+
+  itemCheckboxes.forEach(cb => {
+    cb.addEventListener('change', function() {
+      if(!this.checked && selectAll) selectAll.checked = false;
+      updateBulkActionsVisibility();
+    });
+  });
+
+  window.submitBulkAction = function(action) {
+    if(!confirm('هل أنت متأكد من تنفيذ هذا الإجراء على السجلات المحددة؟')) return;
+    
+    bulkActionType.value = action;
+    container.innerHTML = '';
+    
+    document.querySelectorAll('.item-checkbox:checked').forEach(cb => {
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = 'item_ids';
+      input.value = cb.value;
+      container.appendChild(input);
+    });
+    
+    bulkForm.submit();
+  }
+});
+</script>
 {% endblock %}

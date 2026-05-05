@@ -167,6 +167,7 @@ async def root():
     )
 
 @app.get("/health")
+@app.get("/health/")
 async def health():
     """Health check with model status"""
     global model_loading, model_loaded
@@ -188,6 +189,7 @@ async def health():
     return status
 
 @app.get("/healthz")
+@app.get("/healthz/")
 async def healthz():
     return Response("OK")
 

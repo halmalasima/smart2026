@@ -41,6 +41,14 @@
               <span class="status status-green">نشط</span>
             {% elif f.value == "✗" %}
               <span class="status status-red">غير نشط</span>
+            {% elif f.type == 'FileField' or f.type == 'ImageField' %}
+              {% if f.value and f.value != '—' %}
+                <a href="{{ f.value }}" target="_blank" class="badge bg-blue-lt px-3 py-2" style="font-size: 14px;">
+                  <i class="ti ti-file me-2"></i> فتح الملف
+                </a>
+              {% else %}
+                <span class="text-secondary">—</span>
+              {% endif %}
             {% else %}
               {{ f.value }}
             {% endif %}

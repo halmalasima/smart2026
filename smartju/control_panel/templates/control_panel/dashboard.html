@@ -1,85 +1,28 @@
 {% extends "control_panel/base.html" %}
 
 {% block content %}
+{# ── Microservice Stats (dynamic from registry) ── #}
 <div class="row row-cards mb-3">
-  <div class="col-sm-6 col-lg-2">
-    <div class="card card-sm cp-stat-card border-start border-start-lg border-primary">
+  {% for svc in service_groups %}
+  <div class="col-sm-6 col-lg-3">
+    <div class="card card-sm cp-stat-card" style="border-right: 3px solid {{ svc.color }}">
       <div class="card-body">
         <div class="d-flex align-items-center">
-          <div class="cp-stat-icon-mini text-primary"><i class="ti ti-gavel"></i></div>
-          <div class="ms-2">
-            <div class="h3 m-0">{{ service_stats.lawsuits }}</div>
-            <div class="text-secondary small">دعوى</div>
+          <div style="width:40px;height:40px;border-radius:8px;background:{{ svc.color }}15;display:flex;align-items:center;justify-content:center;">
+            <i class="ti ti-{{ svc.icon }}" style="font-size:20px;color:{{ svc.color }}"></i>
           </div>
+          <div class="ms-2 flex-fill">
+            <div class="h3 m-0">{{ svc.total_rows }}</div>
+            <div class="text-secondary small">{{ svc.label }}</div>
+          </div>
+          <a href="{% url 'control_panel:models_index' %}?view=service" class="btn btn-sm btn-ghost-primary" title="استعرض">
+            <i class="ti ti-chevron-left"></i>
+          </a>
         </div>
       </div>
     </div>
   </div>
-  <div class="col-sm-6 col-lg-2">
-    <div class="card card-sm cp-stat-card border-start border-start-lg border-success">
-      <div class="card-body">
-        <div class="d-flex align-items-center">
-          <div class="cp-stat-icon-mini text-success"><i class="ti ti-calendar"></i></div>
-          <div class="ms-2">
-            <div class="h3 m-0">{{ service_stats.hearings }}</div>
-            <div class="text-secondary small">جلسة</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-  <div class="col-sm-6 col-lg-2">
-    <div class="card card-sm cp-stat-card border-start border-start-lg border-warning">
-      <div class="card-body">
-        <div class="d-flex align-items-center">
-          <div class="cp-stat-icon-mini text-warning"><i class="ti ti-scale"></i></div>
-          <div class="ms-2">
-            <div class="h3 m-0">{{ service_stats.laws }}</div>
-            <div class="text-secondary small">قانون</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-  <div class="col-sm-6 col-lg-2">
-    <div class="card card-sm cp-stat-card border-start border-start-lg border-info">
-      <div class="card-body">
-        <div class="d-flex align-items-center">
-          <div class="cp-stat-icon-mini text-info"><i class="ti ti-building"></i></div>
-          <div class="ms-2">
-            <div class="h3 m-0">{{ service_stats.courts }}</div>
-            <div class="text-secondary small">محكمة</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-  <div class="col-sm-6 col-lg-2">
-    <div class="card card-sm cp-stat-card border-start border-start-lg border-danger">
-      <div class="card-body">
-        <div class="d-flex align-items-center">
-          <div class="cp-stat-icon-mini text-danger"><i class="ti ti-shield"></i></div>
-          <div class="ms-2">
-            <div class="h3 m-0">{{ service_stats.appeals }}</div>
-            <div class="text-secondary small">طعن</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-  <div class="col-sm-6 col-lg-2">
-    <div class="card card-sm cp-stat-card border-start border-start-lg border-secondary">
-      <div class="card-body">
-        <div class="d-flex align-items-center">
-          <div class="cp-stat-icon-mini text-secondary"><i class="ti ti-user-tie"></i></div>
-          <div class="ms-2">
-            <div class="h3 m-0">{{ service_stats.lawyers }}</div>
-            <div class="text-secondary small">محامي</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
+  {% endfor %}
 </div>
 
 <div class="row row-cards mb-3">

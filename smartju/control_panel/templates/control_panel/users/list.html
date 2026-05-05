@@ -81,7 +81,8 @@
 <!-- Advanced Filters -->
 <div class="card mb-3">
   <div class="card-body py-3">
-    <form method="get" class="row g-2 align-items-end">
+    <form method="get" class="row g-2 align-items-end" id="filter-form">
+      <input type="hidden" name="tab" value="{{ tab }}">
       <div class="col-md-3">
         <label class="form-label small">بحث (اسم، بريد، هاتف، رقم وطني)</label>
         <div class="input-icon">
@@ -121,10 +122,41 @@
         <button type="submit" class="btn btn-primary w-100"><i class="ti ti-filter me-1"></i> فلترة</button>
       </div>
       <div class="col-md-1">
-        <a href="{% url 'control_panel:user_list' %}" class="btn btn-outline-secondary w-100" title="إعادة تعيين"><i class="ti ti-x"></i></a>
+        <a href="{% url 'control_panel:user_list' %}?tab={{ tab }}" class="btn btn-outline-secondary w-100" title="إعادة تعيين"><i class="ti ti-x"></i></a>
       </div>
     </form>
   </div>
+</div>
+
+<ul class="nav nav-tabs mb-3" data-bs-toggle="tabs">
+  <li class="nav-item">
+    <a href="?tab=app_users" class="nav-link {% if tab == 'app_users' %}active{% endif %}">
+      <i class="ti ti-users me-1"></i> مستخدمي التطبيق ({{ app_users_count }})
+    </a>
+  </li>
+  <li class="nav-item">
+    <a href="?tab=cp_users" class="nav-link {% if tab == 'cp_users' %}active{% endif %}">
+      <i class="ti ti-shield me-1"></i> طاقم الإدارة ({{ staff_users }})
+    </a>
+  </li>
+</ul>
+
+<!-- Bulk Actions -->
+<div class="mb-3 d-none" id="bulk-actions">
+  <form method="post" action="{% url 'control_panel:user_bulk_action' %}" id="bulk-action-form">
+    {% csrf_token %}
+    <input type="hidden" name="action" id="bulk-action-type" value="">
+    <button type="button" class="btn btn-danger" onclick="submitBulkAction('delete')">
+      <i class="ti ti-trash me-1"></i> حذف المحدد
+    </button>
+    <button type="button" class="btn btn-warning" onclick="submitBulkAction('disable')">
+      <i class="ti ti-ban me-1"></i> تعطيل المحدد
+    </button>
+    <button type="button" class="btn btn-success" onclick="submitBulkAction('enable')">
+      <i class="ti ti-check me-1"></i> تفعيل المحدد
+    </button>
+    <div id="bulk-inputs-container"></div>
+  </form>
 </div>
 
 <!-- Users Table -->
@@ -133,6 +165,7 @@
     <table class="table table-vcenter card-table table-hover">
       <thead>
         <tr>
+          <th class="w-1"><input class="form-check-input m-0 align-middle" type="checkbox" aria-label="Select all" id="select-all"></th>
           <th>المستخدم</th>
           <th>الدور</th>
           <th>الحالة</th>
@@ -146,6 +179,7 @@
       <tbody>
         {% for u in page.object_list %}
           <tr>
+            <td><input class="form-check-input m-0 align-middle user-checkbox" type="checkbox" value="{{ u.pk }}" aria-label="Select user"></td>
             <!-- User Info -->
             <td>
               <div class="d-flex align-items-center">
@@ -243,6 +277,59 @@
       </tbody>
     </table>
   </div>
-  {% include "control_panel/partials/pagination.html" with page=page %}
+{% include "control_panel/partials/pagination.html" with page=page %}
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const selectAll = document.getElementById('select-all');
+  const userCheckboxes = document.querySelectorAll('.user-checkbox');
+  const bulkActions = document.getElementById('bulk-actions');
+  const bulkActionType = document.getElementById('bulk-action-type');
+  const bulkForm = document.getElementById('bulk-action-form');
+  const container = document.getElementById('bulk-inputs-container');
+
+  function updateBulkActionsVisibility() {
+    const checkedCount = document.querySelectorAll('.user-checkbox:checked').length;
+    if (checkedCount > 0) {
+      bulkActions.classList.remove('d-none');
+    } else {
+      bulkActions.classList.add('d-none');
+    }
+  }
+
+  if(selectAll) {
+    selectAll.addEventListener('change', function() {
+      userCheckboxes.forEach(cb => cb.checked = this.checked);
+      updateBulkActionsVisibility();
+    });
+  }
+
+  userCheckboxes.forEach(cb => {
+    cb.addEventListener('change', function() {
+      if(!this.checked && selectAll) selectAll.checked = false;
+      updateBulkActionsVisibility();
+    });
+  });
+
+  window.submitBulkAction = function(action) {
+    if(!confirm('هل أنت متأكد من تنفيذ هذا الإجراء على المستخدمين المحددين؟')) return;
+    
+    bulkActionType.value = action;
+    container.innerHTML = '';
+    
+    document.querySelectorAll('.user-checkbox:checked').forEach(cb => {
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = 'user_ids';
+      input.value = cb.value;
+      container.appendChild(input);
+    });
+    
+    bulkForm.submit();
+  }
+});
+</script>
 {% endblock %}

@@ -1,13 +1,62 @@
 {% extends "control_panel/base.html" %}
 
 {% block content %}
-<div class="mb-3">
-  <input type="text" id="modelSearch" class="form-control" placeholder="ابحث عن موديل أو قسم (مثلاً: قوانين، مستخدمين...)" onkeyup="filterModels()">
+{# ── Toggle: Service View / App View ── #}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <input type="text" id="modelSearch" class="form-control" placeholder="ابحث عن موديل أو خدمة..." onkeyup="filterModels()" style="min-width:300px">
+  </div>
+  <div class="btn-group">
+    <a href="?view=service" class="btn btn-sm {% if view_mode == 'service' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+      <i class="ti ti-server me-1"></i>حسب الخدمة
+    </a>
+    <a href="?view=app" class="btn btn-sm {% if view_mode == 'app' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+      <i class="ti ti-folder me-1"></i>حسب التطبيق
+    </a>
+  </div>
 </div>
 
+{% if view_mode == 'service' %}
+{# ══════ Service-Grouped View ══════ #}
+<div class="row row-cards" id="modelsGrid">
+  {% for svc in by_service %}
+    <div class="col-md-6 col-lg-4 svc-card">
+      <div class="card h-100 cp-app-card" style="border-top: 3px solid {{ svc.color }}">
+        <div class="card-header d-flex align-items-center">
+          <div class="me-2" style="width:40px;height:40px;border-radius:8px;background:{{ svc.color }}15;display:flex;align-items:center;justify-content:center;">
+            <i class="ti ti-{{ svc.icon }}" style="font-size:20px;color:{{ svc.color }}"></i>
+          </div>
+          <div class="flex-fill">
+            <h3 class="card-title m-0">{{ svc.label }}</h3>
+            <div class="text-secondary small">
+              <span class="badge" style="background:{{ svc.color }}20;color:{{ svc.color }}">{{ svc.db }}</span>
+              · {{ svc.models|length }} جدول
+              · {{ svc.total_rows }} سجل
+            </div>
+          </div>
+        </div>
+        <div class="list-group list-group-flush">
+          {% for m in svc.models %}
+            <a class="list-group-item list-group-item-action d-flex align-items-center" href="{% url 'control_panel:model_browse' m.app_label m.name %}">
+              <i class="ti ti-table me-2 text-secondary"></i>
+              <span class="flex-fill">{{ m.verbose }}</span>
+              <span class="text-muted small me-2">{{ m.app_label }}</span>
+              <span class="badge bg-primary-lt">{{ m.count }}</span>
+            </a>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  {% empty %}
+    <div class="col-12"><div class="text-secondary text-center py-5">لا توجد موديلات</div></div>
+  {% endfor %}
+</div>
+
+{% else %}
+{# ══════ App-Grouped View (original) ══════ #}
 <div class="row row-cards" id="modelsGrid">
   {% for app in grouped %}
-    <div class="col-md-6 col-lg-4" id="{{ app.label }}">
+    <div class="col-md-6 col-lg-4 svc-card">
       <div class="card h-100 cp-app-card">
         <div class="card-header">
           <div class="cp-app-icon"><i class="ti ti-folder"></i></div>
@@ -31,21 +80,18 @@
     <div class="col-12"><div class="text-secondary text-center py-5">لا توجد موديلات</div></div>
   {% endfor %}
 </div>
+{% endif %}
+
 {% endblock %}
 
 {% block extra_js %}
 <script>
 function filterModels() {
   const q = document.getElementById('modelSearch').value.toLowerCase();
-  const cards = document.querySelectorAll('.cp-app-card');
+  const cards = document.querySelectorAll('.svc-card');
   cards.forEach(card => {
     const text = card.innerText.toLowerCase();
-    const parent = card.closest('.col-md-6');
-    if (text.includes(q)) {
-      parent.style.display = '';
-    } else {
-      parent.style.display = 'none';
-    }
+    card.style.display = text.includes(q) ? '' : 'none';
   });
 }
 </script>

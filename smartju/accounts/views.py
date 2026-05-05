@@ -25,6 +25,60 @@ class CustomTokenObtainPairView(TokenObtainPairView):
     """
     serializer_class = CustomTokenObtainPairSerializer
 
+    def post(self, request, *args, **kwargs):
+        response = super().post(request, *args, **kwargs)
+        if response.status_code == status.HTTP_200_OK:
+            try:
+                username = request.data.get("username")
+                user = User.objects.filter(username=username).first() or User.objects.filter(profile__phone_number=username).first()
+                if user:
+                    from logs.models import UserSession
+                    from control_panel.models import ActivityLog
+                    
+                    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+                    ip = x_forwarded_for.split(',')[0].strip() if x_forwarded_for else request.META.get('REMOTE_ADDR')
+                    
+                    # Parse user agent simply
+                    ua = request.META.get('HTTP_USER_AGENT', '').lower()
+                    browser = 'Unknown'
+                    if 'chrome' in ua: browser = 'Chrome'
+                    elif 'safari' in ua: browser = 'Safari'
+                    elif 'firefox' in ua: browser = 'Firefox'
+                    elif 'edge' in ua: browser = 'Edge'
+                    elif 'dart' in ua: browser = 'Flutter App'
+                    
+                    device_type = 'Desktop'
+                    if 'mobi' in ua or 'android' in ua or 'iphone' in ua:
+                        device_type = 'Mobile'
+                    elif 'tablet' in ua or 'ipad' in ua:
+                        device_type = 'Tablet'
+                        
+                    # Geolocation from headers (Cloudflare, Nginx, etc) if available
+                    country = request.META.get('HTTP_CF_IPCOUNTRY', '')
+                    city = request.META.get('HTTP_X_CITY', '')
+                    
+                    UserSession.objects.create(
+                        user=user,
+                        ip_address=ip,
+                        browser=browser,
+                        device_type=device_type,
+                        country=country,
+                        city=city
+                    )
+                    
+                    ActivityLog.objects.create(
+                        user=user,
+                        action='login',
+                        target=user.username,
+                        description=f'تسجيل دخول عبر التطبيق (API) - {device_type}',
+                        ip_address=ip,
+                        user_agent=request.META.get('HTTP_USER_AGENT', '')
+                    )
+            except Exception as e:
+                logger.error(f"Error logging API session: {e}")
+                
+        return response
+
 class UserProfileViewSet(viewsets.ModelViewSet):
     """
     ViewSet for UserProfile
@@ -238,9 +292,9 @@ def quick_register(request):
     cache.set(cache_key, otp, timeout=300)
 
     # طباعة الرمز في الكونسول (للتطوير — لاحقاً SMS/WhatsApp)
-    logger.info(f'📱 [OTP] رمز التحقق لـ {phone}: {otp}')
+    logger.info(f'[OTP] رمز التحقق لـ {phone}: {otp}')
     print(f'\n{"="*50}')
-    print(f'📱 رمز التحقق OTP لـ {phone}: {otp}')
+    print(f'رمز التحقق OTP لـ {phone}: {otp}')
     print(f'{"="*50}\n')
 
     return Response({
@@ -305,7 +359,7 @@ def verify_otp_login(request):
     # هل المستخدم جديد (لا يوجد اسم أول)؟
     is_new = not user.first_name
 
-    logger.info(f'✅ [OTP Login] تسجيل دخول ناجح لـ {phone} (new={is_new})')
+    logger.info(f'[OTP Login] تسجيل دخول ناجح لـ {phone} (new={is_new})')
 
     return Response({
         'access': str(refresh.access_token),
@@ -333,12 +387,135 @@ def send_otp(request):
     cache_key = f'otp_register_{phone}'
     cache.set(cache_key, otp, timeout=300)
 
-    logger.info(f'📱 [OTP] رمز التحقق لـ {phone}: {otp}')
+    logger.info(f'[OTP] رمز التحقق لـ {phone}: {otp}')
     print(f'\n{"="*50}')
-    print(f'📱 رمز التحقق OTP لـ {phone}: {otp}')
+    print(f'رمز التحقق OTP لـ {phone}: {otp}')
     print(f'{"="*50}\n')
 
     return Response({
         'message': 'تم إرسال رمز التحقق',
         'otp_sent': True,
+    })
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def set_password(request):
+    """
+    تعيين كلمة مرور جديدة للمستخدم (بعد التسجيل عبر OTP).
+    POST /api/register/set-password/
+    Body: { "password": "NewPass@123", "confirm_password": "NewPass@123" }
+    """
+    password = request.data.get('password', '').strip()
+    confirm = request.data.get('confirm_password', '').strip()
+
+    if not password:
+        return Response(
+            {'error': 'كلمة المرور مطلوبة'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if len(password) < 8:
+        return Response(
+            {'error': 'كلمة المرور يجب أن تكون 8 أحرف على الأقل'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if password != confirm:
+        return Response(
+            {'error': 'كلمات المرور غير متطابقة'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    user = request.user
+    user.set_password(password)
+    user.save()
+
+    # إعادة توليد JWT tokens بعد تغيير كلمة المرور
+    refresh = RefreshToken.for_user(user)
+    try:
+        profile = user.profile
+        refresh['role'] = profile.role
+        refresh['is_active'] = profile.is_active
+    except UserProfile.DoesNotExist:
+        refresh['role'] = 'citizen'
+
+    refresh['is_superuser'] = user.is_superuser
+    refresh['username'] = user.username
+
+    logger.info(f'[SetPassword] تم تعيين كلمة مرور لـ {user.username}')
+
+    return Response({
+        'message': 'تم تعيين كلمة المرور بنجاح',
+        'access': str(refresh.access_token),
+        'refresh': str(refresh),
+    })
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def reset_password_otp(request):
+    """
+    إعادة تعيين كلمة المرور بعد التحقق من OTP (نسيت كلمة المرور).
+    POST /api/register/reset-password/
+    Body: { "phone": "771234567", "code": "123456", "new_password": "..." }
+    """
+    phone = request.data.get('phone', '').strip()
+    code = request.data.get('code', '').strip()
+    new_password = request.data.get('new_password', '').strip()
+
+    if not phone or not code or not new_password:
+        return Response(
+            {'error': 'رقم الهاتف ورمز التحقق وكلمة المرور الجديدة مطلوبة'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if len(new_password) < 8:
+        return Response(
+            {'error': 'كلمة المرور يجب أن تكون 8 أحرف على الأقل'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # Verify OTP
+    cache_key = f'otp_register_{phone}'
+    stored_otp = cache.get(cache_key)
+
+    if not stored_otp or stored_otp != code:
+        return Response(
+            {'error': 'رمز التحقق غير صحيح أو منتهي الصلاحية'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    cache.delete(cache_key)
+
+    # Find user
+    user = _find_user_by_phone(phone)
+    if not user:
+        return Response(
+            {'error': 'المستخدم غير موجود'},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    # Set new password
+    user.set_password(new_password)
+    user.save()
+
+    # Generate new JWT tokens
+    refresh = RefreshToken.for_user(user)
+    try:
+        profile = user.profile
+        refresh['role'] = profile.role
+        refresh['is_active'] = profile.is_active
+    except UserProfile.DoesNotExist:
+        refresh['role'] = 'citizen'
+
+    refresh['is_superuser'] = user.is_superuser
+    refresh['username'] = user.username
+
+    logger.info(f'[ResetPassword] Password reset via OTP for {phone}')
+
+    return Response({
+        'message': 'تم تغيير كلمة المرور بنجاح',
+        'access': str(refresh.access_token),
+        'refresh': str(refresh),
     })
