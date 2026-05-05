@@ -45,6 +45,13 @@
             <span class="nav-link-title">خطط الاشتراك</span>
           </a>
         </li>
+        <li class="nav-item {% if active_section == 'services' %}active{% endif %}">
+          <a class="nav-link" href="{% url 'control_panel:services_management' %}">
+            <span class="nav-link-icon"><i class="ti ti-apps"></i></span>
+            <span class="nav-link-title">الخدمات والأدوار</span>
+            <span class="badge bg-green-lt badge-sm ms-auto">SaaS</span>
+          </a>
+        </li>
 
         <li class="nav-item nav-section"><span>البيانات</span></li>
         <li class="nav-item {% if active_section == 'models' %}active{% endif %}">

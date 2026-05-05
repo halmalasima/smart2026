@@ -1,0 +1,229 @@
+{% extends "control_panel/base.html" %}
+{% block content %}
+<!-- Stats Cards -->
+<div class="row row-deck row-cards mb-4">
+  <div class="col-sm-6 col-lg-3">
+    <div class="card">
+      <div class="card-body">
+        <div class="d-flex align-items-center">
+          <div class="subheader">اجمالي الخدمات</div>
+        </div>
+        <div class="h1 mb-0">{{ services_count }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="card">
+      <div class="card-body">
+        <div class="d-flex align-items-center">
+          <div class="subheader">الادوار النشطة</div>
+        </div>
+        <div class="h1 mb-0">{{ roles|length }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="card">
+      <div class="card-body">
+        <div class="d-flex align-items-center">
+          <div class="subheader">استخدام اليوم</div>
+        </div>
+        <div class="h1 mb-0">{{ total_usage_today }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="card">
+      <div class="card-body">
+        <div class="d-flex align-items-center">
+          <div class="subheader">استخدام 7 ايام</div>
+        </div>
+        <div class="h1 mb-0">{{ total_usage_week }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="mb-3 d-flex gap-2">
+  <a href="{% url 'control_panel:services_analytics' %}" class="btn btn-primary">
+    <i class="ti ti-chart-bar me-1"></i> تحليلات الاستخدام
+  </a>
+</div>
+
+<!-- Services by Category -->
+{% for category_name, items in categories.items %}
+<div class="card mb-4">
+  <div class="card-header">
+    <h3 class="card-title">
+      <i class="ti ti-category me-2"></i>{{ category_name }}
+      <span class="badge bg-blue-lt ms-2">{{ items|length }} خدمة</span>
+    </h3>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-vcenter card-table table-hover">
+      <thead>
+        <tr>
+          <th style="width: 250px">الخدمة</th>
+          {% for role_key, role_label in roles %}
+          <th class="text-center" style="min-width: 90px">{{ role_label }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in items %}
+        <tr>
+          <td>
+            <div class="d-flex align-items-center">
+              <span class="avatar avatar-sm bg-{{ item.service.is_premium|yesno:'yellow-lt,blue-lt' }} me-2">
+                <i class="ti ti-{{ item.service.icon }}"></i>
+              </span>
+              <div>
+                <div class="font-weight-medium">{{ item.service.name_ar }}</div>
+                <div class="text-secondary small">{{ item.service.key }}</div>
+              </div>
+              {% if item.service.is_premium %}
+              <span class="badge bg-yellow-lt ms-2">Premium</span>
+              {% endif %}
+            </div>
+          </td>
+          {% for role in item.roles %}
+          <td class="text-center">
+            <label class="form-check form-switch d-inline-block mb-0">
+              <input class="form-check-input service-toggle" 
+                     type="checkbox" 
+                     data-role="{{ role.role_key }}" 
+                     data-service="{{ item.service.id }}"
+                     {% if role.enabled %}checked{% endif %}>
+            </label>
+            {% if role.perm_id and role.enabled %}
+            <div class="mt-1">
+              <small class="text-muted cursor-pointer limit-badge" 
+                     data-perm-id="{{ role.perm_id }}"
+                     data-daily="{{ role.max_daily }}"
+                     data-monthly="{{ role.max_monthly }}"
+                     title="اضغط لتعديل الحدود">
+                {% if role.max_daily > 0 %}
+                  <span class="badge bg-orange-lt">{{ role.max_daily }}/يوم</span>
+                {% endif %}
+                {% if role.max_monthly > 0 %}
+                  <span class="badge bg-purple-lt">{{ role.max_monthly }}/شهر</span>
+                {% endif %}
+                {% if role.max_daily == 0 and role.max_monthly == 0 %}
+                  <span class="badge bg-green-lt">بلا حدود</span>
+                {% endif %}
+              </small>
+            </div>
+            {% endif %}
+          </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endfor %}
+
+<!-- Limits Edit Modal -->
+<div class="modal fade" id="limitsModal" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">تعديل حدود الاستخدام</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="edit-perm-id">
+        <div class="mb-3">
+          <label class="form-label">الحد اليومي</label>
+          <input type="number" class="form-control" id="edit-max-daily" min="0" placeholder="0 = بلا حدود">
+          <small class="text-muted">0 = بلا حدود</small>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">الحد الشهري</label>
+          <input type="number" class="form-control" id="edit-max-monthly" min="0" placeholder="0 = بلا حدود">
+          <small class="text-muted">0 = بلا حدود</small>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+        <button type="button" class="btn btn-primary" id="saveLimitsBtn">حفظ</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// CSRF token
+const csrfToken = document.querySelector('[name=csrf-token]')?.content || 
+                   document.cookie.replace(/(?:(?:^|.*;\s*)csrftoken\s*\=\s*([^;]*).*$)|^.*$/, "$1");
+
+// Toggle service permission
+document.querySelectorAll('.service-toggle').forEach(el => {
+  el.addEventListener('change', async function() {
+    const role = this.dataset.role;
+    const serviceId = this.dataset.service;
+    const form = new FormData();
+    form.append('role', role);
+    form.append('service_id', serviceId);
+    
+    try {
+      const resp = await fetch("{% url 'control_panel:service_toggle' %}", {
+        method: 'POST',
+        headers: {'X-CSRFToken': csrfToken},
+        body: form,
+      });
+      const data = await resp.json();
+      if (data.status !== 'ok') {
+        alert('خطأ في تحديث الصلاحية');
+        this.checked = !this.checked;
+      }
+    } catch(e) {
+      alert('خطأ في الاتصال');
+      this.checked = !this.checked;
+    }
+  });
+});
+
+// Limits edit
+document.querySelectorAll('.limit-badge').forEach(el => {
+  el.addEventListener('click', function() {
+    document.getElementById('edit-perm-id').value = this.dataset.permId;
+    document.getElementById('edit-max-daily').value = this.dataset.daily;
+    document.getElementById('edit-max-monthly').value = this.dataset.monthly;
+    new bootstrap.Modal(document.getElementById('limitsModal')).show();
+  });
+});
+
+document.getElementById('saveLimitsBtn')?.addEventListener('click', async function() {
+  const permId = document.getElementById('edit-perm-id').value;
+  const maxDaily = document.getElementById('edit-max-daily').value;
+  const maxMonthly = document.getElementById('edit-max-monthly').value;
+  
+  const form = new FormData();
+  form.append('perm_id', permId);
+  form.append('max_daily', maxDaily);
+  form.append('max_monthly', maxMonthly);
+  
+  try {
+    const resp = await fetch("{% url 'control_panel:service_update_limit' %}", {
+      method: 'POST',
+      headers: {'X-CSRFToken': csrfToken},
+      body: form,
+    });
+    const data = await resp.json();
+    if (data.status === 'ok') {
+      location.reload();
+    } else {
+      alert('خطأ: ' + (data.message || 'غير معروف'));
+    }
+  } catch(e) {
+    alert('خطأ في الاتصال');
+  }
+});
+</script>
+{% endblock %}

@@ -212,6 +212,90 @@ import os
 import mimetypes
 from django.conf import settings
 
+# ─── Role-Based Service API Views ───
+from rest_framework.decorators import api_view as drf_api_view, permission_classes as drf_permission_classes
+from rest_framework.permissions import IsAuthenticated as DRFIsAuthenticated, AllowAny as DRFAllowAny
+from rest_framework.response import Response as DRFResponse
+
+@drf_api_view(['GET'])
+@drf_permission_classes([DRFIsAuthenticated])
+def _get_my_services(request):
+    """
+    Returns the services available to the current user's role.
+    GET /api/services/my-services/
+    """
+    from control_panel.models import RoleServicePermission, ServiceDefinition
+    try:
+        role = request.user.profile.role
+    except Exception:
+        role = 'citizen'
+
+    permissions = RoleServicePermission.objects.filter(
+        role=role, is_enabled=True, service__is_active=True
+    ).select_related('service').order_by('service__sort_order')
+
+    services = []
+    for perm in permissions:
+        svc = perm.service
+        services.append({
+            'key': svc.key,
+            'name_ar': svc.name_ar,
+            'name_en': svc.name_en,
+            'icon': svc.icon,
+            'category': svc.category,
+            'is_premium': svc.is_premium,
+            'max_daily_uses': perm.max_daily_uses,
+            'max_monthly_uses': perm.max_monthly_uses,
+        })
+
+    return DRFResponse({
+        'role': role,
+        'services': services,
+        'total': len(services),
+    })
+
+
+@drf_api_view(['POST'])
+@drf_permission_classes([DRFIsAuthenticated])
+def _log_service_usage(request):
+    """
+    Logs a service usage event.
+    POST /api/services/log-usage/
+    Body: { "service_key": "chat", "duration_seconds": 120 }
+    """
+    from control_panel.models import ServiceDefinition, ServiceUsageLog
+    service_key = request.data.get('service_key', '').strip()
+    duration = request.data.get('duration_seconds', 0)
+
+    if not service_key:
+        return DRFResponse({'error': 'service_key is required'}, status=400)
+
+    service = ServiceDefinition.objects.filter(key=service_key).first()
+    if not service:
+        return DRFResponse({'error': 'Service not found'}, status=404)
+
+    # Detect device type
+    ua = request.META.get('HTTP_USER_AGENT', '').lower()
+    device_type = 'Desktop'
+    if 'mobi' in ua or 'android' in ua or 'iphone' in ua:
+        device_type = 'Mobile'
+    elif 'dart' in ua:
+        device_type = 'App'
+
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    ip = x_forwarded_for.split(',')[0].strip() if x_forwarded_for else request.META.get('REMOTE_ADDR')
+
+    ServiceUsageLog.objects.create(
+        user=request.user,
+        service=service,
+        ip_address=ip,
+        device_type=device_type,
+        duration_seconds=duration or 0,
+    )
+
+    return DRFResponse({'status': 'logged'})
+
+
 # Fix MIME type for Windows
 mimetypes.add_type("application/javascript", ".js", True)
 mimetypes.add_type("application/wasm", ".wasm", True)
@@ -225,23 +309,30 @@ def serve_flutter_app(request, path):
         return serve(request, 'index.html', document_root=FLUTTER_WEB_DIR)
 
 urlpatterns = [
-    # Health check endpoints (for Discovery and Render)
-    path('health', health_check, name='health_no_slash'),
-    path('health/', health_check, name='health_slash'),
-    path('api/health/', health_check, name='api_health'),
+    # Health check endpoint (for Discovery and Render)
+    path('health/', health_check, name='health'),
+    path('health', health_check),  # alias without slash
     
-    # Root endpoint - Now points to the full website landing page
-    path('', intro_page, name='landing'),
-    path('login/', custom_login, name='custom-login'),
-    path('register/', custom_register, name='custom-register'),
+    # Explicit AI health check to bypass any routing issues
+    path('api/ai/health/', health_check),
+    path('api/ai/health', health_check),
+    
+    # Microservice Health Check Catch-all (for Gateway/Control Panel Monitor)
+    re_path(r'^api/[a-z_]+/health/?$', health_check),
+    path('portal/', health_check), # Health check for portal service
+    
+    # Root endpoint - Redirect to Flutter Web App
+    path('', RedirectView.as_view(url='/app/', permanent=False), name='landing'),
+    path('login/', RedirectView.as_view(url='/app/', permanent=False), name='custom-login'),
+    path('register/', RedirectView.as_view(url='/app/', permanent=False), name='custom-register'),
     # Serve Flutter Web App
     re_path(r'^app/(?P<path>.*)$', serve_flutter_app, name='flutter_app'),
     
     # Auto-fix browser caching redirects to accounts/login
     path('accounts/login/', RedirectView.as_view(url='/login/', permanent=False)),
     
-    # Custom Web Dashboard
-    path('dashboard/', include('dashboard.urls')),
+    # Custom Web Dashboard (legacy — redirects to /cp/)
+    path('dashboard/', RedirectView.as_view(url='/cp/', permanent=True)),
     
     # ─── Modern Control Panel (Tabler) ───
     path('cp/', include('control_panel.urls', namespace='control_panel')),
@@ -272,9 +363,13 @@ urlpatterns = [
     path('api/ai/', include('ai_assistant.urls')),
     path('api/messaging/', include('messaging.urls')),
     
-    # Swagger/OpenAPI Documentation
+    # Role-Based Service Management (SaaS Pro)
+    path('api/services/my-services/', _get_my_services, name='my_services'),
+    path('api/services/log-usage/', _log_service_usage, name='log_service_usage'),
+    
+    # Swagger/OpenAPI Documentation (unified — /redoc/ redirects here)
     path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
-    path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
+    path('redoc/', RedirectView.as_view(url='/swagger/', permanent=True)),
     path('swagger.json', schema_view.without_ui(cache_timeout=0), name='schema-json'),
 ]
 

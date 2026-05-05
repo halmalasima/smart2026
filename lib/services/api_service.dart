@@ -1382,6 +1382,38 @@ class ApiService {
     );
   }
 
+  /// تعيين كلمة مرور جديدة (للمستخدمين الجدد بعد OTP)
+  Future<Map<String, dynamic>> setPassword(String password, String confirmPassword) async {
+    return await _makeRequest(
+      'POST',
+      ApiConfig.setPasswordEndpoint,
+      body: {'password': password, 'confirm_password': confirmPassword},
+    );
+  }
+
+  /// إعادة تعيين كلمة المرور عبر OTP (نسيت كلمة المرور)
+  Future<Map<String, dynamic>> resetPasswordOtp(String phone, String code, String newPassword) async {
+    return await _makeRequest(
+      'POST',
+      ApiConfig.resetPasswordEndpoint,
+      body: {'phone': phone, 'code': code, 'new_password': newPassword},
+    );
+  }
+
+  /// جلب الخدمات المتاحة حسب دور المستخدم (SaaS Pro)
+  Future<Map<String, dynamic>> getMyServices() async {
+    return await _makeRequest('GET', ApiConfig.myServicesEndpoint);
+  }
+
+  /// تسجيل استخدام خدمة (SaaS Pro)
+  Future<Map<String, dynamic>> logServiceUsage(String serviceKey, {int durationSeconds = 0}) async {
+    return await _makeRequest(
+      'POST',
+      ApiConfig.logServiceUsageEndpoint,
+      body: {'service_key': serviceKey, 'duration_seconds': durationSeconds},
+    );
+  }
+
   // ========== Register API ==========
   
   // Register new user

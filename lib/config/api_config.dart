@@ -48,16 +48,20 @@ class ApiConfig {
     if (!kIsWeb && Platform.isAndroid) {
       await _loadAndroidPhysicalFlag();
     }
-    // If --dart-define=API_BASE_URL is provided, it takes priority and replaces
-    // any stale saved override (e.g. when moving to a different WiFi).
+    // If --dart-define=API_BASE_URL is provided, it takes priority
     final envUrl = _fromEnvironment.trim();
+    debugPrint('🔍 [ApiConfig] Environment URL: "$envUrl"');
+    
     if (envUrl.isNotEmpty) {
       final normalized = _normalizeUrl(envUrl);
+      debugPrint('🚀 [ApiConfig] Using Environment URL: $normalized');
       _savedOverride = normalized;
       await prefs.setString(prefsKeyApiBaseUrl, normalized);
       return;
     }
+    
     final saved = prefs.getString(prefsKeyApiBaseUrl)?.trim();
+    debugPrint('💾 [ApiConfig] Saved URL from prefs: "$saved"');
     if (saved != null && saved.isNotEmpty) {
       final normalized = _normalizeUrl(saved);
       // Force rediscovery if we're stuck on the wrong port (8000)
@@ -71,15 +75,21 @@ class ApiConfig {
 
     if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
       final allowEmuFallback = _androidIsPhysicalDevice == false;
+      debugPrint('📡 [ApiConfig] Starting LAN discovery (physical device: $_androidIsPhysicalDevice)...');
+      
       // محاولة الاكتشاف التلقائي
       var discovered = await LanBackendDiscovery.discover(
         port: _defaultBackendPort,
         allowEmulatorLoopbackFallback: allowEmuFallback,
       );
+      
       if (discovered != null) {
+        debugPrint('✅ [ApiConfig] LAN discovery found: $discovered');
         _savedOverride = _normalizeUrl(discovered);
         await prefs.setString(prefsKeyApiBaseUrl, _savedOverride!);
         return;
+      } else {
+        debugPrint('❌ [ApiConfig] LAN discovery failed to find server.');
       }
     }
   }
@@ -109,10 +119,15 @@ class ApiConfig {
   /// عنوان الـ API الفعّال (بدون شرطة مائلة أخيرة).
   static String get baseUrl {
     if (kIsWeb) {
-      // In web, use the same origin as the frontend to avoid CORS and port mismatches.
-      // We ignore saved overrides because the web app is usually served by the monolith itself.
       try {
-        final origin = Uri.base.origin;
+        final uri = Uri.base;
+        if (kDebugMode) {
+          // During flutter run, web app is on a random port, but backend is on 9000.
+          return '${uri.scheme}://${uri.host}:$_defaultBackendPort';
+        }
+        
+        // In production web, use the exact same origin as the frontend.
+        final origin = uri.origin;
         if (origin.isNotEmpty && origin != 'null') {
           return origin;
         }
@@ -130,12 +145,11 @@ class ApiConfig {
       if (_androidIsPhysicalDevice == false) {
         return 'http://10.0.2.2:$_defaultBackendPort';
       }
-      // Physical device: LAN discovery should have set _savedOverride.
-      // If it failed, return loopback as safe fallback (user can change in settings).
-      return 'http://127.0.0.1:$_defaultBackendPort';
+      // إجبار الهاتف الحقيقي على استخدام الـ IP الجديد للكمبيوتر
+      return 'http://172.29.196.242:$_defaultBackendPort';
     }
-    if (Platform.isIOS) return 'http://localhost:$_defaultBackendPort';
-    return 'http://localhost:$_defaultBackendPort';
+    if (Platform.isIOS) return 'http://172.29.196.242:$_defaultBackendPort';
+    return 'http://172.29.196.242:$_defaultBackendPort';
   }
 
   /// حفظ عنوان الخادم (مثلاً `http://192.168.1.10:8000`) أو مسحه لاستخدام الافتراضي.
@@ -225,6 +239,12 @@ class ApiConfig {
   static const String quickRegisterEndpoint = '/api/register/quick-register/';
   static const String verifyOtpLoginEndpoint = '/api/register/verify-otp/';
   static const String sendOtpEndpoint = '/api/register/send-otp/';
+  static const String setPasswordEndpoint = '/api/register/set-password/';
+  static const String resetPasswordEndpoint = '/api/register/reset-password/';
+
+  // SaaS Pro: Role-Based Services
+  static const String myServicesEndpoint = '/api/services/my-services/';
+  static const String logServiceUsageEndpoint = '/api/services/log-usage/';
 
   static const Duration timeout = Duration(seconds: 15);
 

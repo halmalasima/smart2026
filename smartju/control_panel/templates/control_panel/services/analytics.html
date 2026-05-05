@@ -1,0 +1,139 @@
+{% extends "control_panel/base.html" %}
+{% block content %}
+<!-- Back button -->
+<div class="mb-3">
+  <a href="{% url 'control_panel:services_management' %}" class="btn btn-outline-secondary">
+    <i class="ti ti-arrow-right me-1"></i> العودة لادارة الخدمات
+  </a>
+</div>
+
+<!-- Daily Trend Chart -->
+<div class="card mb-4">
+  <div class="card-header">
+    <h3 class="card-title"><i class="ti ti-chart-line me-2"></i>الاستخدام اليومي (14 يوم)</h3>
+  </div>
+  <div class="card-body">
+    <div id="dailyTrendChart" style="height: 300px;"></div>
+  </div>
+</div>
+
+<div class="row row-deck row-cards mb-4">
+  <!-- Usage by Service -->
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title"><i class="ti ti-apps me-2"></i>الاستخدام حسب الخدمة (30 يوم)</h3>
+      </div>
+      <div class="table-responsive" style="max-height: 400px;">
+        <table class="table table-vcenter card-table">
+          <thead><tr><th>الخدمة</th><th class="text-center">عدد مرات الاستخدام</th></tr></thead>
+          <tbody>
+            {% for item in usage_by_service %}
+            <tr>
+              <td>
+                <span class="avatar avatar-xs bg-blue-lt me-1"><i class="ti ti-{{ item.service__icon }}"></i></span>
+                {{ item.service__name_ar }}
+              </td>
+              <td class="text-center"><span class="badge bg-blue">{{ item.count }}</span></td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="2" class="text-center text-muted">لا توجد بيانات بعد</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Usage by Role -->
+  <div class="col-lg-3">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title"><i class="ti ti-users me-2"></i>حسب الدور</h3>
+      </div>
+      <div class="card-body">
+        <div id="roleChart" style="height: 250px;"></div>
+        {% for item in usage_by_role %}
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span>{{ item.user__profile__role|default:"غير محدد" }}</span>
+          <span class="badge bg-purple-lt">{{ item.count }}</span>
+        </div>
+        {% empty %}
+        <p class="text-muted text-center">لا توجد بيانات</p>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Usage by Device -->
+  <div class="col-lg-3">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title"><i class="ti ti-device-mobile me-2"></i>حسب الجهاز</h3>
+      </div>
+      <div class="card-body">
+        {% for item in usage_by_device %}
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span>
+            {% if item.device_type == 'Mobile' %}<i class="ti ti-device-mobile me-1"></i>{% elif item.device_type == 'App' %}<i class="ti ti-apps me-1"></i>{% else %}<i class="ti ti-device-desktop me-1"></i>{% endif %}
+            {{ item.device_type|default:"غير محدد" }}
+          </span>
+          <span class="badge bg-cyan-lt">{{ item.count }}</span>
+        </div>
+        {% empty %}
+        <p class="text-muted text-center">لا توجد بيانات</p>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Top Users -->
+<div class="card mb-4">
+  <div class="card-header">
+    <h3 class="card-title"><i class="ti ti-crown me-2"></i>أكثر المستخدمين نشاطا (7 أيام)</h3>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-vcenter card-table">
+      <thead>
+        <tr><th>#</th><th>المستخدم</th><th>الدور</th><th class="text-center">عدد الاستخدامات</th></tr>
+      </thead>
+      <tbody>
+        {% for user in top_users %}
+        <tr>
+          <td>{{ forloop.counter }}</td>
+          <td>
+            <strong>{{ user.user__first_name|default:user.user__username }}</strong>
+            <div class="text-secondary small">{{ user.user__username }}</div>
+          </td>
+          <td><span class="badge bg-blue-lt">{{ user.user__profile__role|default:"مواطن" }}</span></td>
+          <td class="text-center"><span class="badge bg-green">{{ user.count }}</span></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4" class="text-center text-muted">لا توجد بيانات بعد</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Daily Trend Chart
+const dailyData = {{ daily_trend|safe }};
+if (dailyData.length > 0) {
+  new ApexCharts(document.getElementById('dailyTrendChart'), {
+    chart: { type: 'area', height: 300, toolbar: { show: false }, fontFamily: 'Cairo, sans-serif' },
+    series: [{ name: 'الاستخدام', data: dailyData.map(d => d.count) }],
+    xaxis: { categories: dailyData.map(d => d.day) },
+    colors: ['#206bc4'],
+    fill: { type: 'gradient', gradient: { opacityFrom: 0.5, opacityTo: 0.1 } },
+    stroke: { curve: 'smooth', width: 2 },
+    dataLabels: { enabled: false },
+    grid: { strokeDashArray: 4 },
+  }).render();
+}
+</script>
+{% endblock %}

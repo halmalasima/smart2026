@@ -81,7 +81,38 @@ def login_view(request):
         user = form.get_user()
         if user.is_staff or user.is_superuser:
             auth_login(request, user)
-            _log(request, "login", target=user.get_username())
+            _log(request, "login", target=user.get_username(), description="تسجيل دخول للوحة التحكم")
+            
+            try:
+                from logs.models import UserSession
+                ip = _client_ip(request)
+                ua = request.META.get('HTTP_USER_AGENT', '').lower()
+                browser = 'Unknown'
+                if 'chrome' in ua: browser = 'Chrome'
+                elif 'safari' in ua: browser = 'Safari'
+                elif 'firefox' in ua: browser = 'Firefox'
+                elif 'edge' in ua: browser = 'Edge'
+                
+                device_type = 'Desktop'
+                if 'mobi' in ua or 'android' in ua or 'iphone' in ua:
+                    device_type = 'Mobile'
+                elif 'tablet' in ua or 'ipad' in ua:
+                    device_type = 'Tablet'
+                    
+                country = request.META.get('HTTP_CF_IPCOUNTRY', '')
+                city = request.META.get('HTTP_X_CITY', '')
+                
+                UserSession.objects.create(
+                    user=user,
+                    ip_address=ip,
+                    browser=browser,
+                    device_type=device_type,
+                    country=country,
+                    city=city
+                )
+            except Exception as e:
+                print("Error logging session:", e)
+                
             return redirect(request.GET.get("next") or "control_panel:dashboard")
         messages.error(request, "هذا الحساب لا يملك صلاحية الدخول إلى لوحة التحكم.")
     return render(request, "control_panel/login.html", {"form": form})
@@ -136,38 +167,9 @@ def dashboard(request):
         )
     app_totals.sort(key=lambda x: -x["row_count"])
 
-    # Real-time service stats from the monolith models
-    service_stats = {}
-    try:
-        from lawsuits.models import Lawsuit
-        service_stats["lawsuits"] = Lawsuit.objects.count()
-    except Exception:
-        service_stats["lawsuits"] = 0
-    try:
-        from hearings.models import Hearing
-        service_stats["hearings"] = Hearing.objects.count()
-    except Exception:
-        service_stats["hearings"] = 0
-    try:
-        from laws.models import Law, LegalArticleFlat
-        service_stats["laws"] = Law.objects.count() + LegalArticleFlat.objects.count()
-    except Exception:
-        service_stats["laws"] = 0
-    try:
-        from courts.models import Court
-        service_stats["courts"] = Court.objects.count()
-    except Exception:
-        service_stats["courts"] = 0
-    try:
-        from appeals.models import Appeal
-        service_stats["appeals"] = Appeal.objects.count()
-    except Exception:
-        service_stats["appeals"] = 0
-    try:
-        from lawyers.models import Lawyer
-        service_stats["lawyers"] = Lawyer.objects.count()
-    except Exception:
-        service_stats["lawyers"] = 0
+    # Service stats from microservice registry (dynamic)
+    from .services import list_app_models_by_service
+    service_groups = list_app_models_by_service()
 
     stats = {
         "users_total": users_qs.count(),
@@ -184,7 +186,7 @@ def dashboard(request):
 
     context = {
         "stats": stats,
-        "service_stats": service_stats,
+        "service_groups": service_groups,
         "series": series,
         "app_totals": app_totals[:8],
         "recent_activity": recent_activity,
@@ -206,8 +208,15 @@ def user_list(request):
     role = request.GET.get("role", "")
     status = request.GET.get("status", "")
     plan_filter = request.GET.get("plan", "")
+    tab = request.GET.get("tab", "app_users") # app_users or cp_users
 
-    qs = User.objects.select_related("profile").prefetch_related("subscription", "subscription__plan").all().order_by("-date_joined")
+    qs = User.objects.select_related("profile").prefetch_related("subscription", "subscription__plan").all().order_by("-date_joined").distinct()
+    
+    if tab == "cp_users":
+        qs = qs.filter(Q(is_staff=True) | Q(is_superuser=True))
+    else:
+        qs = qs.filter(is_staff=False, is_superuser=False)
+
     if q:
         qs = qs.filter(
             Q(username__icontains=q)
@@ -238,7 +247,8 @@ def user_list(request):
     # Stats
     total_users = User.objects.count()
     active_users = User.objects.filter(is_active=True).count()
-    staff_users = User.objects.filter(is_staff=True).count()
+    staff_users = User.objects.filter(Q(is_staff=True) | Q(is_superuser=True)).count()
+    app_users_count = User.objects.filter(is_staff=False, is_superuser=False).count()
 
     # Role choices for filter
     role_choices = UserProfile.ROLE_CHOICES
@@ -257,11 +267,13 @@ def user_list(request):
             "role": role,
             "status": status,
             "plan_filter": plan_filter,
+            "tab": tab,
             "role_choices": role_choices,
             "plans": plans,
             "total_users": total_users,
             "active_users": active_users,
             "staff_users": staff_users,
+            "app_users_count": app_users_count,
             "page_title": "إدارة المستخدمين",
             "active_section": "users",
         },
@@ -377,6 +389,39 @@ def user_toggle_active(request, pk):
     return redirect("control_panel:user_detail", pk=pk)
 
 
+@require_POST
+@staff_required
+def user_bulk_action(request):
+    action = request.POST.get("action")
+    user_ids = request.POST.getlist("user_ids")
+    
+    if not user_ids:
+        messages.warning(request, "لم يتم تحديد أي مستخدمين.")
+        return redirect(request.META.get("HTTP_REFERER", "control_panel:user_list"))
+        
+    users = User.objects.filter(pk__in=user_ids).exclude(pk=request.user.pk)
+    count = users.count()
+    
+    if action == "delete":
+        # Don't delete superusers if current user is not superuser
+        if not request.user.is_superuser:
+            users = users.exclude(is_superuser=True)
+            count = users.count()
+        users.delete()
+        _log(request, "bulk_delete", target=f"{count} users")
+        messages.success(request, f"تم حذف {count} مستخدم بنجاح.")
+    elif action == "disable":
+        users.update(is_active=False)
+        _log(request, "bulk_disable", target=f"{count} users")
+        messages.success(request, f"تم تعطيل {count} مستخدم بنجاح.")
+    elif action == "enable":
+        users.update(is_active=True)
+        _log(request, "bulk_enable", target=f"{count} users")
+        messages.success(request, f"تم تفعيل {count} مستخدم بنجاح.")
+        
+    return redirect(request.META.get("HTTP_REFERER", "control_panel:user_list"))
+
+
 # ──────────────────────── Roles / Groups ───────────────────────────
 
 @staff_required
@@ -440,11 +485,17 @@ def group_delete(request, pk):
 @staff_required
 def models_index(request):
     grouped = list_app_models()
+    # Also provide service-grouped view
+    from .services import list_app_models_by_service
+    by_service = list_app_models_by_service()
+    view_mode = request.GET.get("view", "service")  # 'service' or 'app'
     return render(
         request,
         "control_panel/models/index.html",
         {
             "grouped": grouped,
+            "by_service": by_service,
+            "view_mode": view_mode,
             "page_title": "مستعرض البيانات",
             "active_section": "models",
         },
@@ -470,7 +521,7 @@ def model_browse(request, app_label, model_name):
             if f.get_internal_type() in ("CharField", "TextField", "EmailField", "SlugField", "IntegerField"):
                 search_query |= Q(**{f"{f.name}__icontains": q})
         if search_query:
-            qs = qs.filter(search_query)
+            qs = qs.filter(search_query).distinct()
 
     # Automatic Filtering for choices or foreign keys if provided in GET
     for param, value in request.GET.items():
@@ -590,7 +641,11 @@ def model_detail(request, app_label, model_name, pk):
     fields = []
     for f in Model._meta.get_fields():
         if f.concrete and not f.many_to_many:
-            fields.append({"verbose": f.verbose_name, "value": field_display(obj, f)})
+            fields.append({
+                "verbose": f.verbose_name, 
+                "value": field_display(obj, f, full=True),
+                "type": f.get_internal_type()
+            })
     
     return render(
         request,
@@ -691,6 +746,32 @@ def model_delete(request, app_label, model_name, pk):
             "page_title": f"تأكيد الحذف",
         },
     )
+
+
+@require_POST
+@staff_required
+def model_bulk_action(request, app_label, model_name):
+    Model = get_model_or_404(app_label, model_name)
+    action = request.POST.get("action")
+    item_ids = request.POST.getlist("item_ids")
+    
+    if not item_ids:
+        messages.warning(request, "لم يتم تحديد أي سجلات.")
+        return redirect(request.META.get("HTTP_REFERER", "control_panel:model_browse"))
+        
+    qs = Model._default_manager.filter(pk__in=item_ids)
+    count = qs.count()
+    
+    if action == "delete":
+        # Check permissions using user.has_perm
+        if request.user.is_superuser or request.user.has_perm(f"{app_label}.delete_{model_name}"):
+            qs.delete()
+            _log(request, "bulk_delete", target=f"{count} {model_name} records")
+            messages.success(request, f"تم حذف {count} سجل بنجاح.")
+        else:
+            messages.error(request, "لا تملك الصلاحية لحذف هذه السجلات.")
+            
+    return redirect(request.META.get("HTTP_REFERER", "control_panel:model_browse"))
 
 
 @staff_required
@@ -1212,4 +1293,178 @@ def system_settings(request):
             "db_routers": db_routers,
         },
     )
+
+
+# ──────────────── SaaS Pro: Services & Roles Management ────────────────
+
+@superuser_required
+def services_management(request):
+    """Main page for managing services and role-based permissions."""
+    from .models import ServiceDefinition, RoleServicePermission
+    from accounts.models import UserProfile
+
+    services = ServiceDefinition.objects.all().order_by('sort_order')
+    roles = UserProfile.ROLE_CHOICES
+    
+    # Build a matrix: role -> service -> permission
+    permissions_map = {}
+    for perm in RoleServicePermission.objects.select_related('service').all():
+        key = (perm.role, perm.service_id)
+        permissions_map[key] = perm
+
+    # Build category groups
+    categories = {}
+    for svc in services:
+        cat = svc.get_category_display() if hasattr(svc, 'get_category_display') else svc.category
+        if cat not in categories:
+            categories[cat] = []
+        
+        role_data = []
+        for role_key, role_label in roles:
+            perm = permissions_map.get((role_key, svc.id))
+            role_data.append({
+                'role_key': role_key,
+                'role_label': role_label,
+                'enabled': perm.is_enabled if perm else False,
+                'max_daily': perm.max_daily_uses if perm else 0,
+                'max_monthly': perm.max_monthly_uses if perm else 0,
+                'perm_id': perm.id if perm else None,
+            })
+        
+        categories[cat].append({
+            'service': svc,
+            'roles': role_data,
+        })
+
+    # Usage stats
+    from .models import ServiceUsageLog
+    from django.utils import timezone
+    from datetime import timedelta
+    
+    today = timezone.localdate()
+    week_ago = today - timedelta(days=7)
+    
+    total_usage_today = ServiceUsageLog.objects.filter(accessed_at__date=today).count()
+    total_usage_week = ServiceUsageLog.objects.filter(accessed_at__date__gte=week_ago).count()
+    
+    # Top services by usage (last 7 days)
+    from django.db.models import Count
+    top_services = ServiceUsageLog.objects.filter(
+        accessed_at__date__gte=week_ago
+    ).values('service__name_ar', 'service__icon').annotate(
+        count=Count('id')
+    ).order_by('-count')[:10]
+
+    context = {
+        'categories': categories,
+        'roles': roles,
+        'services_count': services.count(),
+        'total_usage_today': total_usage_today,
+        'total_usage_week': total_usage_week,
+        'top_services': top_services,
+        'page_title': 'ادارة الخدمات والادوار',
+        'active_section': 'services',
+    }
+    return render(request, 'control_panel/services/management.html', context)
+
+
+@superuser_required
+@require_POST
+def service_toggle(request):
+    """AJAX: Toggle a service permission for a role."""
+    from .models import RoleServicePermission, ServiceDefinition
+    
+    role = request.POST.get('role')
+    service_id = request.POST.get('service_id')
+    
+    perm, created = RoleServicePermission.objects.get_or_create(
+        role=role,
+        service_id=service_id,
+        defaults={'is_enabled': True}
+    )
+    if not created:
+        perm.is_enabled = not perm.is_enabled
+        perm.save()
+    
+    _log(request, "update", target=f"ServicePerm:{role}:{service_id}", 
+         description=f"{'Enabled' if perm.is_enabled else 'Disabled'}")
+    
+    return JsonResponse({'status': 'ok', 'enabled': perm.is_enabled})
+
+
+@superuser_required
+@require_POST
+def service_update_limit(request):
+    """AJAX: Update usage limits for a role-service permission."""
+    from .models import RoleServicePermission
+    
+    perm_id = request.POST.get('perm_id')
+    max_daily = request.POST.get('max_daily', 0)
+    max_monthly = request.POST.get('max_monthly', 0)
+    
+    try:
+        perm = RoleServicePermission.objects.get(id=perm_id)
+        perm.max_daily_uses = int(max_daily) if max_daily else 0
+        perm.max_monthly_uses = int(max_monthly) if max_monthly else 0
+        perm.save()
+        return JsonResponse({'status': 'ok'})
+    except RoleServicePermission.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Permission not found'}, status=404)
+
+
+@superuser_required
+def services_analytics(request):
+    """Analytics page for service usage."""
+    from .models import ServiceUsageLog, ServiceDefinition
+    from django.db.models import Count
+    from django.utils import timezone
+    from datetime import timedelta
+    
+    today = timezone.localdate()
+    
+    # Usage by service (last 30 days)
+    month_ago = today - timedelta(days=30)
+    usage_by_service = ServiceUsageLog.objects.filter(
+        accessed_at__date__gte=month_ago
+    ).values('service__name_ar', 'service__key', 'service__icon').annotate(
+        count=Count('id')
+    ).order_by('-count')
+
+    # Usage by role (last 30 days) 
+    usage_by_role = ServiceUsageLog.objects.filter(
+        accessed_at__date__gte=month_ago
+    ).values('user__profile__role').annotate(
+        count=Count('id')
+    ).order_by('-count')
+
+    # Daily trend (last 14 days)
+    daily_trend = []
+    for i in range(14):
+        day = today - timedelta(days=13-i)
+        count = ServiceUsageLog.objects.filter(accessed_at__date=day).count()
+        daily_trend.append({'day': day.strftime('%m/%d'), 'count': count})
+
+    # Top users (last 7 days)
+    week_ago = today - timedelta(days=7)
+    top_users = ServiceUsageLog.objects.filter(
+        accessed_at__date__gte=week_ago
+    ).values('user__username', 'user__first_name', 'user__profile__role').annotate(
+        count=Count('id')
+    ).order_by('-count')[:15]
+
+    # Usage by device
+    usage_by_device = ServiceUsageLog.objects.filter(
+        accessed_at__date__gte=month_ago
+    ).values('device_type').annotate(count=Count('id')).order_by('-count')
+
+    context = {
+        'usage_by_service': usage_by_service,
+        'usage_by_role': usage_by_role,
+        'daily_trend': daily_trend,
+        'top_users': top_users,
+        'usage_by_device': usage_by_device,
+        'page_title': 'تحليلات استخدام الخدمات',
+        'active_section': 'services',
+    }
+    return render(request, 'control_panel/services/analytics.html', context)
 

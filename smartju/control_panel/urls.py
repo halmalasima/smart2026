@@ -20,6 +20,7 @@ urlpatterns = [
     path("users/<int:pk>/edit/", views.user_update, name="user_update"),
     path("users/<int:pk>/delete/", views.user_delete, name="user_delete"),
     path("users/<int:pk>/toggle/", views.user_toggle_active, name="user_toggle_active"),
+    path("users/bulk-action/", views.user_bulk_action, name="user_bulk_action"),
 
     # Groups / Roles
     path("groups/", views.group_list, name="group_list"),
@@ -43,6 +44,7 @@ urlpatterns = [
     path("models/<str:app_label>/<str:model_name>/<str:pk>/", views.model_detail, name="model_detail"),
     path("models/<str:app_label>/<str:model_name>/<str:pk>/edit/", views.model_edit, name="model_edit"),
     path("models/<str:app_label>/<str:model_name>/<str:pk>/delete/", views.model_delete, name="model_delete"),
+    path("models/<str:app_label>/<str:model_name>/bulk-action/", views.model_bulk_action, name="model_bulk_action"),
 
     # Microservices
     path("microservices/", views.microservices_index, name="microservices_index"),
@@ -57,4 +59,10 @@ urlpatterns = [
     # Activity / Profile
     path("activity/", views.activity_log, name="activity_log"),
     path("profile/", views.profile, name="profile"),
+    
+    # SaaS Pro: Services & Roles Management
+    path("services/", views.services_management, name="services_management"),
+    path("services/toggle/", views.service_toggle, name="service_toggle"),
+    path("services/update-limit/", views.service_update_limit, name="service_update_limit"),
+    path("services/analytics/", views.services_analytics, name="services_analytics"),
 ]

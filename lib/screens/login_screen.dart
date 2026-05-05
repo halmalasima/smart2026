@@ -12,7 +12,7 @@ import '../theme/app_spacing.dart';
 import '../theme/app_theme.dart';
 
 /// مراحل شاشة الدخول
-enum _LoginStep { phoneInput, existingUser, newUserOtp, completeProfile }
+enum _LoginStep { phoneInput, existingUser, newUserOtp, completeProfile, createPassword, setupBiometric, forgotPassword }
 
 /// Login Screen - شاشة الدخول بتدفق Phone-First
 class LoginScreen extends StatefulWidget {
@@ -27,6 +27,8 @@ class _LoginScreenState extends State<LoginScreen> {
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _nameController = TextEditingController();
+  final _newPasswordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
   final List<TextEditingController> _otpControllers = List.generate(6, (_) => TextEditingController());
   final List<FocusNode> _otpFocusNodes = List.generate(6, (_) => FocusNode());
 
@@ -35,6 +37,8 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
   bool _biometricAvailable = false;
   String? _errorText;
+  bool _obscureNewPassword = true;
+  bool _obscureConfirmPassword = true;
   String _selectedRole = 'citizen';
 
   // OTP
@@ -66,6 +70,8 @@ class _LoginScreenState extends State<LoginScreen> {
     _phoneController.dispose();
     _passwordController.dispose();
     _nameController.dispose();
+    _newPasswordController.dispose();
+    _confirmPasswordController.dispose();
     for (final c in _otpControllers) { c.dispose(); }
     for (final f in _otpFocusNodes) { f.dispose(); }
     _cooldownTimer?.cancel();
@@ -164,7 +170,7 @@ class _LoginScreenState extends State<LoginScreen> {
         firstName: nameParts.first,
         lastName: nameParts.length > 1 ? nameParts.skip(1).join(' ') : null,
       );
-      if (mounted) Navigator.pushReplacementNamed(context, '/');
+      if (mounted) setState(() { _step = _LoginStep.createPassword; _isLoading = false; });
     } catch (e) {
       setState(() => _errorText = _cleanError(e.toString()));
     } finally {
@@ -172,7 +178,129 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  void _skipProfile() => Navigator.pushReplacementNamed(context, '/');
+  void _skipProfile() {
+    setState(() => _step = _LoginStep.createPassword);
+  }
+
+  Future<void> _handleCreatePassword() async {
+    final pw = _newPasswordController.text;
+    final confirm = _confirmPasswordController.text;
+    if (pw.isEmpty || pw.length < 8) {
+      setState(() => _errorText = 'كلمة المرور يجب أن تكون 8 أحرف على الأقل');
+      return;
+    }
+    if (pw != confirm) {
+      setState(() => _errorText = 'كلمات المرور غير متطابقة');
+      return;
+    }
+    setState(() { _isLoading = true; _errorText = null; });
+    try {
+      final api = Provider.of<ApiService>(context, listen: false);
+      final result = await api.setPassword(pw, confirm);
+      // تحديث الـ tokens بعد تغيير كلمة المرور
+      final auth = Provider.of<AuthProvider>(context, listen: false);
+      if (result['access'] != null && result['refresh'] != null) {
+        auth.apiService.setTokens(result['access'], result['refresh']);
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('access_token', result['access']);
+        await prefs.setString('refresh_token', result['refresh']);
+      }
+      if (mounted) {
+        // التحقق من دعم البصمة
+        final bioSupported = await BiometricService.instance.isDeviceSupported;
+        if (bioSupported) {
+          setState(() { _step = _LoginStep.setupBiometric; _isLoading = false; });
+        } else {
+          Navigator.pushReplacementNamed(context, '/');
+        }
+      }
+    } catch (e) {
+      setState(() => _errorText = _cleanError(e.toString()));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  void _skipCreatePassword() async {
+    final bioSupported = await BiometricService.instance.isDeviceSupported;
+    if (bioSupported && mounted) {
+      setState(() => _step = _LoginStep.setupBiometric);
+    } else if (mounted) {
+      Navigator.pushReplacementNamed(context, '/');
+    }
+  }
+
+  Future<void> _handleSetupBiometric() async {
+    setState(() { _isLoading = true; _errorText = null; });
+    try {
+      final phone = _phoneController.text.trim();
+      final password = _newPasswordController.text;
+      final success = await BiometricService.instance.enable(phone, password);
+      if (mounted) {
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('تم تفعيل تسجيل الدخول بالبصمة ✅'), backgroundColor: Colors.green),
+          );
+        }
+        Navigator.pushReplacementNamed(context, '/');
+      }
+    } catch (e) {
+      if (mounted) Navigator.pushReplacementNamed(context, '/');
+    }
+  }
+
+  void _skipBiometric() => Navigator.pushReplacementNamed(context, '/');
+
+  Future<void> _handleForgotPassword() async {
+    setState(() { _isLoading = true; _errorText = null; });
+    try {
+      final api = Provider.of<ApiService>(context, listen: false);
+      await api.sendOtp(_phoneController.text.trim());
+      _startCooldown();
+      if (mounted) setState(() { _step = _LoginStep.forgotPassword; _isLoading = false; });
+    } catch (e) {
+      setState(() => _errorText = _cleanError(e.toString()));
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _handleResetPassword() async {
+    final code = _otpControllers.map((c) => c.text).join();
+    final newPw = _newPasswordController.text;
+    if (code.length < 6) {
+      setState(() => _errorText = 'يرجى إدخال رمز التحقق كاملاً');
+      return;
+    }
+    if (newPw.isEmpty || newPw.length < 8) {
+      setState(() => _errorText = 'كلمة المرور يجب أن تكون 8 أحرف على الأقل');
+      return;
+    }
+    setState(() { _isLoading = true; _errorText = null; });
+    try {
+      final api = Provider.of<ApiService>(context, listen: false);
+      final result = await api.resetPasswordOtp(
+        _phoneController.text.trim(), code, newPw,
+      );
+      if (result['access'] != null && result['refresh'] != null) {
+        final auth = Provider.of<AuthProvider>(context, listen: false);
+        auth.apiService.setTokens(result['access'], result['refresh']);
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('access_token', result['access']);
+        await prefs.setString('refresh_token', result['refresh']);
+        await prefs.setString('saved_phone', _phoneController.text.trim());
+        // Reload user profile
+        await auth.initialize();
+        if (mounted) Navigator.pushReplacementNamed(context, '/');
+      } else {
+        setState(() => _errorText = result['message'] ?? 'تم تغيير كلمة المرور. سجل دخولك.');
+        setState(() => _step = _LoginStep.existingUser);
+      }
+    } catch (e) {
+      setState(() => _errorText = _cleanError(e.toString()));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   void _handleGuestLogin() {
     final auth = Provider.of<AuthProvider>(context, listen: false);
@@ -334,6 +462,12 @@ class _LoginScreenState extends State<LoginScreen> {
         return _buildOtpStep(theme, isDark);
       case _LoginStep.completeProfile:
         return _buildCompleteProfileStep(theme);
+      case _LoginStep.createPassword:
+        return _buildCreatePasswordStep(theme);
+      case _LoginStep.setupBiometric:
+        return _buildSetupBiometricStep(theme);
+      case _LoginStep.forgotPassword:
+        return _buildForgotPasswordStep(theme, isDark);
     }
   }
 
@@ -462,6 +596,13 @@ class _LoginScreenState extends State<LoginScreen> {
       TextButton(
         onPressed: _goBackToPhone,
         child: const Text('← تغيير رقم الهاتف'),
+      ),
+
+      const SizedBox(height: AppSpacing.sm),
+
+      TextButton(
+        onPressed: _isLoading ? null : _handleForgotPassword,
+        child: const Text('نسيت كلمة المرور؟', style: TextStyle(color: AppColors.brand)),
       ),
     ];
   }
@@ -637,7 +778,176 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  // ─── Step 5: Create Password ───────────────────────────
+
+  List<Widget> _buildCreatePasswordStep(ThemeData theme) {
+    return [
+      const Icon(Icons.lock_rounded, color: AppColors.brand, size: 56),
+      const SizedBox(height: AppSpacing.md),
+      const Text('إنشاء كلمة مرور', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+      const SizedBox(height: 4),
+      Text('أنشئ كلمة مرور لتسجيل الدخول لاحقاً', style: TextStyle(color: Colors.grey[600])),
+      const SizedBox(height: AppSpacing.xl),
+
+      TextFormField(
+        controller: _newPasswordController,
+        obscureText: _obscureNewPassword,
+        decoration: InputDecoration(
+          labelText: 'كلمة المرور الجديدة',
+          prefixIcon: const Icon(Icons.lock_rounded),
+          suffixIcon: IconButton(
+            icon: Icon(_obscureNewPassword ? Icons.visibility_rounded : Icons.visibility_off_rounded),
+            onPressed: () => setState(() => _obscureNewPassword = !_obscureNewPassword),
+          ),
+          helperText: '8 أحرف على الأقل',
+        ),
+      ),
+
+      const SizedBox(height: AppSpacing.md),
+
+      TextFormField(
+        controller: _confirmPasswordController,
+        obscureText: _obscureConfirmPassword,
+        decoration: InputDecoration(
+          labelText: 'تأكيد كلمة المرور',
+          prefixIcon: const Icon(Icons.lock_outline_rounded),
+          suffixIcon: IconButton(
+            icon: Icon(_obscureConfirmPassword ? Icons.visibility_rounded : Icons.visibility_off_rounded),
+            onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
+          ),
+        ),
+      ),
+
+      if (_errorText != null) _buildErrorWidget(),
+
+      const SizedBox(height: AppSpacing.xl),
+
+      ElevatedButton(
+        onPressed: _isLoading ? null : _handleCreatePassword,
+        child: _isLoading
+            ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+            : const Text('حفظ كلمة المرور'),
+      ),
+
+      const SizedBox(height: AppSpacing.md),
+
+      TextButton(
+        onPressed: _skipCreatePassword,
+        child: const Text('تخطي →'),
+      ),
+    ];
+  }
+
+  // ─── Step 6: Setup Biometric ──────────────────────────
+
+  List<Widget> _buildSetupBiometricStep(ThemeData theme) {
+    return [
+      const Icon(Icons.fingerprint, color: AppColors.brand, size: 64),
+      const SizedBox(height: AppSpacing.md),
+      const Text('تفعيل البصمة', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+      const SizedBox(height: 4),
+      Text('سجل دخولك بسرعة باستخدام بصمة الإصبع أو الوجه', style: TextStyle(color: Colors.grey[600])),
+      const SizedBox(height: AppSpacing.xxxl),
+
+      ElevatedButton.icon(
+        onPressed: _isLoading ? null : _handleSetupBiometric,
+        icon: const Icon(Icons.fingerprint, size: 28),
+        label: _isLoading
+            ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+            : const Text('تفعيل البصمة الآن'),
+      ),
+
+      const SizedBox(height: AppSpacing.lg),
+
+      TextButton(
+        onPressed: _skipBiometric,
+        child: const Text('تخطي →'),
+      ),
+    ];
+  }
+
   // ─── Shared Widgets ───────────────────────────────────
+
+  // ─── Forgot Password: OTP + New Password ───────────────
+
+  List<Widget> _buildForgotPasswordStep(ThemeData theme, bool isDark) {
+    return [
+      _buildReadOnlyPhone(),
+      const SizedBox(height: AppSpacing.lg),
+
+      Container(
+        width: 64, height: 64,
+        decoration: BoxDecoration(
+          color: AppColors.brand.withOpacity(0.1),
+          shape: BoxShape.circle,
+        ),
+        child: const Icon(Icons.lock_reset_rounded, size: 32, color: AppColors.brand),
+      ),
+      const SizedBox(height: AppSpacing.md),
+      const Text('إعادة تعيين كلمة المرور', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+      const SizedBox(height: 4),
+      Text('أدخل رمز التحقق وكلمة المرور الجديدة', style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+      const SizedBox(height: AppSpacing.lg),
+
+      // OTP Fields
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(6, (i) => _buildOtpField(i, isDark)),
+        ),
+      ),
+
+      const SizedBox(height: AppSpacing.lg),
+
+      // New password
+      TextFormField(
+        controller: _newPasswordController,
+        obscureText: _obscureNewPassword,
+        decoration: InputDecoration(
+          labelText: 'كلمة المرور الجديدة',
+          prefixIcon: const Icon(Icons.lock_rounded),
+          suffixIcon: IconButton(
+            icon: Icon(_obscureNewPassword ? Icons.visibility_rounded : Icons.visibility_off_rounded),
+            onPressed: () => setState(() => _obscureNewPassword = !_obscureNewPassword),
+          ),
+          helperText: '8 أحرف على الأقل',
+        ),
+      ),
+
+      if (_errorText != null) _buildErrorWidget(),
+
+      const SizedBox(height: AppSpacing.xl),
+
+      ElevatedButton(
+        onPressed: _isLoading ? null : _handleResetPassword,
+        child: _isLoading
+            ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+            : const Text('تغيير كلمة المرور'),
+      ),
+
+      const SizedBox(height: AppSpacing.md),
+
+      // Resend OTP
+      TextButton(
+        onPressed: _resendCooldown > 0 ? null : () async {
+          try {
+            final api = Provider.of<ApiService>(context, listen: false);
+            await api.sendOtp(_phoneController.text.trim());
+            _startCooldown();
+          } catch (e) {
+            setState(() => _errorText = _cleanError(e.toString()));
+          }
+        },
+        child: Text(_resendCooldown > 0 ? 'إعادة الإرسال بعد $_resendCooldown ثانية' : 'إعادة إرسال الرمز'),
+      ),
+
+      TextButton(
+        onPressed: _goBackToPhone,
+        child: const Text('← العودة'),
+      ),
+    ];
+  }
 
   Widget _buildReadOnlyPhone() {
     return Container(
