@@ -122,18 +122,28 @@ WSGI_APPLICATION = 'smartju.wsgi.application'
 # Database — local development without cloud hosting
 # Default: SQLite file next to manage.py (no PostgreSQL required).
 # Optional PostgreSQL: set DATABASE_URL, or USE_LOCAL_POSTGRES=1 with DB_* env vars.
+USE_LOCAL_POSTGRES = os.environ.get('USE_LOCAL_POSTGRES', '').strip() == '1'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
     },
     'auth_db': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'smartjudi_auth',
-        'USER': 'smartjudi',
-        'PASSWORD': 'smartjudi_secret',
-        'HOST': 'localhost',
-        'PORT': '5439',
+        **(
+            {
+                'ENGINE': 'django.db.backends.postgresql',
+                'NAME': os.environ.get('AUTH_DB_NAME', 'smartjudi_auth'),
+                'USER': os.environ.get('AUTH_DB_USER', 'smartjudi'),
+                'PASSWORD': os.environ.get('AUTH_DB_PASSWORD', 'smartjudi_secret'),
+                'HOST': os.environ.get('AUTH_DB_HOST', 'localhost'),
+                'PORT': os.environ.get('AUTH_DB_PORT', '5439'),
+            }
+            if USE_LOCAL_POSTGRES
+            else {
+                'ENGINE': 'django.db.backends.sqlite3',
+                'NAME': BASE_DIR / 'db_auth.sqlite3',
+            }
+        ),
     },
     'cases_db': {
         'ENGINE': 'django.db.backends.postgresql',

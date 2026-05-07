@@ -49,6 +49,9 @@
   <a href="{% url 'control_panel:services_analytics' %}" class="btn btn-primary">
     <i class="ti ti-chart-bar me-1"></i> تحليلات الاستخدام
   </a>
+  <a href="{% url 'control_panel:services_management' %}?sync=1" class="btn btn-outline-primary">
+    <i class="ti ti-refresh me-1"></i> تحديث الخدمات تلقائياً
+  </a>
 </div>
 
 <!-- Services by Category -->
@@ -96,7 +99,7 @@
                      data-service="{{ item.service.id }}"
                      {% if role.enabled %}checked{% endif %}>
             </label>
-            {% if role.perm_id and role.enabled %}
+            {% if role.perm_id %}
             <div class="mt-1">
               <small class="text-muted cursor-pointer limit-badge" 
                      data-perm-id="{{ role.perm_id }}"
@@ -112,6 +115,15 @@
                 {% if role.max_daily == 0 and role.max_monthly == 0 %}
                   <span class="badge bg-green-lt">بلا حدود</span>
                 {% endif %}
+              </small>
+            </div>
+            {% else %}
+            <div class="mt-1">
+              <small class="text-muted cursor-pointer limit-create"
+                     data-role="{{ role.role_key }}"
+                     data-service="{{ item.service.id }}"
+                     title="اضغط لإنشاء الصلاحية ثم تعديل الحدود">
+                <span class="badge bg-gray-lt">تحديد حدود</span>
               </small>
             </div>
             {% endif %}
@@ -135,6 +147,8 @@
       </div>
       <div class="modal-body">
         <input type="hidden" id="edit-perm-id">
+        <input type="hidden" id="edit-role">
+        <input type="hidden" id="edit-service-id">
         <div class="mb-3">
           <label class="form-label">الحد اليومي</label>
           <input type="number" class="form-control" id="edit-max-daily" min="0" placeholder="0 = بلا حدود">
@@ -193,19 +207,37 @@ document.querySelectorAll('.service-toggle').forEach(el => {
 document.querySelectorAll('.limit-badge').forEach(el => {
   el.addEventListener('click', function() {
     document.getElementById('edit-perm-id').value = this.dataset.permId;
+    document.getElementById('edit-role').value = '';
+    document.getElementById('edit-service-id').value = '';
     document.getElementById('edit-max-daily').value = this.dataset.daily;
     document.getElementById('edit-max-monthly').value = this.dataset.monthly;
     new bootstrap.Modal(document.getElementById('limitsModal')).show();
   });
 });
 
+// Create permission + edit limits
+document.querySelectorAll('.limit-create').forEach(el => {
+  el.addEventListener('click', function() {
+    document.getElementById('edit-perm-id').value = '';
+    document.getElementById('edit-role').value = this.dataset.role;
+    document.getElementById('edit-service-id').value = this.dataset.service;
+    document.getElementById('edit-max-daily').value = 0;
+    document.getElementById('edit-max-monthly').value = 0;
+    new bootstrap.Modal(document.getElementById('limitsModal')).show();
+  });
+});
+
 document.getElementById('saveLimitsBtn')?.addEventListener('click', async function() {
   const permId = document.getElementById('edit-perm-id').value;
+  const role = document.getElementById('edit-role').value;
+  const serviceId = document.getElementById('edit-service-id').value;
   const maxDaily = document.getElementById('edit-max-daily').value;
   const maxMonthly = document.getElementById('edit-max-monthly').value;
   
   const form = new FormData();
   form.append('perm_id', permId);
+  form.append('role', role);
+  form.append('service_id', serviceId);
   form.append('max_daily', maxDaily);
   form.append('max_monthly', maxMonthly);
   
@@ -219,7 +251,7 @@ document.getElementById('saveLimitsBtn')?.addEventListener('click', async functi
     if (data.status === 'ok') {
       location.reload();
     } else {
-      alert('خطأ: ' + (data.message || 'غير معروف'));
+      alert(data.message || 'خطأ');
     }
   } catch(e) {
     alert('خطأ في الاتصال');

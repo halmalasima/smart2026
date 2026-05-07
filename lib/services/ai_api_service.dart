@@ -2,12 +2,43 @@
 // خدمة للتواصل مع API المساعد الذكي في Django
 
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 import '../config/api_config.dart';
 
 class AIApiService {
   String? _accessToken;
+
+  static String _readableErrorBody(http.Response response) {
+    final raw = utf8.decode(response.bodyBytes);
+    try {
+      final decoded = json.decode(raw);
+      if (decoded is Map<String, dynamic>) {
+        final detail = decoded['detail'];
+        if (detail is String && detail.trim().isNotEmpty) {
+          return detail.trim();
+        }
+        if (detail is List && detail.isNotEmpty) {
+          final parts = detail
+              .map((e) {
+                if (e is Map && e['msg'] != null) return '${e['msg']}';
+                return e.toString();
+              })
+              .where((s) => s.toString().trim().isNotEmpty)
+              .toList();
+          if (parts.isNotEmpty) return parts.join('\n');
+        }
+        final err = decoded['error'];
+        if (err is String && err.trim().isNotEmpty) return err.trim();
+        if (err is Map && err['message'] is String) {
+          return (err['message'] as String).trim();
+        }
+      }
+    } catch (_) {}
+    final preview = raw.length > 240 ? '${raw.substring(0, 240)}…' : raw;
+    return preview.isNotEmpty ? preview : 'HTTP ${response.statusCode}';
+  }
 
   /// تعيين رمز الوصول للمصادقة
   void setAccessToken(String? token) {
@@ -60,16 +91,50 @@ class AIApiService {
         }
         return responseData;
       } else {
+        final msg = _readableErrorBody(response);
         debugPrint(
-            'Error getting chat response: ${response.statusCode} ${response.body}');
-        throw Exception('فشل في الحصول على استجابة: ${response.body}');
+          'Error getting chat response: ${response.statusCode} — $msg',
+        );
+        if (response.statusCode == 404) {
+          throw Exception(
+            'مسار المساعد الذكي غير موجود (404). تأكد أن عنوان الخادم يوجّه إلى البوابة (منفذ 9000) أو أن خدمة AI تعمل، وأن متغير AI_LOCAL_BASE في البوابة المحلية صحيح. التفاصيل: $msg',
+          );
+        }
+        if (response.statusCode == 401 || response.statusCode == 403) {
+          throw Exception(
+            'انتهت الجلسة أو لا تملك صلاحية استخدام المساعد الذكي. سجّل الدخول مجدداً. ($msg)',
+          );
+        }
+        if (response.statusCode == 503) {
+          throw Exception(
+            'خدمة الذكاء الاصطناعي غير جاهزة على الخادم (مثلاً مفتاح GROQ غير معرّف). $msg',
+          );
+        }
+        throw Exception('فشل في الحصول على استجابة (${response.statusCode}): $msg');
       }
     } catch (e) {
       debugPrint('Exception during chat response: $e');
+      if (e is Exception) {
+        final t = e.toString();
+        if (t.startsWith('Exception: مسار المساعد الذكي') ||
+            t.startsWith('Exception: انتهت الجلسة أو لا تملك') ||
+            t.startsWith('Exception: خدمة الذكاء الاصطناعي غير جاهزة') ||
+            t.startsWith('Exception: فشل في الحصول على استجابة')) {
+          rethrow;
+        }
+      }
       if (e.toString().contains('TimeoutException') ||
           e.toString().contains('timeout')) {
         throw Exception(
             'انتهت مهلة الاتصال بخدمة الذكاء الاصطناعي. يرجى المحاولة مرة أخرى.');
+      }
+      if (e is SocketException ||
+          e.toString().contains('SocketException') ||
+          e.toString().contains('Failed host lookup') ||
+          e.toString().contains('Network is unreachable')) {
+        throw Exception(
+            'تعذّر الاتصال بالخادم. تحقق من عنوان الخادم في الإعدادات وأن الهاتف على نفس شبكة الـ Wi‑Fi.',
+        );
       }
       throw Exception('فشل الاتصال بخدمة الذكاء الاصطناعي: $e');
     }

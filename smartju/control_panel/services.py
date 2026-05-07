@@ -135,8 +135,11 @@ MICROSERVICE_REGISTRY = {
     'hearings': {
         'label': 'الجلسات',
         'icon': 'calendar-event',
-        'db': 'hearings_db',
-        'port': 5434,
+        # NOTE: hearings has FK relations to lawsuits (cases service).
+        # Django ORM/admin cannot JOIN across different databases, so the control panel
+        # must keep related apps in the same DB alias.
+        'db': 'cases_db',
+        'port': 5433,
         'apps': ['hearings'],
         'color': '#f59e0b',
     },

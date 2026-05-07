@@ -14,7 +14,6 @@ import 'settings_screen.dart';
 // Removed unused imports
 import 'calendar_screen.dart';
 import 'ai_case_analysis_screen.dart';
-import 'citizen_dashboard_screen.dart';
 import 'notary_dashboard_screen.dart';
 import 'legal_library_screen.dart';
 import 'services_screen.dart';
@@ -124,12 +123,12 @@ class _HomeScreenState extends State<HomeScreen> {
               _buildMainDashboard(user, isNotary: true),
             ]
           : [
-              _buildMainDashboard(user, isClient: user.role == 'citizen' || user.role == 'mokel'),
+              _buildMainDashboard(user),
               const CalendarScreen(),
               ArchiveScreen(),
               LegalLibraryScreen(),
               ServicesScreen(),
-              _buildMainDashboard(user, isClient: user.role == 'citizen' || user.role == 'mokel'),
+              _buildMainDashboard(user),
             ],
       ),
       bottomNavigationBar: _buildBottomNav(isNotary: user.isNotary),
@@ -196,8 +195,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // لوحة التحكم الرئيسية مع الأنيميشن
-  Widget _buildMainDashboard(dynamic user, {bool isClient = false, bool isNotary = false}) {
-    if (isClient) return CitizenDashboardScreen();
+  Widget _buildMainDashboard(dynamic user, {bool isNotary = false}) {
     if (isNotary) return const NotaryDashboardScreen();
     
     return SingleChildScrollView(
@@ -384,6 +382,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 _drawerItem(Icons.logout_rounded, 'تسجيل الخروج', () async {
                   Navigator.pop(context);
                   await authProvider.logout();
+                  if (!context.mounted) return;
+                  Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
                 }, color: AppColors.error),
               ],
             ),

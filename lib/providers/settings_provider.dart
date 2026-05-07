@@ -111,7 +111,12 @@ class SettingsProvider with ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       final savedApi = prefs.getString(ApiConfig.prefsKeyApiBaseUrl);
       await prefs.clear();
-      if (savedApi != null && savedApi.isNotEmpty) {
+      // Do not keep an override that points to port 9000 (control panel/portal).
+      // The mobile app should default to the API gateway on port 8000.
+      final keepSavedApi = savedApi != null &&
+          savedApi.isNotEmpty &&
+          !savedApi.contains(':9000');
+      if (keepSavedApi) {
         await prefs.setString(ApiConfig.prefsKeyApiBaseUrl, savedApi);
       }
       await ApiConfig.initialize();

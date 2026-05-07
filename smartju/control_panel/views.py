@@ -1303,6 +1303,13 @@ def services_management(request):
     from .models import ServiceDefinition, RoleServicePermission
     from accounts.models import UserProfile
 
+    if request.GET.get('sync') == '1':
+        try:
+            from django.core.management import call_command
+            call_command('sync_services')
+        except Exception:
+            pass
+
     services = ServiceDefinition.objects.all().order_by('sort_order')
     roles = UserProfile.ROLE_CHOICES
     
@@ -1399,15 +1406,24 @@ def service_update_limit(request):
     from .models import RoleServicePermission
     
     perm_id = request.POST.get('perm_id')
+    role = request.POST.get('role')
+    service_id = request.POST.get('service_id')
     max_daily = request.POST.get('max_daily', 0)
     max_monthly = request.POST.get('max_monthly', 0)
     
     try:
-        perm = RoleServicePermission.objects.get(id=perm_id)
+        if perm_id:
+            perm = RoleServicePermission.objects.get(id=perm_id)
+        else:
+            perm, _ = RoleServicePermission.objects.get_or_create(
+                role=role,
+                service_id=service_id,
+                defaults={'is_enabled': True}
+            )
         perm.max_daily_uses = int(max_daily) if max_daily else 0
         perm.max_monthly_uses = int(max_monthly) if max_monthly else 0
         perm.save()
-        return JsonResponse({'status': 'ok'})
+        return JsonResponse({'status': 'ok', 'perm_id': perm.id})
     except RoleServicePermission.DoesNotExist:
         return JsonResponse({'status': 'error', 'message': 'Permission not found'}, status=404)
 

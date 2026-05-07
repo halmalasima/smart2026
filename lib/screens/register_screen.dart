@@ -1,11 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../services/api_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
 import 'dart:ui' as ui;
-import 'otp_verification_screen.dart';
-import 'dart:developer' as developer;
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -16,24 +12,13 @@ class RegisterScreen extends StatefulWidget {
 
 class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _usernameController = TextEditingController();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
-  final _confirmPasswordController = TextEditingController();
   final _fullNameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _nationalIdController = TextEditingController();
-  String _selectedRole = 'citizen';
-  bool _obscurePassword = true;
-  bool _obscureConfirmPassword = true;
   bool _isSubmitting = false;
 
   @override
   void dispose() {
-    _usernameController.dispose();
-    _emailController.dispose();
-    _passwordController.dispose();
-    _confirmPasswordController.dispose();
     _fullNameController.dispose();
     _phoneController.dispose();
     _nationalIdController.dispose();
@@ -43,45 +28,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Future<void> _register() async {
     if (!_formKey.currentState!.validate()) return;
 
-    if (_passwordController.text != _confirmPasswordController.text) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('كلمات المرور غير متطابقة')),
-      );
-      return;
-    }
-
     setState(() => _isSubmitting = true);
-
-    final apiService = Provider.of<ApiService>(context, listen: false);
     try {
-      await apiService.register(
-        username: _usernameController.text.trim(),
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
-        role: _selectedRole,
-        firstName: _fullNameController.text.trim().split(' ').first,
-        lastName: _fullNameController.text.trim().split(' ').length > 1
-            ? _fullNameController.text.trim().split(' ').skip(1).join(' ')
-            : null,
-        phoneNumber: _phoneController.text.trim().isNotEmpty ? _phoneController.text.trim() : null,
-        nationalId: _nationalIdController.text.trim().isNotEmpty ? _nationalIdController.text.trim() : null,
+      if (!mounted) return;
+      await Navigator.of(context).pushNamed(
+        '/login',
+        arguments: {
+          'phone': _phoneController.text.trim(),
+          'startNewUserOtp': true,
+        },
       );
-      
-      if (mounted) {
-        // Navigate to OTP verification screen
-        final verified = await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => OtpVerificationScreen(
-              phoneNumber: _phoneController.text.trim(),
-              purpose: 'verify_email',
-            ),
-          ),
-        );
-        if (verified == true && mounted) {
-          _showSuccessDialog();
-        }
-      }
     } catch (e) {
       String errorMsg = e.toString();
       // Extract Arabic error message from ApiException if available
@@ -172,25 +128,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
               const SizedBox(height: 16),
               _buildTextField('الرقم الوطني / الهوية', _nationalIdController, Icons.badge_outlined),
               
-              const SizedBox(height: 32),
-              _buildSectionTitle('معلومات الحساب'),
-              const SizedBox(height: 12),
-              _buildTextField('اسم المستخدم (بالإنجليزي)', _usernameController, Icons.alternate_email_rounded),
-              const SizedBox(height: 16),
-              _buildTextField('البريد الإلكتروني', _emailController, Icons.email_outlined, keyboard: TextInputType.emailAddress),
-              
-              const SizedBox(height: 32),
-              _buildSectionTitle('نوع الحساب'),
-              const SizedBox(height: 12),
-              _buildRoleSelector(),
-              
-              const SizedBox(height: 32),
-              _buildSectionTitle('الأمان'),
-              const SizedBox(height: 12),
-              _buildPasswordField('كلمة المرور', _passwordController, _obscurePassword, () => setState(() => _obscurePassword = !_obscurePassword)),
-              const SizedBox(height: 16),
-              _buildPasswordField('تأكيد كلمة المرور', _confirmPasswordController, _obscureConfirmPassword, () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword)),
-              
               const SizedBox(height: 48),
               SizedBox(
                 height: 56,
@@ -202,7 +139,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   onPressed: _isSubmitting ? null : _register,
                   child: _isSubmitting
                       ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text('إنشاء الحساب الآن', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                      : const Text('إرسال رمز التحقق', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
                 ),
               ),
               const SizedBox(height: 24),
@@ -264,43 +201,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
       ),
       validator: (v) => v!.length < 6 ? 'كلمة المرور قصيرة جداً' : null,
-    );
-  }
-
-  Widget _buildRoleSelector() {
-    return Row(
-      children: [
-        _roleButton('citizen', 'مواطن', Icons.person_rounded),
-        const SizedBox(width: 8),
-        _roleButton('lawyer', 'محامي', Icons.gavel_rounded),
-        const SizedBox(width: 8),
-        _roleButton('notary', 'موثق', Icons.assignment_rounded),
-      ],
-    );
-  }
-
-  Widget _roleButton(String role, String label, IconData icon) {
-    final isSelected = _selectedRole == role;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => setState(() => _selectedRole = role),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: isSelected ? AppColors.primary : (context.isDark ? const Color(0xFF1E293B) : Colors.white),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: isSelected ? AppColors.primary : Colors.grey.withOpacity(0.2)),
-          ),
-          child: Column(
-            children: [
-              Icon(icon, color: isSelected ? Colors.white : Colors.grey, size: 20),
-              const SizedBox(height: 4),
-              Text(label, style: TextStyle(color: isSelected ? Colors.white : Colors.grey, fontSize: 11, fontWeight: FontWeight.bold)),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }

@@ -74,6 +74,18 @@ class _SmartAssistantScreenState extends State<SmartAssistantScreen> {
     final provider = Provider.of<AIChatProvider>(context, listen: false);
     await provider.sendMessage(question);
 
+    if (!mounted) return;
+    final err = provider.errorMessage;
+    if (err != null && err.trim().isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(err, textDirection: ui.TextDirection.rtl),
+          duration: const Duration(seconds: 12),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+
     _scrollToBottom();
     
     // التحدث بالرد تلقائياً
@@ -102,6 +114,7 @@ class _SmartAssistantScreenState extends State<SmartAssistantScreen> {
         _sendQuestion(_questionController.text);
       }
     } else {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('يرجى تفعيل صلاحية الميكروفون')),
       );

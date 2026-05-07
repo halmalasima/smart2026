@@ -185,10 +185,12 @@ class AIChatProvider with ChangeNotifier {
         }
       }
     } catch (e) {
-      _errorMessage = 'فشل في الحصول على استجابة: $e';
+      final detail = e.toString().replaceFirst(RegExp(r'^Exception:\s*'), '');
+      _errorMessage = detail;
       _messages.add({
         'role': 'assistant',
-        'content': 'عذرًا، حدث خطأ أثناء معالجة طلبك. يرجى المحاولة مرة أخرى.',
+        'content':
+            'عذرًا، حدث خطأ أثناء معالجة طلبك. راجع شريط التنبيه أسفل الشاشة للتفاصيل.',
       });
     } finally {
       _isLoading = false;

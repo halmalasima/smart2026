@@ -434,6 +434,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               onPressed: () async {
                 Navigator.pop(context);
                 await authProvider.logout();
+                if (!context.mounted) return;
+                Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
               },
               child: const Text(
                 'تسجيل الخروج',

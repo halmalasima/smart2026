@@ -45,11 +45,105 @@ class _LoginScreenState extends State<LoginScreen> {
   int _resendCooldown = 0;
   Timer? _cooldownTimer;
 
+  bool _handledRouteArgs = false;
+
   @override
   void initState() {
     super.initState();
     _loadSavedPhone();
     _checkBiometric();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_handledRouteArgs) return;
+    _handledRouteArgs = true;
+
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is Map) {
+      final phone = args['phone']?.toString();
+      final startNewUser = args['startNewUser'] == true;
+      final startNewUserOtp = args['startNewUserOtp'] == true;
+      if (phone != null && phone.trim().isNotEmpty) {
+        _phoneController.text = phone.trim();
+        WidgetsBinding.instance.addPostFrameCallback((_) async {
+          if (!mounted) return;
+          if (startNewUserOtp) {
+            setState(() { _isLoading = true; _errorText = null; });
+            try {
+              final api = Provider.of<ApiService>(context, listen: false);
+              await api.quickRegister(_phoneController.text.trim());
+              if (!mounted) return;
+              _startCooldown();
+              setState(() => _step = _LoginStep.newUserOtp);
+            } catch (e) {
+              if (!mounted) return;
+              setState(() => _errorText = _friendlyError(e.toString()) ?? 'تعذر إرسال رمز التحقق');
+            } finally {
+              if (mounted) setState(() => _isLoading = false);
+            }
+            return;
+          }
+
+          if (startNewUser) {
+            _handlePhoneSubmit();
+          }
+        });
+      }
+    }
+  }
+
+  String? _friendlyError(String? raw) {
+    if (raw == null || raw.trim().isEmpty) return null;
+    final msg = raw
+        .replaceFirst('Exception: ', '')
+        .replaceFirst('ApiException: ', '')
+        .trim();
+
+    // Network / connectivity
+    if (msg.contains('SocketException') ||
+        msg.contains('Failed host lookup') ||
+        msg.contains('Network is unreachable')) {
+      return 'لا يوجد اتصال بالإنترنت';
+    }
+    if (msg.contains('timeout') || msg.contains('TimeoutException')) {
+      return 'انتهت مهلة الاتصال بالخادم';
+    }
+    if (msg.contains('Connection refused') || msg.contains('Unable to connect')) {
+      return 'لا يمكن الوصول للخادم حالياً';
+    }
+
+    // Auth
+    if (msg.contains('401') || msg.toLowerCase().contains('unauthorized')) {
+      return 'بيانات الدخول غير صحيحة';
+    }
+    if (msg.contains('غير مُفعّل') || msg.contains('غير مفعل') || msg.contains('تفعيل')) {
+      return 'حسابك غير مُفعّل. أدخل رمز التحقق';
+    }
+    if (msg.contains('تعطيل') || msg.contains('الدعم الفني')) {
+      return 'تم تعطيل الحساب. راجع الدعم';
+    }
+    if (msg.contains('رمز التحقق') || msg.contains('OTP') || msg.contains('code')) {
+      return 'رمز التحقق غير صحيح';
+    }
+
+    // Generic HTTP
+    if (msg.contains('404') || msg.contains('Not Found')) {
+      return 'الخدمة غير متاحة حالياً';
+    }
+    if (msg.contains('500') || msg.contains('Internal Server Error')) {
+      return 'حدث خطأ في الخادم';
+    }
+
+    // Try extract {'error': '...'}
+    if (msg.contains("'error':")) {
+      final match = RegExp(r"'error':\s*'([^']+)'").firstMatch(msg);
+      if (match != null) return match.group(1);
+    }
+
+    // Fallback: keep it short
+    return msg.length > 140 ? msg.substring(0, 140) : msg;
   }
 
   Future<void> _loadSavedPhone() async {
@@ -99,7 +193,7 @@ class _LoginScreenState extends State<LoginScreen> {
         setState(() => _step = _LoginStep.newUserOtp);
       }
     } catch (e) {
-      setState(() => _errorText = _cleanError(e.toString()));
+      setState(() => _errorText = _friendlyError(e.toString()) ?? 'تعذر تعيين كلمة المرور');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -118,9 +212,15 @@ class _LoginScreenState extends State<LoginScreen> {
     if (success && mounted) {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('saved_phone', _phoneController.text.trim());
-      if (mounted) Navigator.pushReplacementNamed(context, '/');
+      if (!mounted) return;
+      final args = ModalRoute.of(context)?.settings.arguments;
+      String? redirect;
+      if (args is Map) {
+        redirect = args['redirect']?.toString();
+      }
+      Navigator.pushReplacementNamed(context, redirect != null && redirect.isNotEmpty ? redirect : '/');
     } else if (mounted) {
-      setState(() => _errorText = auth.errorMessage ?? 'فشل تسجيل الدخول');
+      setState(() => _errorText = _friendlyError(auth.errorMessage) ?? 'تعذر تسجيل الدخول');
     }
     if (mounted) setState(() => _isLoading = false);
   }
@@ -149,6 +249,10 @@ class _LoginScreenState extends State<LoginScreen> {
     final success = await auth.loginWithOtp(_phoneController.text.trim(), code);
 
     if (success && mounted) {
+      // لا نحفظ رقم الهاتف إلا بعد نجاح التحقق
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('saved_phone', _phoneController.text.trim());
+
       // هل المستخدم جديد؟ اعرض استكمال البيانات
       final user = auth.currentUser;
       if (user != null && (user.firstName == null || user.firstName!.isEmpty)) {
@@ -157,11 +261,15 @@ class _LoginScreenState extends State<LoginScreen> {
         Navigator.pushReplacementNamed(context, '/');
       }
     } else if (mounted) {
-      setState(() { _errorText = auth.errorMessage; _isLoading = false; });
+      setState(() { _errorText = _friendlyError(auth.errorMessage) ?? 'تعذر التحقق من الرمز'; _isLoading = false; });
     }
   }
 
   Future<void> _handleCompleteProfile() async {
+    if (_nameController.text.trim().isEmpty) {
+      setState(() => _errorText = 'يرجى إدخال الاسم الكامل');
+      return;
+    }
     setState(() { _isLoading = true; _errorText = null; });
     try {
       final api = Provider.of<ApiService>(context, listen: false);
@@ -169,10 +277,11 @@ class _LoginScreenState extends State<LoginScreen> {
       await api.updateProfile(
         firstName: nameParts.first,
         lastName: nameParts.length > 1 ? nameParts.skip(1).join(' ') : null,
+        role: _selectedRole,
       );
       if (mounted) setState(() { _step = _LoginStep.createPassword; _isLoading = false; });
     } catch (e) {
-      setState(() => _errorText = _cleanError(e.toString()));
+      setState(() => _errorText = _friendlyError(e.toString()) ?? 'تعذر حفظ البيانات');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -215,7 +324,7 @@ class _LoginScreenState extends State<LoginScreen> {
         }
       }
     } catch (e) {
-      setState(() => _errorText = _cleanError(e.toString()));
+      setState(() => _errorText = _friendlyError(e.toString()) ?? 'تعذر تعيين كلمة المرور');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -259,7 +368,7 @@ class _LoginScreenState extends State<LoginScreen> {
       _startCooldown();
       if (mounted) setState(() { _step = _LoginStep.forgotPassword; _isLoading = false; });
     } catch (e) {
-      setState(() => _errorText = _cleanError(e.toString()));
+      setState(() => _errorText = _friendlyError(e.toString()) ?? 'تعذر إرسال رمز التحقق');
       if (mounted) setState(() => _isLoading = false);
     }
   }
@@ -296,7 +405,7 @@ class _LoginScreenState extends State<LoginScreen> {
         setState(() => _step = _LoginStep.existingUser);
       }
     } catch (e) {
-      setState(() => _errorText = _cleanError(e.toString()));
+      setState(() => _errorText = _friendlyError(e.toString()) ?? 'تعذر إعادة تعيين كلمة المرور');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -348,7 +457,7 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       }
     } catch (e) {
-      setState(() => _errorText = _cleanError(e.toString()));
+      setState(() => _errorText = _friendlyError(e.toString()) ?? 'تعذر إرسال رمز جديد');
     }
   }
 
@@ -707,7 +816,7 @@ class _LoginScreenState extends State<LoginScreen> {
       const SizedBox(height: AppSpacing.md),
       const Text('مرحباً بك!', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
       const SizedBox(height: 4),
-      Text('أكمل بياناتك (اختياري)', style: TextStyle(color: Colors.grey[600])),
+      Text('أكمل بياناتك للمتابعة', style: TextStyle(color: Colors.grey[600])),
       const SizedBox(height: AppSpacing.xl),
 
       TextFormField(
@@ -742,13 +851,6 @@ class _LoginScreenState extends State<LoginScreen> {
         child: _isLoading
             ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
             : const Text('حفظ والمتابعة'),
-      ),
-
-      const SizedBox(height: AppSpacing.md),
-
-      TextButton(
-        onPressed: _skipProfile,
-        child: const Text('تخطي →'),
       ),
     ];
   }
@@ -936,7 +1038,7 @@ class _LoginScreenState extends State<LoginScreen> {
             await api.sendOtp(_phoneController.text.trim());
             _startCooldown();
           } catch (e) {
-            setState(() => _errorText = _cleanError(e.toString()));
+            setState(() => _errorText = _friendlyError(e.toString()) ?? 'تعذر إرسال رمز جديد');
           }
         },
         child: Text(_resendCooldown > 0 ? 'إعادة الإرسال بعد $_resendCooldown ثانية' : 'إعادة إرسال الرمز'),

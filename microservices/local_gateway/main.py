@@ -12,6 +12,8 @@ LEGAL_LOCAL_BASE    = os.environ.get('LEGAL_LOCAL_BASE',    'http://127.0.0.1:80
 HEARINGS_LOCAL_BASE = os.environ.get('HEARINGS_LOCAL_BASE', 'http://127.0.0.1:8004').rstrip('/')
 SEARCH_LOCAL_BASE   = os.environ.get('SEARCH_LOCAL_BASE',   'http://127.0.0.1:8005').rstrip('/')
 INHERIT_LOCAL_BASE  = os.environ.get('INHERITANCE_LOCAL_BASE', 'http://127.0.0.1:8006').rstrip('/')
+# FastAPI خدمة AI (متوافق مع Docker: ai:8000). عند استخدام Django الأحادي فقط: AI_LOCAL_BASE=http://127.0.0.1:8000
+AI_LOCAL_BASE       = os.environ.get('AI_LOCAL_BASE', 'http://127.0.0.1:8010').rstrip('/')
 
 # Cloud backends (optional — leave empty for fully local)
 LEGAL_CLOUD_BASE = os.environ.get('LEGAL_CLOUD_BASE', '').rstrip('/')
@@ -101,6 +103,7 @@ app = FastAPI(title='SmartJudi Local Gateway')
 
 
 @app.get('/health/')
+@app.get('/health')
 def health():
     return {'status': 'ok', 'service': 'local-gateway'}
 
@@ -134,7 +137,7 @@ def _choose_upstream(path: str) -> str:
 
     for p in AI_PREFIXES:
         if path.startswith(p):
-            return AI_CLOUD_BASE if AI_CLOUD_BASE else CASES_LOCAL_BASE
+            return AI_CLOUD_BASE if AI_CLOUD_BASE else AI_LOCAL_BASE
 
     for p in DOCUMENTS_PREFIXES:
         if path.startswith(p):

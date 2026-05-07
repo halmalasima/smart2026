@@ -21,7 +21,9 @@ class ApiConfig {
   /// `true` = هاتف حقيقي — لا يُستخدم `10.0.2.2` كافتراضي.
   static bool? _androidIsPhysicalDevice;
 
-  static const int _defaultBackendPort = 9000;
+  // The API gateway (nginx) is exposed on port 8000. Port 9000 is used for the
+  // control panel / portal and is not the API entrypoint for the mobile app.
+  static const int _defaultBackendPort = 8000;
 
   static Future<void> _loadAndroidPhysicalFlag() async {
     if (kIsWeb || !Platform.isAndroid) {
@@ -64,12 +66,7 @@ class ApiConfig {
     debugPrint('💾 [ApiConfig] Saved URL from prefs: "$saved"');
     if (saved != null && saved.isNotEmpty) {
       final normalized = _normalizeUrl(saved);
-      // Force rediscovery if we're stuck on the wrong port (8000)
-      if (normalized.contains(':8000')) {
-        await rediscoverLanServer();
-      } else {
-        _savedOverride = normalized;
-      }
+      _savedOverride = normalized;
       return;
     }
 
@@ -79,7 +76,7 @@ class ApiConfig {
       
       // محاولة الاكتشاف التلقائي
       var discovered = await LanBackendDiscovery.discover(
-        port: _defaultBackendPort,
+        ports: [_defaultBackendPort, 9000],
         allowEmulatorLoopbackFallback: allowEmuFallback,
       );
       
@@ -100,12 +97,12 @@ class ApiConfig {
     await _loadAndroidPhysicalFlag();
     final allowEmu = _androidIsPhysicalDevice == false;
     var url = await LanBackendDiscovery.discover(
-      port: _defaultBackendPort,
+      ports: [_defaultBackendPort, 9000],
       allowEmulatorLoopbackFallback: allowEmu,
     );
     if (url == null && _androidIsPhysicalDevice != false) {
       url = await LanBackendDiscovery.discover(
-        port: _defaultBackendPort,
+        ports: [_defaultBackendPort, 9000],
         allowEmulatorLoopbackFallback: false,
         perHostTimeout: const Duration(milliseconds: 900),
       );

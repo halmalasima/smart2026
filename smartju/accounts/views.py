@@ -32,6 +32,14 @@ class CustomTokenObtainPairView(TokenObtainPairView):
                 username = request.data.get("username")
                 user = User.objects.filter(username=username).first() or User.objects.filter(profile__phone_number=username).first()
                 if user:
+                    try:
+                        from dashboard.subscription_utils import ensure_trial_subscription, get_active_subscription
+
+                        if not get_active_subscription(user):
+                            ensure_trial_subscription(user, days=3)
+                    except Exception:
+                        pass
+
                     from logs.models import UserSession
                     from control_panel.models import ActivityLog
                     
@@ -360,6 +368,14 @@ def verify_otp_login(request):
     is_new = not user.first_name
 
     logger.info(f'[OTP Login] تسجيل دخول ناجح لـ {phone} (new={is_new})')
+
+    try:
+        from dashboard.subscription_utils import ensure_trial_subscription, get_active_subscription
+
+        if not get_active_subscription(user):
+            ensure_trial_subscription(user, days=3)
+    except Exception:
+        pass
 
     return Response({
         'access': str(refresh.access_token),

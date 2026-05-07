@@ -5,3 +5,6 @@ class ControlPanelConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
     name = "control_panel"
     verbose_name = "لوحة التحكم"
+
+    def ready(self):
+        from . import signals  # noqa: F401

@@ -1,77 +1,139 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>بوابة المواطن - SmartJudi</title>
-    <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Noto+Kufi+Arabic:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SmartJudi | الموقع التعريفي</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic:wght@300;400;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root{
+      --bg:#0b1220;--panel:rgba(255,255,255,.06);--border:rgba(255,255,255,.12);
+      --text:#eef2ff;--muted:rgba(238,242,255,.72);--brand:#6366f1;--brand2:#22c55e;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:'Noto Kufi Arabic',system-ui,Segoe UI,Roboto,Arial,sans-serif;
+      background:
+        radial-gradient(1100px 600px at 80% 10%, rgba(99,102,241,.25), transparent 60%),
+        radial-gradient(900px 500px at 20% 20%, rgba(34,197,94,.18), transparent 55%),
+        var(--bg);
+      color:var(--text);
+    }
+    .container{width:min(1100px,calc(100% - 40px));margin:0 auto}
+    header{position:sticky;top:0;z-index:10;background:rgba(11,18,32,.70);backdrop-filter:blur(14px);
+      border-bottom:1px solid var(--border);
+    }
+    .header-inner{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 0}
+    .brand{display:flex;align-items:center;gap:12px}
+    .mark{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;
+      background:linear-gradient(135deg,var(--brand),rgba(99,102,241,.25));border:1px solid var(--border);font-weight:800}
+    .brand-name{font-weight:800}
+    .brand-tag{font-size:12px;color:var(--muted)}
+    .nav{display:flex;gap:12px;flex-wrap:wrap}
+    .nav a{color:var(--muted);text-decoration:none;font-size:14px}
+    .nav a:hover{color:var(--text)}
+
+    .hero{padding:56px 0 32px}
+    .hero-inner{display:grid;grid-template-columns:1.3fr .9fr;gap:18px;align-items:start}
+    h1{margin:0 0 10px;font-size:34px;line-height:1.25}
+    .lead{margin:0 0 18px;color:var(--muted);font-size:15px;line-height:1.9}
+    .card{border:1px solid var(--border);background:var(--panel);border-radius:18px;padding:18px}
+    .cta{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;
+      padding:10px 14px;border-radius:12px;border:1px solid var(--border);
+      text-decoration:none;color:var(--text);font-weight:700}
+    .btn.primary{background:linear-gradient(135deg,var(--brand),rgba(99,102,241,.25));}
+    .btn.secondary{background:rgba(255,255,255,.04)}
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,'Liberation Mono',monospace;font-size:12px}
+    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}
+    .item{border:1px solid var(--border);background:rgba(255,255,255,.04);border-radius:16px;padding:14px}
+    .item-title{font-weight:800;margin-bottom:6px}
+    .item-text{color:var(--muted);font-size:13px;line-height:1.8}
+    .note{color:rgba(238,242,255,.55);font-size:12px;line-height:1.8;margin-top:12px}
+
+    footer{border-top:1px solid var(--border);padding:18px 0;color:rgba(238,242,255,.55);font-size:12px}
+    .foot-inner{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+
+    @media (max-width: 900px){
+      .hero-inner{grid-template-columns:1fr}
+      .grid{grid-template-columns:1fr}
+      h1{font-size:28px}
+    }
+  </style>
 </head>
-<body class="dark-theme">
-    <div class="app-container">
-        <!-- Sidebar -->
-        <aside class="sidebar">
-            <div class="logo">
-                <i class="fas fa-gavel"></i>
-                <span>SmartJudi</span>
-            </div>
-            <nav class="nav-menu">
-                <a href="#" class="nav-item active" data-view="library">
-                    <i class="fas fa-book-open"></i>
-                    <span>المكتبة القانونية</span>
-                </a>
-                <a href="#" class="nav-item" data-view="lawyers">
-                    <i class="fas fa-user-tie"></i>
-                    <span>البحث عن محامي</span>
-                </a>
-                <a href="#" class="nav-item" data-view="services">
-                    <i class="fas fa-concierge-bell"></i>
-                    <span>الخدمات العامة</span>
-                </a>
-                <a href="#" class="nav-item" data-view="profile">
-                    <i class="fas fa-user-circle"></i>
-                    <span>الملف الشخصي</span>
-                </a>
-            </nav>
-            <div class="sidebar-footer">
-                <a href="#" id="logout-btn" class="logout-link">
-                    <i class="fas fa-sign-out-alt"></i>
-                    <span>تسجيل الخروج</span>
-                </a>
-            </div>
-        </aside>
-
-        <!-- Main Content -->
-        <main class="main-content">
-            <header class="top-header">
-                <div class="header-search">
-                    <i class="fas fa-search"></i>
-                    <input type="text" placeholder="ابحث عن قوانين، إجراءات، أو محامين..." id="global-search">
-                </div>
-                <div class="header-actions">
-                    <button class="theme-toggle" id="theme-toggle">
-                        <i class="fas fa-moon"></i>
-                    </button>
-                    <div class="user-info">
-                        <span id="user-name">زائر</span>
-                        <img src="https://ui-avatars.com/api/?name=User&background=6366f1&color=fff" alt="Avatar" class="avatar">
-                    </div>
-                </div>
-            </header>
-
-            <div id="content-area" class="content-area">
-                <!-- Views will be injected here -->
-                <div class="loader-container" id="main-loader">
-                    <div class="loader"></div>
-                </div>
-            </div>
-        </main>
+<body>
+  <header>
+    <div class="container header-inner">
+      <div class="brand">
+        <div class="mark">SJ</div>
+        <div>
+          <div class="brand-name">SmartJudi</div>
+          <div class="brand-tag">الموقع التعريفي للمنصة</div>
+        </div>
+      </div>
+      <nav class="nav">
+        <a href="#about">عن المنصة</a>
+        <a href="#features">المميزات</a>
+        <a href="#links">روابط</a>
+      </nav>
     </div>
+  </header>
 
-    <script src="api.js"></script>
-    <script src="main.js"></script>
+  <main>
+    <section class="hero" id="about">
+      <div class="container hero-inner">
+        <div>
+          <h1>منصة SmartJudi لإدارة الخدمات القضائية بشكل حديث</h1>
+          <p class="lead">
+            هذه الصفحة تعريفيّة فقط (بدون ربط API). خدمات المنصة تعمل عبر بنية Microservices خلف الـ Gateway.
+          </p>
+          <div class="cta" id="links">
+            <a class="btn primary" href="http://localhost:8000/" target="_blank" rel="noreferrer">فتح Gateway</a>
+            <a class="btn secondary" href="http://localhost:8000/health/" target="_blank" rel="noreferrer">Health Check</a>
+          </div>
+          <div class="note">
+            إذا أردت ربط بوابة 9000 بالـ API لاحقًا، نحتاج إعداد Nginx Proxy لمسار <span class="mono">/api/</span> نحو <span class="mono">gateway:80</span>.
+          </div>
+        </div>
+
+        <div class="card">
+          <div style="font-weight:800;margin-bottom:10px">معلومات تشغيل سريعة</div>
+          <div class="item" style="margin-bottom:10px">
+            <div class="item-title">Gateway</div>
+            <div class="item-text"><span class="mono">http://localhost:8000</span></div>
+          </div>
+          <div class="item">
+            <div class="item-title">Portal</div>
+            <div class="item-text"><span class="mono">http://localhost:9000</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="container" id="features">
+        <div class="grid">
+          <div class="item">
+            <div class="item-title">Microservices</div>
+            <div class="item-text">خدمات مستقلة قابلة للتوسع عبر Nginx Gateway.</div>
+          </div>
+          <div class="item">
+            <div class="item-title">SaaS</div>
+            <div class="item-text">أدوار وخدمات وحدود استخدام وتجربة مجانية.</div>
+          </div>
+          <div class="item">
+            <div class="item-title">Control Panel</div>
+            <div class="item-text">إدارة الخدمات والصلاحيات والتحليلات من لوحة التحكم.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="container foot-inner">
+      <div>© SmartJudi</div>
+      <div>Microservices Portal</div>
+    </div>
+  </footer>
 </body>
 </html>

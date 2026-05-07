@@ -226,6 +226,10 @@ def _get_my_services(request):
     """
     from control_panel.models import RoleServicePermission, ServiceDefinition
     try:
+        from dashboard.subscription_utils import get_active_subscription
+    except Exception:
+        get_active_subscription = None
+    try:
         role = request.user.profile.role
     except Exception:
         role = 'citizen'
@@ -234,9 +238,18 @@ def _get_my_services(request):
         role=role, is_enabled=True, service__is_active=True
     ).select_related('service').order_by('service__sort_order')
 
+    sub = None
+    if get_active_subscription is not None:
+        try:
+            sub = get_active_subscription(request.user)
+        except Exception:
+            sub = None
+
     services = []
     for perm in permissions:
         svc = perm.service
+        if svc.is_premium and not sub:
+            continue
         services.append({
             'key': svc.key,
             'name_ar': svc.name_ar,
@@ -263,7 +276,13 @@ def _log_service_usage(request):
     POST /api/services/log-usage/
     Body: { "service_key": "chat", "duration_seconds": 120 }
     """
-    from control_panel.models import ServiceDefinition, ServiceUsageLog
+    from control_panel.models import RoleServicePermission, ServiceDefinition, ServiceUsageLog
+    from django.utils import timezone
+    from datetime import date
+    try:
+        from dashboard.subscription_utils import get_active_subscription
+    except Exception:
+        get_active_subscription = None
     service_key = request.data.get('service_key', '').strip()
     duration = request.data.get('duration_seconds', 0)
 
@@ -273,6 +292,46 @@ def _log_service_usage(request):
     service = ServiceDefinition.objects.filter(key=service_key).first()
     if not service:
         return DRFResponse({'error': 'Service not found'}, status=404)
+
+    try:
+        role = request.user.profile.role
+    except Exception:
+        role = 'citizen'
+
+    perm = RoleServicePermission.objects.filter(role=role, service=service).first()
+    if not perm or not perm.is_enabled:
+        return DRFResponse({'error': 'Service not allowed for this role'}, status=403)
+
+    sub = None
+    if get_active_subscription is not None:
+        try:
+            sub = get_active_subscription(request.user)
+        except Exception:
+            sub = None
+
+    if service.is_premium and not sub:
+        return DRFResponse({'error': 'Subscription required'}, status=403)
+
+    today = timezone.localdate()
+    month_start = date(today.year, today.month, 1)
+
+    if perm.max_daily_uses and perm.max_daily_uses > 0:
+        used_today = ServiceUsageLog.objects.filter(
+            user=request.user,
+            service=service,
+            accessed_at__date=today,
+        ).count()
+        if used_today >= perm.max_daily_uses:
+            return DRFResponse({'error': 'Daily limit exceeded'}, status=429)
+
+    if perm.max_monthly_uses and perm.max_monthly_uses > 0:
+        used_month = ServiceUsageLog.objects.filter(
+            user=request.user,
+            service=service,
+            accessed_at__date__gte=month_start,
+        ).count()
+        if used_month >= perm.max_monthly_uses:
+            return DRFResponse({'error': 'Monthly limit exceeded'}, status=429)
 
     # Detect device type
     ua = request.META.get('HTTP_USER_AGENT', '').lower()
@@ -321,8 +380,8 @@ urlpatterns = [
     re_path(r'^api/[a-z_]+/health/?$', health_check),
     path('portal/', health_check), # Health check for portal service
     
-    # Root endpoint - Redirect to Flutter Web App
-    path('', RedirectView.as_view(url='/app/', permanent=False), name='landing'),
+    # Root endpoint - Marketing/intro landing page
+    path('', intro_page, name='landing'),
     path('login/', RedirectView.as_view(url='/app/', permanent=False), name='custom-login'),
     path('register/', RedirectView.as_view(url='/app/', permanent=False), name='custom-register'),
     # Serve Flutter Web App

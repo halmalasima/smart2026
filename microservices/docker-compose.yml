@@ -386,6 +386,8 @@ services:
 
   portal:
     image: nginx:alpine
+    ports:
+      - "9000:80"
     volumes:
       - ./citizen_portal:/usr/share/nginx/html:ro
     networks: [smartjudi-net]

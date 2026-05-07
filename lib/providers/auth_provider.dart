@@ -53,13 +53,6 @@ class AuthProvider with ChangeNotifier, WidgetsBindingObserver {
         lastName: 'النظام',
         role: 'guest',
       );
-      
-      // بدء مؤقت لمدة دقيقتين
-      _guestTimer = Future.delayed(const Duration(minutes: 2), () {
-        if (_isGuest) {
-          logout();
-        }
-      });
     }
     notifyListeners();
   }
@@ -534,7 +527,6 @@ class AuthProvider with ChangeNotifier, WidgetsBindingObserver {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('access_token', accessToken);
       await prefs.setString('refresh_token', refreshToken);
-      await prefs.setString('saved_phone', phone);
 
       _apiService.setTokens(accessToken, refreshToken);
 

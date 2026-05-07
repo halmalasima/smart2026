@@ -11,11 +11,16 @@ import '../models/hearing_model.dart';
 class ApiService {
   String? _accessToken;
   String? _refreshToken;
+  void Function()? _onUnauthorized;
 
   // Set tokens after login
   void setTokens(String accessToken, String refreshToken) {
     _accessToken = accessToken;
     _refreshToken = refreshToken;
+  }
+
+  void setUnauthorizedHandler(void Function()? handler) {
+    _onUnauthorized = handler;
   }
 
   // ========== Cases API ==========
@@ -242,7 +247,23 @@ class ApiService {
         } catch (e) {
           print('❌ [API] JSON decode error: $e');
           print('❌ [API] Response body was: ${response.body}');
-          throw Exception('خطأ في قراءة البيانات من الخادم: ${e.toString()}');
+
+          final body = response.body.trimLeft();
+          final looksLikeHtml = body.startsWith('<!DOCTYPE html') || body.startsWith('<html');
+          if (looksLikeHtml) {
+            throw ApiException(
+              message: 'الخدمة غير متاحة حالياً (رد غير متوقع من الخادم)'
+                  ' [${response.statusCode}]',
+              code: ApiErrorCode.serverError,
+              statusCode: response.statusCode,
+            );
+          }
+
+          throw ApiException(
+            message: 'تعذر قراءة رد الخادم [${response.statusCode}]',
+            code: ApiErrorCode.serverError,
+            statusCode: response.statusCode,
+          );
         }
       }
 
@@ -259,6 +280,12 @@ class ApiService {
           if (refreshed) {
             return _makeRequest(method, endpoint, body: body, files: files);
           }
+        }
+
+        if (endpoint != ApiConfig.loginEndpoint) {
+          try {
+            _onUnauthorized?.call();
+          } catch (_) {}
         }
         final detail = responseData['detail']?.toString() ?? '';
         if (endpoint == ApiConfig.loginEndpoint ||
@@ -473,6 +500,7 @@ class ApiService {
     String? email,
     String? phoneNumber,
     String? address,
+    String? role,
   }) async {
     try {
       final body = <String, dynamic>{};
@@ -480,6 +508,7 @@ class ApiService {
       if (lastName != null) body['last_name'] = lastName;
       if (email != null) body['email'] = email;
       if (phoneNumber != null) body['phone_number'] = phoneNumber;
+      if (role != null) body['role'] = role;
       // Note: address might need to be added to UserProfile model
       
       final response = await _makeRequest(

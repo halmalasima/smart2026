@@ -56,7 +56,6 @@ import 'screens/change_password_screen.dart';
 import 'screens/case_detail_screen.dart';
 import 'screens/messages_list_screen.dart';
 import 'screens/chat_screen.dart';
-import 'screens/citizen_dashboard_screen.dart';
 import 'screens/create_sub_account_screen.dart';
 import 'screens/archive_screen.dart';
 import 'screens/otp_verification_screen.dart';
@@ -185,7 +184,6 @@ class MyApp extends StatelessWidget {
                 return CaseDetailScreen(caseId: args['id'] as int);
               },
               '/messages': (context) => const MessagesListScreen(),
-              '/citizen-dashboard': (context) => const CitizenDashboardScreen(),
               '/create-sub-account': (context) => const CreateSubAccountScreen(),
               '/verify-otp': (context) {
                 final phone = ModalRoute.of(context)!.settings.arguments as String? ?? '';
@@ -228,6 +226,7 @@ class AuthWrapper extends StatefulWidget {
 
 class _AuthWrapperState extends State<AuthWrapper> {
   late bool _showingOnboarding;
+  bool _unauthorizedHandlerAttached = false;
 
   @override
   void initState() {
@@ -249,6 +248,21 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
     final authProvider = Provider.of<AuthProvider>(context);
 
+    if (!_unauthorizedHandlerAttached) {
+      _unauthorizedHandlerAttached = true;
+      authProvider.apiService.setUnauthorizedHandler(() {
+        if (!mounted) return;
+        final currentRoute = ModalRoute.of(context)?.settings.name;
+        if (currentRoute == '/login') return;
+        Navigator.of(context).pushNamed(
+          '/login',
+          arguments: {
+            if (currentRoute != null) 'redirect': currentRoute,
+          },
+        );
+      });
+    }
+
     if (authProvider.isLoading) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
@@ -256,15 +270,10 @@ class _AuthWrapperState extends State<AuthWrapper> {
     }
 
     if (!authProvider.isAuthenticated) {
-      return const LoginScreen();
+      authProvider.setGuestMode(true);
     }
 
-    // Role-based redirection
-    final user = authProvider.currentUser;
-    if (user != null && user.role == 'citizen') {
-      return const CitizenDashboardScreen();
-    }
-
+    // In guest mode we still allow app entry. Specific screens/APIs will prompt login on 401.
     return const HomeScreen();
   }
 }

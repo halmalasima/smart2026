@@ -13,8 +13,9 @@ class LanBackendDiscovery {
   static const int _batchSize = 40;
 
   /// [allowEmulatorLoopbackFallback]: على false لا يُعاد `http://10.0.2.2` (للهاتف الحقيقي).
+  /// تجرب منافذ متعددة (مثلاً 9000 للبوابة ثم 8000 لـ Django) حتى لا يختار التطبيق منفذًا خاطئًا.
   static Future<String?> discover({
-    int port = 8000,
+    List<int> ports = const [9000, 8000],
     bool allowEmulatorLoopbackFallback = true,
     Duration? perHostTimeout,
   }) async {
@@ -24,22 +25,36 @@ class LanBackendDiscovery {
     final perRequest = perHostTimeout ?? _defaultPerRequest;
     final wifiIp = _normalizeWifiIp(await NetworkInfo().getWifiIP());
 
+    // محاكي Android: تأكّد أن المنفذ يستجيب لـ GET /health/ قبل اعتماده
     if (Platform.isAndroid &&
         wifiIp != null &&
         wifiIp.startsWith('10.0.2.')) {
-      return 'http://10.0.2.2:$port';
+      for (final port in ports) {
+        final hit = await _tryBase('10.0.2.2', port, perRequest);
+        if (hit != null) return hit;
+      }
+      if (allowEmulatorLoopbackFallback && ports.isNotEmpty) {
+        return 'http://10.0.2.2:${ports.first}';
+      }
+      return null;
     }
 
-    if (wifiIp != null && _isPrivateLanIpv4(wifiIp)) {
-      final hit = await _scanSubnet24(wifiIp, port, perRequest);
-      if (hit != null) return hit;
+    for (final port in ports) {
+      if (wifiIp != null && _isPrivateLanIpv4(wifiIp)) {
+        final hit = await _scanSubnet24(wifiIp, port, perRequest);
+        if (hit != null) return hit;
+      }
+
+      final fallback = await _scanFallbackPrefixes(port, perRequest);
+      if (fallback != null) return fallback;
     }
 
-    final fallback = await _scanFallbackPrefixes(port, perRequest);
-    if (fallback != null) return fallback;
-
-    if (Platform.isAndroid && allowEmulatorLoopbackFallback) {
-      return 'http://10.0.2.2:$port';
+    if (Platform.isAndroid && allowEmulatorLoopbackFallback && ports.isNotEmpty) {
+      for (final port in ports) {
+        final hit = await _tryBase('10.0.2.2', port, perRequest);
+        if (hit != null) return hit;
+      }
+      return 'http://10.0.2.2:${ports.first}';
     }
     return null;
   }
@@ -158,15 +173,21 @@ class LanBackendDiscovery {
     Duration perRequest,
   ) async {
     // محاولة عدة مسارات للتأكد من الوصول
-    final paths = ['/health/', '/health', '/api/health/'];
-    
+    final paths = [
+      '/health/',
+      '/health',
+      '/api/health/',
+      '/api/ai/health/',
+    ];
+
     for (final path in paths) {
       final uri = Uri.parse('http://$host:$port$path');
       try {
         final r = await http.get(uri).timeout(perRequest);
         if (r.statusCode == 200) {
           final b = r.body;
-          if (b.contains('"status"') && b.contains('ok')) {
+          if (b.contains('"status"') &&
+              (b.contains('ok') || b.contains('"ok"'))) {
             return 'http://$host:$port';
           }
         }

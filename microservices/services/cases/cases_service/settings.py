@@ -34,6 +34,7 @@ INSTALLED_APPS = [
     'django_filters',
     'drf_yasg',
     # Service apps
+    'courts',
     'lawsuits',
     'parties',
     'responses',
